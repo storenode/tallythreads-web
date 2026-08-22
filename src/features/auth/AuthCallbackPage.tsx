@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabaseAuthClient } from "@/lib/supabaseAuthClient";
-import { db, type Member } from "@/db";
-import { setMemberJwt } from "@/lib/memberSession";
+import { getDeviceId } from "@/lib/deviceId";
+import { cacheActiveMember } from "@/lib/memberSession";
+import type { Member } from "@/db";
 
 interface MintResponse {
   jwt: string;
-  member: Omit<Member, keyof import("@/db").SyncMeta | "pin">;
+  member: Omit<Member, "jwt" | "is_active" | "cached_at">;
 }
 
 const log = (...args: unknown[]) => console.log("[AuthCallbackPage]", ...args);
@@ -14,8 +15,11 @@ const log = (...args: unknown[]) => console.log("[AuthCallbackPage]", ...args);
 /**
  * Lands here after Google's consent screen redirects back through Supabase.
  * supabase-js parses the session from the URL automatically (detectSessionInUrl).
- * From there: call mint-member-session with that disposable OAuth session's token,
- * cache the returned member profile + JWT, discard the OAuth session, done.
+ * From there: call mint-member-session with that disposable OAuth session's token
+ * (plus this device's id, so the server can enroll it), cache the returned member
+ * profile + JWT, discard the OAuth session, then always route through PIN creation —
+ * every Google sign-in on a device (first-ever or repeat) forces a fresh PIN for that
+ * device, per specs/tasks/M1a-identity-auth.md Task 2.
  */
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
@@ -48,10 +52,14 @@ export default function AuthCallbackPage() {
         return;
       }
 
+      const deviceId = getDeviceId();
       log("invoking mint-member-session with access_token prefix", session.access_token.slice(0, 12));
       const { data, error: fnError } = await supabaseAuthClient.functions.invoke<MintResponse>(
         "mint-member-session",
-        { headers: { Authorization: `Bearer ${session.access_token}` } },
+        {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: { device_id: deviceId },
+        },
       );
       log("mint-member-session ->", { data, fnError });
       if (fnError && "context" in fnError && fnError.context instanceof Response) {
@@ -76,19 +84,9 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      const now = new Date().toISOString();
-      await db.members.clear();
-      await db.members.add({
-        _localId: crypto.randomUUID(),
-        _dirty: 0,
-        last_modified_at: now,
-        deleted_at: null,
-        pin: null,
-        ...data.member,
-      });
-      setMemberJwt(data.jwt);
-      log("member cached, navigating to /app/bill");
-      navigate("/app/bill", { replace: true });
+      await cacheActiveMember(data.member, data.jwt);
+      log("member cached, navigating to PIN creation");
+      navigate("/auth/set-pin", { replace: true });
     }
 
     run();

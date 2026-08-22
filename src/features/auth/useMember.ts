@@ -1,6 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Member } from "@/db";
-import { getMemberJwt } from "@/lib/memberSession";
 
 export interface MemberState {
   member: Member | undefined;
@@ -11,9 +10,9 @@ export interface MemberState {
 const PENDING = Symbol("pending");
 
 /**
- * Offline-capable: reads the cached member profile straight from Dexie, no network
- * call. A member counts as signed in only if both the cached profile AND the stored
- * JWT are present — either alone isn't a valid session.
+ * Offline-capable: reads the cached *active* member profile straight from Dexie, no
+ * network call. The JWT lives on the row itself (see memberSession.ts), so a member
+ * counts as signed in whenever an active row exists at all.
  *
  * Uses a distinct PENDING sentinel as the useLiveQuery default, rather than
  * `undefined` — an empty (never-signed-in) result is also `undefined` once the query
@@ -21,14 +20,14 @@ const PENDING = Symbol("pending");
  */
 export function useMember(): MemberState {
   const result = useLiveQuery<Member | null, typeof PENDING>(
-    () => db.members.toCollection().first().then((m) => m ?? null),
+    () => db.members.where("is_active").equals(1).first().then((m) => m ?? null),
     [],
     PENDING,
   );
 
   const isLoading = result === PENDING;
   const member = isLoading || result === null ? undefined : result;
-  const isSignedIn = Boolean(member && getMemberJwt());
+  const isSignedIn = Boolean(member?.jwt);
 
   return { member, isLoading, isSignedIn };
 }

@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/ui/Logo";
+import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { GoogleSignInButton } from "@/features/home/components/GoogleSignInButton";
 import { useScrollY } from "@/hooks/useScrollY";
@@ -12,6 +13,7 @@ const navLinks = [
 
 export function Navbar() {
   const scrollY = useScrollY();
+  const navigate = useNavigate();
   const isScrolled = scrollY > (typeof window !== "undefined" ? window.innerHeight * 0.7 : 500);
 
   return (
@@ -41,6 +43,11 @@ export function Navbar() {
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
+          <div className="hidden sm:block">
+            <Button variant="ghost" size="md" onClick={() => navigate("/login")}>
+              Sign In
+            </Button>
+          </div>
           <div className="hidden sm:block">
             <GoogleSignInButton />
           </div>

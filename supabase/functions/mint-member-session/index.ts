@@ -7,36 +7,20 @@
 // Google's stable `sub` claim, and mints StoreParda's own JWT (sub = members.id) so RLS's
 // auth.uid() works against `members`, not `auth.users`.
 //
-// See specs/tasks/M1-auth-google.md for the full design.
+// It also enrolls the calling device: every completed Google sign-in upserts a `devices` row
+// for (device_id, member_id), stamping last_seen_at/last_login_location. Per
+// M1a-identity-auth.md, every Google sign-in — first-ever or repeat — forces the client to
+// (re)set that device's PIN next, so this function never returns an existing PIN's state.
+//
+// See specs/tasks/M1-auth-google.md and specs/tasks/M1a-identity-auth.md for the full design.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SignJWT } from "npm:jose@5";
+import { corsHeaders, json } from "../_shared/cors.ts";
+import { mintMemberJwt } from "../_shared/jwt.ts";
+import { captureLoginLocation } from "../_shared/pin.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-// Not SUPABASE_JWT_SECRET — the SUPABASE_ prefix is reserved for the platform's own
-// auto-injected vars and `supabase secrets set` refuses to accept it.
-const JWT_SECRET = Deno.env.get("APP_JWT_SECRET")!;
-
-const JWT_TTL_SECONDS = 60 * 60; // 1 hour — see spec's open question on refresh strategy
-
-// Edge Functions don't add CORS headers automatically — the browser calls this
-// cross-origin (localhost:5173 / the deployed app origin -> *.supabase.co), and
-// without these every request is blocked at the preflight stage before the function
-// code even runs. Wide open (`*`) for now; narrowing to the real app origin(s) is
-// worth doing before this goes to real users.
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  // x-client-info and x-supabase-api-version are added automatically by
-  // supabase-js's functions.invoke() — missing either here fails preflight.
-  "Access-Control-Allow-Headers":
-    "authorization, apikey, content-type, x-client-info, x-supabase-api-version",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-function json(body: unknown, status = 200) {
-  return Response.json(body, { status, headers: corsHeaders });
-}
 
 async function handle(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") {
@@ -53,11 +37,21 @@ async function handle(req: Request): Promise<Response> {
   }
   const callerToken = authHeader.slice("Bearer ".length);
 
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !JWT_SECRET) {
+  let deviceId: string | undefined;
+  try {
+    const body = await req.json();
+    deviceId = typeof body?.device_id === "string" ? body.device_id : undefined;
+  } catch {
+    // No/invalid JSON body — deviceId stays undefined, handled below.
+  }
+  if (!deviceId) {
+    return json({ error: "Missing device_id" }, 400);
+  }
+
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     console.error("Missing env vars:", {
       hasUrl: Boolean(SUPABASE_URL),
       hasServiceRole: Boolean(SERVICE_ROLE_KEY),
-      hasJwtSecret: Boolean(JWT_SECRET),
     });
     return json({ error: "Function misconfigured (missing env vars)" }, 500);
   }
@@ -103,7 +97,7 @@ async function handle(req: Request): Promise<Response> {
   const { data: member, error: upsertError } = await admin
     .from("members")
     .upsert(profile, { onConflict: "google_id" })
-    .select("id, google_id, google_email, email_verified, first_name, last_name, avatar_url, locale")
+    .select("id, google_id, google_email, email_verified, first_name, last_name, avatar_url, locale, platform_role")
     .single();
 
   if (upsertError || !member) {
@@ -119,19 +113,34 @@ async function handle(req: Request): Promise<Response> {
     );
   }
 
+  // Enroll this (device_id, member_id) pair. Composite-unique, so a shared physical
+  // device can carry independent enrollments for multiple members — see
+  // M1a-identity-auth.md's shared-devices note.
+  const now = new Date().toISOString();
+  const location = captureLoginLocation(req);
+  const { error: deviceError } = await admin
+    .from("devices")
+    .upsert(
+      {
+        device_id: deviceId,
+        member_id: member.id,
+        last_seen_at: now,
+        last_login_location: location,
+      },
+      { onConflict: "device_id,member_id", ignoreDuplicates: false },
+    );
+
+  if (deviceError) {
+    console.error("devices upsert failed:", deviceError);
+    return json(
+      { error: "Failed to enroll device", detail: deviceError.message, code: deviceError.code },
+      500,
+    );
+  }
+
   // Mint StoreParda's own JWT: sub = members.id, not the auth.users id. RLS's auth.uid()
   // reads this sub claim regardless of whether that id exists in auth.users.
-  const secretKey = new TextEncoder().encode(JWT_SECRET);
-  const now = Math.floor(Date.now() / 1000);
-  const jwt = await new SignJWT({
-    role: "authenticated",
-    aud: "authenticated",
-  })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setSubject(member.id)
-    .setIssuedAt(now)
-    .setExpirationTime(now + JWT_TTL_SECONDS)
-    .sign(secretKey);
+  const jwt = await mintMemberJwt(member.id);
 
   return json({ jwt, member });
 }

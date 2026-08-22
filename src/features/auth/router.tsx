@@ -1,4 +1,5 @@
 import type { RouteObject } from "react-router-dom";
+import { AuthGuard } from "@/features/auth/AuthGuard";
 
 export const authRoutes: RouteObject[] = [
   {
@@ -6,5 +7,39 @@ export const authRoutes: RouteObject[] = [
     lazy: async () => ({
       Component: (await import("./AuthCallbackPage")).default,
     }),
+  },
+  {
+    // Unified sign-in destination (PIN + Google fallback) — see
+    // specs/tasks/M1a-identity-auth.md Task 3. Replaces the old standalone /auth/pin.
+    path: "/login",
+    lazy: async () => ({
+      Component: (await import("./LoginPage")).default,
+    }),
+  },
+  {
+    // Requires a signed-in member (just came from Google or PIN sign-in) — AuthGuard
+    // reads the cached active member, offline-capable like the /app/* guard.
+    path: "/auth/set-pin",
+    element: <AuthGuard />,
+    children: [
+      {
+        index: true,
+        lazy: async () => ({
+          Component: (await import("./SetPinPage")).default,
+        }),
+      },
+    ],
+  },
+  {
+    path: "/no-store",
+    element: <AuthGuard />,
+    children: [
+      {
+        index: true,
+        lazy: async () => ({
+          Component: (await import("./NoStoreAssignedPage")).default,
+        }),
+      },
+    ],
   },
 ];

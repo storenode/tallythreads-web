@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { signInWithGoogle } from "@/features/auth/signIn";
 
-export function GoogleSignInButton({ className = "" }: { className?: string }) {
+interface GoogleSignInButtonProps {
+  className?: string;
+  /**
+   * Default is "Sign up with Google" — this button is the account-creation path
+   * (M1a-identity-auth.md Task 3: Sign Up is Google-only). Pass "Sign in with
+   * Google" where it's offered as a secondary option to an already-registered
+   * user, e.g. on the unified /login page.
+   */
+  label?: string;
+}
+
+export function GoogleSignInButton({ className = "", label = "Sign up with Google" }: GoogleSignInButtonProps) {
   const [isPending, setIsPending] = useState(false);
 
   async function handleClick() {
@@ -40,7 +51,7 @@ export function GoogleSignInButton({ className = "" }: { className?: string }) {
           d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .9 4.97l3.05 2.33C4.66 5.17 6.65 3.58 9 3.58z"
         />
       </svg>
-      {isPending ? "Redirecting…" : "Sign in with Google"}
+      {isPending ? "Redirecting…" : label}
     </button>
   );
 }

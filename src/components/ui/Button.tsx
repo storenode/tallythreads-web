@@ -5,11 +5,11 @@ type Size = "md" | "lg";
 
 const variantClasses: Record<Variant, string> = {
   primary:
-    "bg-parda-green-500 text-white hover:bg-parda-green-600 shadow-sm shadow-parda-green-500/20",
+    "bg-parda-green-500 text-white hover:enabled:bg-parda-green-600 shadow-sm shadow-parda-green-500/20 disabled:bg-fg-muted disabled:text-bg disabled:shadow-none",
   secondary:
-    "bg-parda-lavender-500 text-white hover:bg-parda-lavender-600 shadow-sm shadow-parda-lavender-500/20",
+    "bg-parda-lavender-500 text-white hover:enabled:bg-parda-lavender-600 shadow-sm shadow-parda-lavender-500/20 disabled:bg-fg-muted disabled:text-bg disabled:shadow-none",
   ghost:
-    "bg-transparent text-fg border border-border hover:bg-surface-2",
+    "bg-transparent text-fg border border-border hover:enabled:bg-surface-2 disabled:text-fg-muted disabled:border-border/60",
 };
 
 const sizeClasses: Record<Size, string> = {
@@ -32,7 +32,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-colors ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-full font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
       {...props}
     >
       {children}

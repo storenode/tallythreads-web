@@ -14,5 +14,5 @@ import { getMemberJwt } from "@/lib/memberSession";
  * uses the separate plain client in supabaseAuthClient.ts, not this one.
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  accessToken: async () => getMemberJwt(),
+  accessToken: getMemberJwt,
 });

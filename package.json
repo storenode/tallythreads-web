@@ -12,6 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
+    "supabase:login": "supabase login",
+    "supabase:db:push": "supabase db push",
+    "supabase:fn:deploy": "supabase functions deploy",
     "supabase:check": "node scripts/check-supabase-connection.js"
   },
   "dependencies": {

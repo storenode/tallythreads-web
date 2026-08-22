@@ -1,9 +1,12 @@
+import { useNavigate } from "react-router-dom";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { GoogleSignInButton } from "@/features/home/components/GoogleSignInButton";
 import { HeroBackground } from "@/features/home/components/HeroBackground";
 
 export function Hero() {
+  const navigate = useNavigate();
+
   return (
     <section className="relative flex min-h-[90vh] items-center pt-24">
       <HeroBackground />
@@ -29,6 +32,9 @@ export function Hero() {
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <GoogleSignInButton />
+            <Button variant="ghost" size="md" onClick={() => navigate("/login")}>
+              Sign In
+            </Button>
             <Button
               variant="ghost"
               size="md"

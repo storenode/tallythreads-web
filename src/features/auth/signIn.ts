@@ -11,6 +11,10 @@ export async function signInWithGoogle() {
     provider: "google",
     options: {
       redirectTo: `${window.location.origin}/auth/callback`,
+      // Without this, Google silently reuses whichever Google account is already
+      // signed in on the browser instead of showing the account chooser — a real
+      // problem for a shared store device where staff need to switch accounts.
+      queryParams: { prompt: "select_account" },
     },
   });
 

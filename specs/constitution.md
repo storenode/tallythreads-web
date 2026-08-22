@@ -1,6 +1,6 @@
 # StoreParda — Project Constitution
 
-**Version:** 1.0.0 · **Ratified:** 2026-08-18 · **Status:** Active
+**Version:** 1.3.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-08-21 · **Status:** Active
 
 This document is the source of truth for how StoreParda is built. Any human contributor
 or AI coding agent (Claude Code, etc.) working on this repo MUST read this file first and
@@ -17,7 +17,7 @@ explicitly (see §8), don't drift from it in a pull request.
 | **Name**                | StoreParda                                                                                                                                                                                                                                                                                                                                        |
 | **Spelling**            | `Parda` (from Hindi/Urdu _पर्दा_ / پردہ — "curtain, veil, reveal"). **NEVER** `Parada` — that spelling collides phonetically with the Prada trademark (confirmed: PRADA S.A. has litigated over marks as distant as "RADA"). Any AI agent encountering "Parada" in a prompt, ticket, or comment should treat it as a typo and correct to "Parda". |
 | **Domain**              | `storeparda.in`                                                                                                                                                                                                                                                                                                                                   |
-| **Target market**       | Independent cloth/garment retail stores in India (v1 only — see §2.II)                                                                                                                                                                                                                                                                            |
+| **Target market**       | Independent, multi-store/chain, and franchise cloth/garment retailers in India (v1 build target — see §2.II, §2.IX, §3)                                                                                                                                                                                                                           |
 | **Core differentiator** | The Purchase-Trip module — landed-cost tracking for owners who travel to source stock (Surat, Kerala, Bangladesh, etc.) before it ever reaches the shop                                                                                                                                                                                           |
 | **Brand colors**        | Green `#2FBF71` · Lavender `#7B7FE0`                                                                                                                                                                                                                                                                                                              |
 | **Tagline**             | "వస్త్ర దుకాణాల ఆపరేటింగ్ సిస్టమ్" / "Cloth store operating system"                                                                                                                                                                                                                                                                               |
@@ -37,6 +37,12 @@ explicitly (see §8), don't drift from it in a pull request.
   no cloud resources, no dependencies should ever touch employer-owned infrastructure.
 - The first customers are two family-run pilot stores (Nellore, Tirupati) — free,
   low-stakes, high-trust testing ground before any external sale.
+- **Two distinct owner roles exist and must not be conflated:** the **Platform Owner**
+  (the founder, operating StoreParda itself as a SaaS product) and a **Store Owner**
+  (a StoreParda customer who owns/runs one or more stores). Platform-level access is
+  never store-scoped, and store-level access is never automatically platform-wide.
+  Detailed identity/role mechanics live in the `M1-auth-*` module specs, not here —
+  this file only fixes the principle that the two are separate.
 
 ---
 
@@ -58,6 +64,10 @@ vertical-specific fields, flows, or copy for other industries until v1 has valid
 product-market fit in cloth retail with real paying customers. If expansion ever happens,
 it happens as a deliberate rebrand decision, not a scope-creep accident.
 
+Note this is a **vertical** boundary (what kind of retail — cloth vs. jewelry/furniture),
+distinct from the **store-model** boundary in §2.IX (independent vs. chain vs. franchise,
+etc., all still cloth retail). Widening §2.IX's store-model scope is not a §2.II violation.
+
 ### III. Open-Source Only, No License Fees
 
 Every library in the stack must be permissively licensed (MIT, Apache 2.0, ISC, BSD).
@@ -73,24 +83,48 @@ anyone switches. The Purchase-Trip → Landed-Cost → MRP flow is the one thing
 competitor offers. If time runs short, cut AI Studio, cut advanced reports — **never**
 cut or under-invest in this module.
 
+This module assumes a store owner who personally selects and buys their own stock — true
+for the Independent and Multi-store/chain models in scope for v1. It is **not** assumed to
+apply to Franchise, EBO, MBO, or Wholesale models (§2.IX) — those typically receive
+inventory decisions from a franchisor/brand rather than sourcing it themselves. A
+franchise store (now also in v1 scope, §2.IX) gets a **goods-received-from-franchisor**
+flow instead of Purchase-Trip — a different module, not a variant of this one. Whoever
+designs a later phase for Wholesale should likewise treat Purchase-Trip as
+optional-per-store-type, not force-fit it.
+
 ### V. Test the Money Logic
 
-Two pieces of business logic touch money directly and must have unit test coverage
+Three pieces of business logic touch money directly and must have unit test coverage
 before anything ships to a real store:
 
 1. **GST slab calculation** (`lib/gstCalc.ts`) — ₹2,500 per-piece threshold, including the
    discount-drops-price-below-threshold edge case.
 2. **Landed cost calculation** (`lib/landedCost.ts`) — trip expenses distributed across lots.
+3. **Franchise settlement calculation** (`lib/franchiseSettlement.ts`) — added 2026-08-21
+   once a real franchise case existed (Bandrip, see §8). Computes the stock-replacement
+   share and royalty a franchise store owes its franchisor: e.g. Bandrip's 50% stock
+   share, plus 13% royalty calculated on the _remainder after that share_ (not gross —
+   corrected 2026-08-21) once monthly revenue crosses ₹3,00,000. This is still a
+   **cliff**, not a slab — crossing the threshold taxes the whole month's post-share
+   remainder, not just the excess — which must be tested explicitly, the same way
+   `gstCalc.ts` tests the discount-drops-below-threshold edge case. Confirm the exact
+   boundary (`>` vs. `>=` ₹3,00,000) and the revenue basis (gross vs. taxable value)
+   against the real signed agreement before writing the tests, not after. Full worked
+   example: `store-model-master-plan.md` §5.
 
-A bug here either overcharges a customer (trust destroyed instantly) or misprices stock
-(silent margin erosion the owner won't notice for months). No exceptions.
+A bug here either overcharges a customer (trust destroyed instantly), misprices stock
+(silent margin erosion the owner won't notice for months), or mis-settles a franchise
+relationship (a partner shortchanged or overcharged every month, discovered only when
+someone finally reconciles by hand). No exceptions.
 
 ### VI. Ship The Thinnest Slice That Proves The Model
 
 Scope for v1 (P1) is deliberately narrow: Purchase Trips, Inventory + Barcode, Billing +
-GST, basic Reports, Settings. AI Studio (Claude-powered descriptions, video scripts, review
-summarization), loyalty programs, and multi-store chain features are P2 — built only after
-the Nellore/Tirupati pilot generates real usage data and a real feature request list.
+GST, basic Reports, Settings, plus (as of 2026-08-21) Franchise settlement and
+goods-received-from-franchisor, since a real franchise case exists (§2.IX, §8). AI Studio
+(Claude-powered descriptions, video scripts, review summarization), loyalty programs, and
+the two remaining deferred store models in §2.IX (Wholesale, Omnichannel) are P2+ — built
+only after the pilot stores generate real usage data and a real feature request list.
 
 ### VII. No Store Prefix, No Generic Names — But Don't Re-litigate Naming
 
@@ -105,18 +139,58 @@ Every module estimate in §5 assumes a 10 hr/week solo pace. Before adding any f
 not listed in the P1 backlog, ask: does this delay the Nellore/Tirupati pilot? If yes,
 it does not belong in v1.
 
+### IX. Store Model Extensibility — Build Two, Architect for Eight
+
+StoreParda recognizes eight store models found in Indian cloth/garment retail:
+
+1. Independent/standalone store
+2. Multi-store / chain
+3. Franchise
+4. Exclusive Brand Outlet (EBO)
+5. Multi-Brand Outlet (MBO)
+6. Wholesale / distributor
+7. Boutique / designer label
+8. Omnichannel / online-plus-physical
+
+**Phase 1 (v1) builds and ships UI/workflow for six of the eight: #1 Independent,
+#2 Multi-store/chain, and #3 Franchise** (added 2026-08-21 — Bandrip, the founder's
+family's own franchise store, is a real near-term case, not a hypothetical; see §8).
+**#4 EBO, #5 MBO, and #7 Boutique ride along as low-cost variants** rather than needing
+separate tenancy work: EBO is #2's ownership shape (company-owned) or #3's (franchisee-
+owned) plus a brand label; MBO and Boutique are product-catalog flexibility (M3), not a
+tenancy concern. **Only #6 Wholesale/distributor and #8 Omnichannel remain explicitly
+deferred** (no UI, no workflow, no feature work in v1) — see §3.
+
+**The data model and core architecture must not assume there will only ever be these
+six.** Concretely: a `stores` table's ownership relationship must not hard-code "exactly
+one owner, exactly one store" (multi-store/chain and franchise both break that in v1);
+and the identity/hierarchy structure being built for #1–#3 (owner ↔ store links, invites,
+roles, and a generalized `access_grants` primitive rather than a franchise-specific one —
+see `store-model-master-plan.md`) should be shaped so that a wholesale/distributor link
+or an omnichannel sales channel can attach to it later as additional structure, not as a
+schema rewrite. §6 has the specific architecture rule this implies; §2.IV explains why
+Purchase-Trip is not assumed mandatory for Franchise or Wholesale.
+
 ---
 
 ## 3. Non-Goals for v1 (Explicitly Out of Scope)
 
 - ❌ React Native mobile app (deferred until PWA validates the model; revisit once
-  revenue justifies the native-app investment — see §8 for the reasoning trail)
+  revenue justifies the native-app investment — see §8 for the reasoning trail). The
+  auth/identity design should stay usable from a future native client without rework
+  (see `M1-auth-google.md`), even though no mobile client is built in v1.
 - ❌ AI Studio (Claude-powered video scripts, review collection, trend analysis)
-- ❌ Multi-vertical support (jewelry, furniture, footwear)
+- ❌ Multi-vertical support (jewelry, furniture, footwear) — see §2.II
+- ❌ Wholesale/distributor and Omnichannel store models (§2.IX, items #6 and #8) — no UI
+  or workflow built for these in v1; the data model must not preclude them later (§2.IX, §6)
 - ❌ Loyalty programs, staff commission tracking
-- ❌ Multi-store chain / franchise features beyond basic multi-store data isolation
 - ❌ Payment gateway integration beyond recording payment mode (cash/UPI/card) —
   no card data storage, no PCI scope, ever
+
+**Multi-store/chain and Franchise (§2.IX items #2 and #3) are now in v1 scope** — see the
+2026-08-21 changelog entries in §8. Both were previously listed here as non-goals; those
+lines have been superseded. Franchise moved in specifically because a real case exists
+(Bandrip), not as a speculative expansion — see §2.IX.
 
 ---
 
@@ -155,24 +229,32 @@ it does not belong in v1.
 
 ## 5. Module Roadmap (Reference: full backlog in `storeparda-techstack-tasks.html`)
 
-| Module    | Scope                                                | Est. hours                                                 |
-| --------- | ---------------------------------------------------- | ---------------------------------------------------------- |
-| M0        | Project foundation, PWA config, CI                   | 8                                                          |
-| M0.5      | Public home portal (landing page + Google Sign-In entry point) | 6                                                |
-| M1        | Supabase schema, RLS, Auth (phone OTP + Google Sign-In) | 18                                                       |
-| M2        | **Offline sync engine** (Dexie ⇄ Supabase push/pull) | 62                                                         |
-| M3        | Inventory, variant matrix, barcode                   | 36                                                         |
-| M4        | **Purchase-Trip module** (landed cost engine)        | 52                                                         |
-| M5        | Billing/POS, GST calc, printing                      | 58                                                         |
-| M6        | GST reports, GSTR export                             | 24                                                         |
-| M7        | Settings, onboarding                                 | 16                                                         |
-| M8        | PWA polish, offline UX, shadow-mode pilot test       | 30                                                         |
-| M9        | Launch prep                                          | 16                                                         |
-| **Total** |                                                      | **326 hrs (~33 weeks @ 10 hr/wk, ~9–10 months w/ buffer)** |
+| Module    | Scope                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Est. hours                                                  |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| M0        | Project foundation, PWA config, CI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | 8                                                           |
+| M1        | Identity, tenancy, franchise linkage & settlement engine, RLS — five sub-phases (M1a–M1e) fully speced in `M1-task-plan.md`. Covers: Google Sign-in + device-gated PIN (`M1-auth-google.md`); `organizations`/`stores`/`memberships`/`store_invitations`/`access_grants`/`channels` (`M1-core-tenancy-schema.md`); `stock_locations`/`stock_transfers` and `franchise_groups`/`franchise_memberships` plus the settlement rule engine (`M1-franchise-model.md`); full column reference in `M1-schema-reference.md`; RLS across all of it, including the `stock_transfers` org/franchise-link validation (§8) | 102                                                         |
+| M2        | **Offline sync engine** (Dexie ⇄ Supabase push/pull)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 62                                                          |
+| M3        | Inventory, variant matrix, barcode                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | 36                                                          |
+| M4        | **Purchase-Trip module** (landed cost engine)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 52                                                          |
+| M5        | Billing/POS, GST calc, printing                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | 58                                                          |
+| M6        | GST reports, GSTR export                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 24                                                          |
+| M7        | Settings, onboarding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 16                                                          |
+| M8        | PWA polish, offline UX, shadow-mode pilot test                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | 30                                                          |
+| M9        | Launch prep                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 16                                                          |
+| **Total** |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | **404 hrs (~40 weeks @ 10 hr/wk, ~11–12 months w/ buffer)** |
 
 **Sequencing rule:** M2 must be stable and tested before M3, M4, or M5 begin in earnest.
 Building inventory/billing/trip features on top of an unstable sync layer means rework
 later — the foundation is not allowed to be "good enough for now."
+
+**M1's hour estimate is now finalized at 102h** (was 18h, flagged as stale across
+several earlier passes). The increase is real, driven by real scope — Google Sign-in +
+PIN, the full `organizations`/`stores`/`memberships`/`access_grants` tenancy skeleton,
+central stock distribution, franchise linkage, the settlement rule engine, and RLS across
+all of it — not speculative padding, and not something to silently absorb: the project
+total below has been revised from 320h to 404h accordingly (see §8's 2026-08-21 entry).
+This was a deliberate choice to accept the larger M1 rather than trim it, since the
+franchise requirement is driven by a real customer (Bandrip), not a hypothetical.
 
 ---
 
@@ -187,6 +269,30 @@ later — the foundation is not allowed to be "good enough for now."
 - **Dexie tables mirror Supabase tables** with two additions: `_dirty` (pending push) and
   `_localId` (optimistic UI before server ID is assigned).
 - **Region:** Supabase project pinned to `ap-south-1` (Mumbai) for latency to Indian stores.
+- **Store ownership model (§2.IX):** the relationship between an owner identity and a
+  `store` must support one owner linked to more than one store (multi-store/chain, in
+  scope for v1) — never hard-code a 1:1 owner:store assumption. A franchisor/franchisee
+  relationship (also in scope for v1, §2.IX) is a _different_ owner linked to a store via
+  a scoped read grant, not co-ownership — see `access_grants` below. Structures needed
+  only by the two still-deferred models (a wholesale/distributor link, an omnichannel
+  sales channel) should be addable later as new tables/relationships referencing the same
+  core `stores`/owner identities, not as a rework of them.
+- **Cross-tenant access (`access_grants`):** any case where one party needs read
+  visibility into another party's store data (Platform Owner support access, a
+  franchisor's visibility into a franchisee, later an accountant/auditor) is implemented
+  as one generalized grant — `{grantee, scope, permission, granted_by, expires_at}` — not
+  a bespoke mechanism per relationship. See `store-model-master-plan.md`.
+- **Central stock distribution (`stock_locations`/`stock_transfers`):** a godown/warehouse
+  distributing stock to one or more stores is modeled the same way whether the recipient
+  stores belong to the same owner (multi-store/chain, no settlement implied) or a
+  different one (franchise, where the same transfer also implies a monthly settlement —
+  see §2.V's franchise settlement calculation). The transfer mechanism doesn't change;
+  only whether a payment obligation is attached to it does.
+- **Identity vs. store access are separate concerns:** a person's login identity
+  (`members`, or equivalent) is never itself scoped to a store or a platform role. What
+  stores a person can act in, and with what role, is a separate join, created via
+  invite/acceptance, not by the act of signing in. Platform-level access (§1) is a
+  separate flag again, independent of any store join. (Full mechanics: `M1-auth-*` specs.)
 
 ---
 
@@ -212,14 +318,58 @@ This constitution may be amended, but not casually. An amendment requires:
 
 ### Changelog
 
-- **2026-08-19 — v1.1.0.** Added module M0.5 (public home portal — a landing page shown
-  to anonymous visitors before auth, with a Google Sign-In entry point) and amended M1's
-  auth scope from phone-OTP-only to phone OTP + Google Sign-In. Reason: founder wants a
-  public marketing/portal page as the default first screen instead of dropping straight
-  into the phone-OTP flow, and wants Google as an additional sign-in option. The Google
-  Sign-In *handler* (OAuth wiring, session creation) is deferred to M1 — M0.5 only ships
-  the UI entry point.
-
+- **2026-08-21 — M1 fully speced, project total revised to 404h; v1.3.0.** M1's design
+  is now complete across four docs — `M1-core-tenancy-schema.md` (organizations, stores,
+  memberships, invitations, access grants, channels, stock locations/transfers),
+  `M1-franchise-model.md` (franchise groups/memberships, the settlement rule engine,
+  goods-received-from-franchisor), `M1-schema-reference.md` (all 14 tables' full columns,
+  consolidated), and `M1-task-plan.md` (five sub-phases, M1a–M1e, ~102h). §5's M1 line
+  item is revised from 18h to 102h and the project total from 320h to 404h
+  (~11–12 months w/ buffer, up from ~9–10) — a deliberate acceptance of the larger,
+  real scope rather than a silent absorption or a trim. Key decisions locked in along
+  the way, for anyone reading the module docs rather than this changelog: a store's
+  business model (independent/chain/franchise) is derived from its relationships, never
+  stored as an editable field (`M1-core-tenancy-schema.md` §4) — so no conversion
+  workflow is needed to keep the three Phase 1 models consistent; PIN login is gated by
+  per-device enrollment, not usable from an unenrolled device even with a stolen PIN;
+  franchise settlements are computed by a small reusable rule engine configured per
+  contract, not a bespoke function per customer; and `stock_transfers`, while not
+  currently constrained by a database check, is tracked as an explicit RLS-design
+  requirement (`M1-task-plan.md`, Phase M1e) to prevent a transfer between an
+  organization and a store it has no legitimate relationship to.
+- **2026-08-21 — Franchise moved into v1 scope; v1.2.0.** A real franchise case exists
+  (Bandrip, the founder's family's own franchise store), so Franchise (§2.IX item #3)
+  moves from deferred to Phase 1 alongside Independent and Multi-store/chain. This
+  required two new pieces: (1) a generalized `access_grants` primitive (§6) instead of a
+  franchise-specific access feature, so Platform Owner access and franchisor read-access
+  share one mechanism; (2) a new money-logic requirement, the franchise settlement
+  calculation (§2.V item 3) — modeled on Bandrip's actual terms (50% stock-replacement
+  share, plus 13% royalty on the post-share remainder once monthly revenue crosses
+  ₹3,00,000, a cliff not a slab). The exact boundary and revenue basis are still open
+  pending confirmation against the real signed agreement — see
+  `store-model-master-plan.md` §5. EBO and MBO/Boutique remain low-cost riders on this
+  and the chain work respectively; only Wholesale/distributor and Omnichannel remain
+  deferred (§3). M1's hour estimate has not been re-derived for any of this (§5).
+- **2026-08-21 — Store-model scope widened; v1.1.0.** Per founder direction: StoreParda's
+  addressable market includes eight recognized store models (Independent, Multi-store/chain,
+  Franchise, EBO, MBO, Wholesale/distributor, Boutique/designer-label, Omnichannel — new
+  §2.IX). v1 continues to build and ship only Independent + Multi-store/chain (§2.IX, §3) —
+  the P1 feature backlog (§2.VI) is unchanged. What changed is an architectural constraint:
+  the store-ownership data model (§6) must not preclude the other six models being added
+  later without a schema rewrite. §3's old "multi-store chain / franchise beyond basic data
+  isolation" non-goal line is superseded — multi-store/chain moved into v1 scope; franchise
+  and the other four deferred models remain explicit non-goals, now itemized individually.
+  Also formalized the Platform Owner / Store Owner distinction (§1, §6) that this
+  extensibility work depends on.
+- **2026-08-21 — Auth method: Google Sign-in + PIN replaces phone OTP; folded into v1.1.0.**
+  §5's original M1 line specified phone OTP. Per founder direction (see `M1-auth-google.md`,
+  drafted 2026-08-19), M1's actual auth path is Google Sign-in as the primary credential
+  check, with app identity held in StoreParda's own `members` table and a custom JWT
+  (never `auth.users`) — plus a device-enrollment-gated PIN for fast repeat login,
+  designed from the start to work identically from a future native client. Phone OTP is
+  not being pursued. This entry closes out the deviation flagged (but not yet logged) when
+  that decision was made; a follow-up entry should record the PIN/device-enrollment/
+  store-invite design once it's written up as a spec, rather than letting that drift too.
 - **2026-08-18 — v1.0.0 ratified.** Consolidated decisions from planning discussion:
   name (StoreParda, correcting the Parada/Prada collision risk), tech stack, offline-first
   reversal (initially deferred to post-pilot, then reversed to offline-from-start per
@@ -236,8 +386,37 @@ If you are Claude Code (or any other AI agent) working in this repository:
 - Do not introduce a proprietary or non-open-source dependency without flagging it
   explicitly to the human first (§2.III).
 - Do not build features from §3 (Non-Goals) even if asked casually in passing — confirm
-  explicitly that scope has changed and this file has been amended first.
-- Do not weaken GST calculation or landed-cost logic test coverage to "make tests pass
-  faster" (§2.V) — if a test is inconvenient, the code is wrong, not the test.
+  explicitly that scope has changed and this file has been amended first. As of
+  2026-08-21 only Wholesale/distributor and Omnichannel (§2.IX items #6 and #8) remain
+  deferred this way — architecting for them is required (§2.IX, §6); building
+  UI/workflow for them is not in scope until a future amendment says so.
+- Do not weaken GST calculation, landed-cost, or franchise settlement logic test
+  coverage to "make tests pass faster" (§2.V) — if a test is inconvenient, the code is
+  wrong, not the test.
 - When in doubt about a naming, branding, or scope question already decided here,
   cite this file rather than re-deriving an answer from scratch.
+
+---
+
+## 10. Backlog — Planned, Not Yet Scheduled
+
+Ideas that are decided-in-principle but deliberately not attached to a module/phase
+yet. Not non-goals (§3) — these will be built — just not sequenced. Move an item out
+of this section (into §5's module roadmap) once it's actually scheduled.
+
+- **Admin portal: device revocation.** `M1a-identity-auth.md` builds device-gated PIN
+  login but no way to revoke a device's access. Planned flow: a store person reports a
+  lost/stolen phone to the store admin, who disables that specific device from an
+  admin portal (not yet built), immediately invalidating its PIN and forcing that
+  device back through full Google sign-in. Needs an admin-portal module and a
+  `devices.revoked_at` (or similar) column/check — the schema hook for "not revoked"
+  already exists in `M1a-identity-auth.md`'s `verify-pin` design, but nothing sets it
+  yet.
+- **Admin portal: device login tracking.** Record last-login time and location/IP per
+  enrolled device (`devices.last_login_at`, `last_login_location` or similar) so a
+  store admin can later see, from an admin portal (not yet built), where and when each
+  device last signed in — useful for spotting a compromised/lost device before it's
+  explicitly reported. Originated as a lighter alternative to per-Edge-Function rate
+  limiting on `verify-pin` (see `M1a-identity-auth.md`); the columns should be
+  populated by `verify-pin`/`mint-member-session` now even though the admin UI to view
+  them comes later.
