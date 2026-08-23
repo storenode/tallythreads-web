@@ -3,17 +3,25 @@ import { AuthGuard } from "@/features/auth/AuthGuard";
 
 export const adminRoutes: RouteObject[] = [
   {
-    // Platform-admin landing page — see the redirect decision in
-    // src/features/auth/resolvePostSignInPath.ts. Static placeholder until the real
-    // admin console (organization provisioning, etc.) is built.
+    // Platform-admin console — see the redirect decision in
+    // src/features/auth/resolvePostSignInPath.ts. AdminShell (header + sidenav) is
+    // this feature's own layout, distinct from AppShell (bottom tabs, store-scoped
+    // screens) since platform admin isn't scoped to a store at all.
     path: "/admin",
     element: <AuthGuard />,
     children: [
       {
-        index: true,
         lazy: async () => ({
-          Component: (await import("./AdminPage")).default,
+          Component: (await import("./AdminShell")).AdminShell,
         }),
+        children: [
+          {
+            index: true,
+            lazy: async () => ({
+              Component: (await import("./AdminPage")).default,
+            }),
+          },
+        ],
       },
     ],
   },
