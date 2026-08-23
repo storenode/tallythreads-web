@@ -16,7 +16,7 @@ Build passes, typecheck passes, tests pass, service worker registers, shell rend
 - [x] `src/lib` coverage ≥ 90% (91.3%, 8/8 tests passing)
 - [x] Real brand icons in `public/` (pwa-192x192.png, pwa-512x512.png, apple-touch-icon.png), maskable safe-zone checked
 - [x] `NOTICE.md` committed, personal git identity confirmed via `git log`
-- [ ] Manual device checks pending: install as PWA on Android, airplane-mode reload test — to be verified on a real device before pilot
+- [ ] Manual device checks pending: install as PWA on Android, airplane-mode reload test — to be verified on a real device before go-live
 
 ---
 
@@ -333,7 +333,8 @@ the tab bar clear of gesture bars.
 Drop real icons into `public/`: `pwa-192x192.png`, `pwa-512x512.png`,
 `apple-touch-icon.png`, `favicon.svg` — the awning mark in green/lavender (§2.VII). The
 512px one doubles as the maskable icon, so keep the mark inside the middle 80% or Android
-will crop it. Placeholders are fine to get the build green; swap them before the pilot.
+will crop it. Placeholders are fine to get the build green; swap them before go-live with
+Bandrip.
 
 ---
 
@@ -649,8 +650,8 @@ in your head as the upper rate, that's the stale number — an 18%-rated saree b
 is a 6% shortfall the store eats at filing time. The code above uses 5/18.
 
 Still have the final rates and the exact threshold basis confirmed by whoever files your
-GST returns before the pilot bills a real customer. Rates are a tax question, not an
-engineering one, and this is precisely the class of bug §2.V exists to prevent.
+GST returns before go-live — this is a real customer being billed from day one, not a
+trial run, and this is precisely the class of bug §2.V exists to prevent.
 
 ---
 
@@ -752,8 +753,8 @@ Turn on branch protection for `main` requiring this job — solo projects are ex
   update" rather than an error.
 
 - Vercel Pro ($20/mo) is required once this is commercial, per their ToS — the constitution
-  already budgets it. The Hobby tier is fine while it's only the two family pilot stores and
-  no money is changing hands for the software.
+  already budgets it. The Hobby tier is fine for now, while it's still just Bandrip and the
+  two other early family-run stores and no money is changing hands for the software.
 - Supabase project region: **`ap-south-1` (Mumbai)** — set at project creation, cannot be
   changed later (§6).
 
