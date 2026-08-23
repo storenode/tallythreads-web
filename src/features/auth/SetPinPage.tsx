@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getDeviceId } from "@/lib/deviceId";
 import { Button } from "@/components/ui/Button";
 import { useMember } from "@/features/auth/useMember";
+import { resolvePostSignInPath } from "@/features/auth/resolvePostSignInPath";
 
 const PIN_PATTERN = /^\d{4,6}$/;
 
@@ -58,14 +59,16 @@ export default function SetPinPage() {
     const { error: fnError } = await supabase.functions.invoke("set-pin", {
       body: { device_id: getDeviceId(), pin },
     });
-    setIsSubmitting(false);
 
     if (fnError) {
+      setIsSubmitting(false);
       setError("Couldn't set your PIN. Please try again.");
       return;
     }
 
-    navigate("/no-store", { replace: true });
+    const destination = member ? await resolvePostSignInPath(member.id) : "/no-store";
+    setIsSubmitting(false);
+    navigate(destination, { replace: true });
   }
 
   return (

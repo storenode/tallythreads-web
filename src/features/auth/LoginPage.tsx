@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabaseAuthClient } from "@/lib/supabaseAuthClient";
 import { getDeviceId } from "@/lib/deviceId";
 import { cacheActiveMember } from "@/lib/memberSession";
+import { resolvePostSignInPath } from "@/features/auth/resolvePostSignInPath";
 import { getRememberedEmail, setRememberedEmail, clearRememberedEmail } from "@/lib/rememberedEmail";
 import { Button } from "@/components/ui/Button";
 import { GoogleSignInButton } from "@/features/home/components/GoogleSignInButton";
@@ -60,7 +61,8 @@ export default function LoginPage() {
     }
 
     await cacheActiveMember(data.member, data.jwt);
-    navigate("/no-store", { replace: true });
+    const destination = await resolvePostSignInPath(data.member.id);
+    navigate(destination, { replace: true });
   }
 
   return (
