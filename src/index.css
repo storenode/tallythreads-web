@@ -24,25 +24,99 @@
   --color-fg: var(--sp-fg);
   --color-fg-muted: var(--sp-fg-muted);
   --color-border: var(--sp-border);
+
+  /* TailAdmin-derived scale + status tokens — additive, not yet wired into any
+     component. See index.css's :root/[data-theme="dark"] blocks for the raw
+     gray/brand/success/warning/error values these point at. */
+  --color-brand: var(--sp-brand);
+  --color-brand-subtle-bg: var(--sp-brand-subtle-bg);
+  --color-brand-text-active: var(--sp-brand-text-active);
+  --color-success-text: var(--sp-success-text);
+  --color-success-bg: var(--sp-success-bg);
+  --color-warning-text: var(--sp-warning-text);
+  --color-warning-bg: var(--sp-warning-bg);
+  --color-error-text: var(--sp-error-text);
+  --color-error-bg: var(--sp-error-bg);
 }
 
 :root {
-  --sp-bg: #ffffff;
-  --sp-surface: #f7f8fc;
-  --sp-surface-2: #eeeffc;
-  --sp-fg: #16172b;
-  --sp-fg-muted: #5c5e78;
-  --sp-border: #e4e5f3;
+  /* Raw TailAdmin scale (light) — only shades actually observed during inspection
+     are included; gaps are left out rather than guessed, per source notes. */
+  --ta-gray-50: #f9fafb;
+  --ta-gray-100: #f2f4f7;
+  --ta-gray-200: #e4e7ec;
+  --ta-gray-300: #d0d5dd;
+  --ta-gray-400: #98a2b3;
+  --ta-gray-500: #667085;
+  --ta-gray-700: #344054;
+  --ta-gray-800: #1d2939;
+  --ta-gray-900: #101828;
+  --ta-brand-50: #ecf3ff;
+  --ta-brand-400: #7592ff;
+  --ta-brand-500: #465fff;
+  --ta-brand-600: #3641f5;
+  --ta-success-50: #ecfdf3;
+  --ta-success-500: #12b76a;
+  --ta-success-600: #039855;
+  --ta-success-700: #027a48;
+  --ta-warning-50: #fffaeb;
+  --ta-warning-600: #dc6803;
+  --ta-error-50: #fef3f2;
+  --ta-error-500: #f04438;
+  --ta-error-600: #d92d20;
+  --ta-orange-400: #fd853a;
+
+  /* Semantic tokens (light) — mapped from the TailAdmin inspection reference
+     table onto this project's existing token names, 1:1 against the values in
+     the reference table (bg/surface/border/text). */
+  --sp-bg: var(--ta-gray-50);
+  --sp-surface: #ffffff;
+  --sp-surface-2: var(--ta-gray-100);
+  --sp-fg: var(--ta-gray-900);
+  --sp-fg-muted: var(--ta-gray-500);
+  --sp-border: var(--ta-gray-200);
+
+  --sp-brand: var(--ta-brand-500);
+  --sp-brand-subtle-bg: var(--ta-brand-50);
+  --sp-brand-text-active: var(--ta-brand-500);
+  --sp-success-text: var(--ta-success-600);
+  --sp-success-bg: var(--ta-success-50);
+  --sp-warning-text: var(--ta-warning-600);
+  --sp-warning-bg: var(--ta-warning-50);
+  --sp-error-text: var(--ta-error-600);
+  --sp-error-bg: var(--ta-error-50);
 }
 
 [data-theme="dark"] {
-  --sp-bg: #0e0f16;
-  --sp-surface: #161826;
-  --sp-surface-2: #1e2033;
-  --sp-fg: #f3f3f9;
-  --sp-fg-muted: #a3a5c0;
-  --sp-border: #2a2c42;
+  --sp-bg: var(--ta-gray-900);
+  --sp-surface: var(--ta-gray-900);
+  --sp-surface-2: #171f2e; /* measured composite of white/3% over gray-900, see note below */
+  --sp-fg: #ffffff;
+  --sp-fg-muted: var(--ta-gray-400);
+  --sp-border: var(--ta-gray-800);
+
+  --sp-brand: var(--ta-brand-500);
+  --sp-brand-subtle-bg: #162142; /* composite of brand-500/12% over gray-900 */
+  --sp-brand-text-active: var(--ta-brand-400);
+  --sp-success-text: var(--ta-success-500);
+  --sp-success-bg: #103032; /* composite of success/15% over gray-900 */
+  --sp-warning-text: var(--ta-orange-400);
+  --sp-warning-bg: #393029; /* composite of warning/15% over gray-900 */
+  --sp-error-text: var(--ta-error-500);
+  --sp-error-bg: #382430; /* composite of error/15% over gray-900 */
 }
+
+/**
+ * NOTE on the dark-mode "-bg" tokens above (surface-2, brand-subtle-bg,
+ * success-bg, warning-bg, error-bg): on the TailAdmin source these are NOT
+ * flat dark colors — they're low-opacity white/color overlays (e.g.
+ * `bg-white/[0.03]`, `bg-brand-500/[0.12]`, `bg-success-500/[0.15]`) painted
+ * over whatever sits behind them. The hex values above are that overlay
+ * composited over gray-900, captured for reference. In actual component
+ * markup, prefer the opacity-modifier utilities (e.g. `dark:bg-white/3`,
+ * `dark:bg-brand-500/12`) over these flat hexes where practical — the
+ * utility stays correct if it ever sits on a different background.
+ */
 
 html,
 body,
