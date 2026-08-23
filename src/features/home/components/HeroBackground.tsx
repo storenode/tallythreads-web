@@ -11,7 +11,7 @@ export function HeroBackground() {
   return (
     <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden>
       <div
-        className="absolute inset-0 bg-gradient-to-b from-parda-lavender-50 via-bg to-bg dark:from-parda-lavender-700/20 dark:via-bg dark:to-bg"
+        className="absolute inset-0 bg-gradient-to-b from-parda-lavender-50 via-surface to-surface dark:from-parda-lavender-700/20 dark:via-surface dark:to-surface"
         style={{ transform: `translateY(${scrollY * 0.15}px)` }}
       />
 

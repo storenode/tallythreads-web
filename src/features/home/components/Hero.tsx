@@ -8,7 +8,7 @@ export function Hero() {
   const navigate = useNavigate();
 
   return (
-    <section className="relative flex min-h-[90vh] items-center pt-24">
+    <section className="relative flex min-h-[90vh] items-center overflow-hidden bg-surface pt-24">
       <HeroBackground />
       <Container>
         <div className="mx-auto max-w-3xl text-center">
