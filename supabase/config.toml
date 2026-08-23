@@ -439,3 +439,12 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/verify-pin/deno.json"
 entrypoint = "./functions/verify-pin/index.ts"
+
+# verify_jwt = false: carries StoreParda's own custom JWT (verified manually inside
+# the function via _shared/jwt.ts), not a Supabase-issued one — see get-entitlements/
+# index.ts for why direct PostgREST access with that JWT doesn't work on this project.
+[functions.get-entitlements]
+enabled = true
+verify_jwt = false
+import_map = "./functions/get-entitlements/deno.json"
+entrypoint = "./functions/get-entitlements/index.ts"
