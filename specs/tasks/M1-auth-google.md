@@ -3,7 +3,7 @@
 **Status:** In Progress
 **Version:** 1.12.0
 **Est:** TBD
-**Tracking:** [Issue #27](https://github.com/storenode/storeparda-web/issues/27)
+**Tracking:** [Issue #27](https://github.com/storenode/tallythreads-web/issues/27)
 
 ## What this is
 

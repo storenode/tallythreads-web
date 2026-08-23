@@ -3,7 +3,7 @@
 **Status:** Completed
 **Version:** 1.0.0
 **Est:** 8 hrs (Constitution §5)
-**Tracking:** [Issue #24](https://github.com/storenode/storeparda-web/issues/24)
+**Tracking:** [Issue #24](https://github.com/storenode/tallythreads-web/issues/24)
 
 Build passes, typecheck passes, tests pass, service worker registers, shell renders at
 375px with no horizontal scroll, `NOTICE.md` committed, personal git identity confirmed.

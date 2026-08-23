@@ -3,7 +3,7 @@
 **Status:** Planned
 **Version:** 1.5.0
 **Est:** 26.5 hrs (Constitution §5 — part of M1's 102h total, phase M1a of `M1-task-plan.md`; grew from 22h with Task 3's addition, see Changelog)
-**Tracking:** [Issue #28](https://github.com/storenode/storeparda-web/issues/28) · Project board: not yet added (see Notes — `gh` lacks the `project` OAuth scope needed to add it automatically)
+**Tracking:** [Issue #28](https://github.com/storenode/tallythreads-web/issues/28) · Project board: not yet added (see Notes — `gh` lacks the `project` OAuth scope needed to add it automatically)
 
 ## What this is
 
