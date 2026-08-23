@@ -54,7 +54,6 @@ export interface Member {
   last_name: string | null;
   avatar_url: string | null;
   locale: string | null;
-  platform_role: string | null;
   jwt: string;
   is_active: 0 | 1;
   cached_at: string;

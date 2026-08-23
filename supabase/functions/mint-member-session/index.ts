@@ -97,7 +97,7 @@ async function handle(req: Request): Promise<Response> {
   const { data: member, error: upsertError } = await admin
     .from("members")
     .upsert(profile, { onConflict: "google_id" })
-    .select("id, google_id, google_email, email_verified, first_name, last_name, avatar_url, locale, platform_role")
+    .select("id, google_id, google_email, email_verified, first_name, last_name, avatar_url, locale")
     .single();
 
   if (upsertError || !member) {

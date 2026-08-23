@@ -137,7 +137,7 @@ async function handle(req: Request): Promise<Response> {
 
   const { data: memberProfile } = await admin
     .from("members")
-    .select("id, google_id, google_email, email_verified, first_name, last_name, avatar_url, locale, platform_role")
+    .select("id, google_id, google_email, email_verified, first_name, last_name, avatar_url, locale")
     .eq("id", member.id)
     .single();
 
