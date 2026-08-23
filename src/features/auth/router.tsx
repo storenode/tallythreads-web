@@ -42,17 +42,4 @@ export const authRoutes: RouteObject[] = [
       },
     ],
   },
-  {
-    // Platform-admin landing page — see the redirect decision in LoginPage/SetPinPage.
-    path: "/admin",
-    element: <AuthGuard />,
-    children: [
-      {
-        index: true,
-        lazy: async () => ({
-          Component: (await import("./AdminPage")).default,
-        }),
-      },
-    ],
-  },
 ];
