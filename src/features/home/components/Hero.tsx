@@ -18,7 +18,7 @@ export function Hero() {
             className="mx-auto mb-6 size-20 drop-shadow-[0_8px_24px_rgba(47,191,113,0.25)] sm:size-24"
           />
           <p className="mb-4 inline-flex items-center rounded-full border border-border bg-surface px-4 py-1.5 text-xs font-semibold tracking-wide text-fg-muted uppercase">
-            Cloth store operating system
+            The operating thread for your cloth store
           </p>
           <h1 className="font-display text-4xl font-bold tracking-tight text-fg sm:text-5xl md:text-6xl">
             Run your cloth store from{" "}
