@@ -28,7 +28,7 @@ try {
   if (missing.length > 0) {
     console.error(`❌ Missing environment variables: ${missing.join(", ")}`);
     console.log(
-      `\n📝 Create .env file with:\nGITHUB_TOKEN=your_token\nGITHUB_OWNER=your_username\nGITHUB_REPO=StoreParda\n`,
+      `\n📝 Create .env file with:\nGITHUB_TOKEN=your_token\nGITHUB_OWNER=your_username\nGITHUB_REPO=TallyThreads\n`,
     );
     process.exit(1);
   }

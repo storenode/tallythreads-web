@@ -2,9 +2,9 @@
 //
 // Called by the client immediately after supabase.auth.signInWithOAuth({ provider: "google" })
 // completes its redirect round-trip. Supabase's OAuth handshake (and its auth.users row) is
-// treated as disposable plumbing — this function is what actually establishes StoreParda's
+// treated as disposable plumbing — this function is what actually establishes TallyThreads's
 // identity: it reads the Google profile Supabase captured, upserts a `members` row keyed on
-// Google's stable `sub` claim, and mints StoreParda's own JWT (sub = members.id) so RLS's
+// Google's stable `sub` claim, and mints TallyThreads's own JWT (sub = members.id) so RLS's
 // auth.uid() works against `members`, not `auth.users`.
 //
 // It also enrolls the calling device: every completed Google sign-in upserts a `devices` row
@@ -138,7 +138,7 @@ async function handle(req: Request): Promise<Response> {
     );
   }
 
-  // Mint StoreParda's own JWT: sub = members.id, not the auth.users id. RLS's auth.uid()
+  // Mint TallyThreads's own JWT: sub = members.id, not the auth.users id. RLS's auth.uid()
   // reads this sub claim regardless of whether that id exists in auth.users.
   const jwt = await mintMemberJwt(member.id);
 

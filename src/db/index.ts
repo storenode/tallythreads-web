@@ -59,7 +59,7 @@ export interface Member {
   cached_at: string;
 }
 
-export const db = new Dexie("storeparda") as Dexie & {
+export const db = new Dexie("tallythreads") as Dexie & {
   products: EntityTable<Product, "_localId">;
   invoices: EntityTable<Invoice, "_localId">;
   outbox: EntityTable<OutboxItem, "id">;

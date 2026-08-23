@@ -1,6 +1,6 @@
 // verify-pin
 //
-// The repeat-login path: { email, pin, device_id } -> a StoreParda JWT, shaped
+// The repeat-login path: { email, pin, device_id } -> a TallyThreads JWT, shaped
 // identically to mint-member-session's, so downstream code can't tell which
 // credential path was used. No Authorization header — this IS the auth mechanism.
 //

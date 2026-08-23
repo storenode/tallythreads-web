@@ -25,7 +25,7 @@ export function Navbar() {
       }`}
     >
       <Container className="flex h-16 items-center justify-between">
-        <Link to="/" aria-label="StoreParda home">
+        <Link to="/" aria-label="TallyThreads home">
           <Logo size="sm" />
         </Link>
 

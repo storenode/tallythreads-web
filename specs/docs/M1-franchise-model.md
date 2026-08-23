@@ -252,6 +252,6 @@ this spec only fixes the access mechanism.
    vs. taxable value) against Bandrip's real signed agreement before writing tests.
 2. Settlement cadence and rounding rule (calendar month? any particular day cutoff?).
 3. Does the ₹3L threshold apply per store, or aggregated across every store one
-   franchisor supplies? (Matters once Bandrip has more than one store on StoreParda.)
+   franchisor supplies? (Matters once Bandrip has more than one store on TallyThreads.)
 4. Should a franchisee ever see the _formula_, or only their own resulting statement?
    (Affects what `access_grants`/UI expose back to the store owner.)

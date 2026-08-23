@@ -7,14 +7,14 @@
 
 ## What this is
 
-The first of M1's five sub-phases (M1a–M1e). It builds StoreParda's member identity
+The first of M1's five sub-phases (M1a–M1e). It builds TallyThreads's member identity
 and login: a store user signs in with Google once per device, then on that same
 device can log back in with a short PIN instead of repeating the Google OAuth flow
 every time. Two deliverables:
 
 1. **Google Sign-in + custom JWT** — a member authenticates with Google, a
    `members` row is created/updated keyed on their Google identity, and the app mints
-   its own StoreParda JWT (not Supabase's raw OAuth session) for all subsequent use.
+   its own TallyThreads JWT (not Supabase's raw OAuth session) for all subsequent use.
    The signed-in session is cached in the local Dexie database so `/app/*` keeps
    working offline after the first successful sign-in.
 2. **PIN + device enrollment** — after a member's Google sign-in on a given device,
@@ -147,7 +147,7 @@ in Dexie.
       lands on `/app/*` with the signed-in member's name/avatar visible
 - [ ] A `members` row is created on first sign-in with correct `google_id` (dedup key,
       not email) and updates — not duplicates — on repeat sign-in
-- [ ] The client uses the custom StoreParda JWT (`sub = members.id`) for subsequent
+- [ ] The client uses the custom TallyThreads JWT (`sub = members.id`) for subsequent
       calls, verifiable by decoding the token and confirming it's not the raw Supabase
       OAuth session
 - [ ] `/app/*` while signed out redirects to `/`; while signed in, works fully offline

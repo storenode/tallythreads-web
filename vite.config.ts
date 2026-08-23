@@ -14,8 +14,8 @@ export default defineConfig({
       injectRegister: null, // we register manually in src/pwa.ts
       includeAssets: ["favicon.svg", "apple-touch-icon.png"],
       manifest: {
-        name: "StoreParda",
-        short_name: "StoreParda",
+        name: "TallyThreads",
+        short_name: "TallyThreads",
         description: "Cloth store operating system",
         lang: "en-IN",
         theme_color: "#2FBF71",

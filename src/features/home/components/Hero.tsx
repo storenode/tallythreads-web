@@ -14,7 +14,7 @@ export function Hero() {
         <div className="mx-auto max-w-3xl text-center">
           <img
             src="/logo-mark.svg"
-            alt="StoreParda"
+            alt="TallyThreads"
             className="mx-auto mb-6 size-20 drop-shadow-[0_8px_24px_rgba(47,191,113,0.25)] sm:size-24"
           />
           <p className="mb-4 inline-flex items-center rounded-full border border-border bg-surface px-4 py-1.5 text-xs font-semibold tracking-wide text-fg-muted uppercase">
@@ -26,7 +26,7 @@ export function Hero() {
             <span className="text-parda-lavender-500">sourcing trips</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lg text-fg-muted">
-            StoreParda tracks landed cost from the moment you buy stock in Surat or
+            TallyThreads tracks landed cost from the moment you buy stock in Surat or
             Kerala to the moment it's billed at the counter — offline-first, built for
             independent Indian cloth stores.
           </p>

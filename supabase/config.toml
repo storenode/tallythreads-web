@@ -2,7 +2,7 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-project_id = "storeparda-web"
+project_id = "tallythreads-web"
 
 [api]
 enabled = true
@@ -425,7 +425,7 @@ entrypoint = "./functions/mint-member-session/index.ts"
 # static_files = [ "./functions/mint-member-session/*.html" ]
 
 # verify_jwt = false on both: neither call carries a Supabase-issued JWT. set-pin is
-# authenticated with StoreParda's own custom JWT (verified manually inside the
+# authenticated with TallyThreads's own custom JWT (verified manually inside the
 # function, see _shared/jwt.ts); verify-pin has no Authorization header at all — the
 # email+PIN+device_id body *is* the credential.
 [functions.set-pin]
@@ -440,7 +440,7 @@ verify_jwt = false
 import_map = "./functions/verify-pin/deno.json"
 entrypoint = "./functions/verify-pin/index.ts"
 
-# verify_jwt = false: carries StoreParda's own custom JWT (verified manually inside
+# verify_jwt = false: carries TallyThreads's own custom JWT (verified manually inside
 # the function via _shared/jwt.ts), not a Supabase-issued one — see get-entitlements/
 # index.ts for why direct PostgREST access with that JWT doesn't work on this project.
 [functions.get-entitlements]

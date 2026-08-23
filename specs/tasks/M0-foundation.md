@@ -37,7 +37,7 @@ This is the one step that is genuinely irreversible if you get it wrong, so do i
 2. Set a repo-local git identity so a stray global work identity can't leak into commits:
 
    ```bash
-   mkdir storeparda && cd storeparda && git init
+   mkdir tallythreads && cd tallythreads && git init
    git config user.name "Your Name"
    git config user.email "your-personal@email.com"
    ```
@@ -59,8 +59,8 @@ This is the one step that is genuinely irreversible if you get it wrong, so do i
 ## 1. Scaffold
 
 ```bash
-pnpm create vite@latest storeparda --template react-ts
-cd storeparda
+pnpm create vite@latest tallythreads --template react-ts
+cd tallythreads
 ```
 
 > If you already made the folder in step 0, scaffold into a temp dir and move the files in,
@@ -199,8 +199,8 @@ export default defineConfig({
       injectRegister: null,     // we register manually in src/pwa.ts
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'StoreParda',
-        short_name: 'StoreParda',
+        name: 'TallyThreads',
+        short_name: 'TallyThreads',
         description: 'Cloth store operating system',
         lang: 'en-IN',
         theme_color: '#2FBF71',
@@ -317,7 +317,7 @@ import '@testing-library/jest-dom/vitest'
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#2FBF71" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>StoreParda</title>
+    <title>TallyThreads</title>
   </head>
   <body>
     <div id="root"></div>
@@ -509,7 +509,7 @@ export interface OutboxItem {
   attempts: number
 }
 
-export const db = new Dexie('storeparda') as Dexie & {
+export const db = new Dexie('tallythreads') as Dexie & {
   products: EntityTable<Product, '_localId'>
   invoices: EntityTable<Invoice, '_localId'>
   outbox: EntityTable<OutboxItem, 'id'>

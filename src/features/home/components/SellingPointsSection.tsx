@@ -7,7 +7,7 @@ export function SellingPointsSection() {
       <Container>
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight text-fg sm:text-4xl">
-            Why store owners choose StoreParda
+            Why store owners choose TallyThreads
           </h2>
         </div>
 

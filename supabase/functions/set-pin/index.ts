@@ -3,7 +3,7 @@
 // Called right after mint-member-session, on every Google sign-in (first-ever or
 // repeat) — M1a-identity-auth.md requires a device's PIN to be (re)created every time
 // its member completes Google sign-in on it, never carried over from a prior device
-// or a prior enrollment. Authenticated with the caller's just-minted StoreParda JWT
+// or a prior enrollment. Authenticated with the caller's just-minted TallyThreads JWT
 // (not a Supabase auth.users session — mint-member-session already happened).
 //
 // See specs/tasks/M1a-identity-auth.md Task 2, subtask 4.

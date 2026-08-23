@@ -7,7 +7,7 @@
 
 ## What this is
 
-StoreParda needs a way for a store owner (and later, staff) to sign in before they can
+TallyThreads needs a way for a store owner (and later, staff) to sign in before they can
 bill customers or manage inventory. This task adds **Google Sign-In** as that first
 login method: a store user clicks "Sign in with Google," authenticates with their
 Google account, and lands inside the authenticated app shell (`/app/*`) with their name
@@ -15,12 +15,12 @@ and photo visible.
 
 Under the hood, this task does something slightly unusual on purpose — this is a
 locked founder decision, not open for debate in this doc: Supabase's built-in Google
-OAuth handshake is used only as a *credential check*, not as StoreParda's actual
+OAuth handshake is used only as a *credential check*, not as TallyThreads's actual
 identity system. Supabase's own `auth.users` table is treated as disposable plumbing
 that OAuth inevitably creates — no application code ever reads from it. Instead,
 immediately after Google confirms who the person is, a small server-side function (a
-Supabase Edge Function) looks up or creates a row in StoreParda's own `members` table
-(name, email, avatar) and mints StoreParda's own access token for that member. That
+Supabase Edge Function) looks up or creates a row in TallyThreads's own `members` table
+(name, email, avatar) and mints TallyThreads's own access token for that member. That
 token — not anything from `auth.users` — is what the app uses from then on. This keeps
 `members` as the single source of truth for "who is this person," independent of
 whatever Supabase's OAuth plumbing internally does, and leaves room for a second,
@@ -39,7 +39,7 @@ and implementation happens in a follow-up pass once it's greenlit.
 - Google Cloud Console configuration (OAuth consent screen + credentials)
 - Supabase dashboard configuration (enabling the Google provider)
 - The Edge Function that exchanges a completed Google OAuth handshake for a
-  StoreParda-issued JWT
+  TallyThreads-issued JWT
 - Client-side sign-in wiring: `GoogleSignInButton` becomes functional, session gets
   cached locally, `/app/*` gets a real route guard
 - Sign-out
@@ -110,7 +110,7 @@ Notes:
   row being matched later. `google_email` stays on the row — indexed, but not
   unique — for display/contact/search, not identity.
 - `email_verified` is a boolean straight from Google's identity payload (Google itself
-  attests it verified that address) — cheap to keep, useful later if StoreParda ever
+  attests it verified that address) — cheap to keep, useful later if TallyThreads ever
   needs to trust the email for something like the OTP follow-up flow.
 - `locale` (e.g. `en-IN`) is available from Google's basic profile scope at no extra
   cost — kept in case it's useful for future i18n, not used by anything in this task.
@@ -181,13 +181,13 @@ doesn't need another migration).
 ## Google Cloud Console setup steps
 
 1. Go to **[console.cloud.google.com](https://console.cloud.google.com)**. If
-   StoreParda doesn't already have a Google Cloud project, create one (project
-   dropdown, top left → **New Project** → name it e.g. `storeparda`).
+   TallyThreads doesn't already have a Google Cloud project, create one (project
+   dropdown, top left → **New Project** → name it e.g. `tallythreads`).
 2. **Configure the OAuth consent screen:**
    - Left sidebar → **APIs & Services** → **OAuth consent screen**
    - User type: **External** (unless the founder has a Google Workspace org and wants
      **Internal** — see open questions)
-   - App name: `StoreParda`
+   - App name: `TallyThreads`
    - User support email: the founder's email
    - App logo: optional, can skip for now
    - Authorized domains: add the production domain once it exists (can be left blank
@@ -202,10 +202,10 @@ doesn't need another migration).
    - Left sidebar → **APIs & Services** → **Credentials** → **+ Create Credentials** →
      **OAuth client ID**
    - Application type: **Web application**
-   - Name: `StoreParda Web (Supabase)`
+   - Name: `TallyThreads Web (Supabase)`
    - **Authorized JavaScript origins:** add `http://localhost:5173` (Vite dev server
      default) and the production PWA origin once deployed (e.g.
-     `https://app.storeparda.com`)
+     `https://app.tallythreads.com`)
    - **Authorized redirect URIs:** add the Supabase callback URL — this is
      `https://<your-project-ref>.supabase.co/auth/v1/callback` (the exact value is
      also shown by Supabase in the dashboard steps below; add it here after copying it
@@ -217,7 +217,7 @@ doesn't need another migration).
 ## Supabase dashboard setup steps
 
 1. Go to **[supabase.com/dashboard](https://supabase.com/dashboard)** and open the
-   StoreParda project (same project already connected in M0.6).
+   TallyThreads project (same project already connected in M0.6).
 2. **Authentication** (left sidebar) → **Providers** → find **Google** in the provider
    list → toggle it **Enabled**.
 3. Paste the **Client ID** and **Client Secret** copied from Google Console (above)
@@ -232,11 +232,11 @@ doesn't need another migration).
      `http://localhost:5173` during development)
    - **Redirect URLs:** add every origin the OAuth flow may redirect back to —
      `http://localhost:5173/**` for dev, the production origin
-     `https://app.storeparda.com/**` once deployed. This is what Supabase checks
+     `https://app.tallythreads.com/**` once deployed. This is what Supabase checks
      against the `redirectTo` the client passes to `signInWithOAuth`, so a mismatch
      here causes silent redirect failures.
 7. No changes needed to **JWT Settings** — the project's existing JWT secret (already
-   provisioned by Supabase) is reused by the Edge Function to sign StoreParda's own
+   provisioned by Supabase) is reused by the Edge Function to sign TallyThreads's own
    JWT (see below). Note the secret's location for the next section: **Project
    Settings → API → JWT Settings → JWT Secret** — this value is copied into an Edge
    Function secret, never into `.env.local` or the repo.
@@ -344,7 +344,7 @@ guarantee actually holds afterward*:
   is written to the local Dexie `members` table (above), the same durable IndexedDB
   store `products`/`invoices` already use — not `localStorage`, so it survives and
   behaves consistently with the rest of the offline data model.
-- The StoreParda-minted JWT is **not** stored in Dexie — Dexie holds data records that
+- The TallyThreads-minted JWT is **not** stored in Dexie — Dexie holds data records that
   mirror Supabase tables and flow through the `_dirty`/outbox sync pattern; a bearer
   credential isn't a data record and doesn't belong there. Instead it's kept wherever
   `supabase-js` already persists a session by default (`localStorage`, via
@@ -432,7 +432,7 @@ points at M1 for this).
       populated `google_id`/`google_email`/`email_verified`/`first_name`/`last_name`/
       `avatar_url`/`locale`; signing in again with the same Google account updates
       (not duplicates) that row, even if the account's email has changed
-- [ ] The client is using the custom StoreParda JWT (`sub = members.id`) for
+- [ ] The client is using the custom TallyThreads JWT (`sub = members.id`) for
       subsequent Supabase calls, not the raw Supabase OAuth session — verifiable by
       decoding the token client-side in a dev check and confirming `sub` matches the
       `members.id`, not any `auth.users` id
@@ -584,7 +584,7 @@ points at M1 for this).
   accept any custom secret name starting with it, discovered when the founder tried
   to set it and the CLI rejected the command.
 - **v1.5.0** — First implementation pass. `supabase/` scaffolded and linked to the
-  live `storeparda` project; `members` table migration written and applied
+  live `tallythreads` project; `members` table migration written and applied
   (`supabase db push`); a second migration enabling RLS with zero policies applied
   immediately after, as a proactive deny-all default — the table was briefly readable
   by anyone with the anon key between the two migrations, since Supabase exposes new

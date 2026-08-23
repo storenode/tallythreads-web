@@ -21,8 +21,8 @@ export function Logo({
         className={`${mark} shrink-0 transition-transform duration-300 hover:scale-105`}
       />
       <span className={`font-script leading-none ${text}`}>
-        <span className="text-parda-green-500">Store</span>
-        <span className="text-parda-lavender-500">Parda</span>
+        <span className="text-parda-green-500">Tally</span>
+        <span className="text-parda-lavender-500">Threads</span>
       </span>
     </span>
   );

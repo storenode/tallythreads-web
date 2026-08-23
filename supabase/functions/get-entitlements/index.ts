@@ -4,7 +4,7 @@
 // role_permissions/stores reference tables, so the client can resolve them through
 // src/lib/entitlements.ts's resolveEntitlements(). Exists because this Supabase
 // project has no legacy JWT secret configured — PostgREST only trusts its own
-// asymmetric signing keys, so a StoreParda-minted JWT (see _shared/jwt.ts) can never
+// asymmetric signing keys, so a TallyThreads-minted JWT (see _shared/jwt.ts) can never
 // authenticate a direct supabase-js REST call. Every read of member-scoped data has
 // to go through an Edge Function like this one instead, which verifies the JWT itself
 // (verifyMemberJwt, plain HS256 — doesn't touch PostgREST/RLS at all) and then reads

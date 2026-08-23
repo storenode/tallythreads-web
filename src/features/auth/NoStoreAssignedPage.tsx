@@ -24,7 +24,7 @@ export default function NoStoreAssignedPage() {
         <h1 className="text-lg font-semibold text-fg">No store assigned yet</h1>
         <p className="text-sm text-fg-muted">
           {member?.google_email ?? "This account"} isn't linked to a store yet. Ask
-          your store owner to invite you, or contact StoreParda support.
+          your store owner to invite you, or contact TallyThreads support.
         </p>
         <Button variant="ghost" onClick={handleSignOut}>
           Sign out

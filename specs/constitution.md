@@ -1,8 +1,8 @@
-# StoreParda — Project Constitution
+# TallyThreads — Project Constitution
 
 **Version:** 1.5.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-08-22 · **Status:** Active
 
-This document is the source of truth for how StoreParda is built. Any human contributor
+This document is the source of truth for how TallyThreads is built. Any human contributor
 or AI coding agent (Claude Code, etc.) working on this repo MUST read this file first and
 treat it as binding. Decisions here were made deliberately, after weighing alternatives —
 do not silently override them mid-task. If a principle needs to change, amend this file
@@ -14,9 +14,9 @@ explicitly (see §8), don't drift from it in a pull request.
 
 | | |
 |---|---|
-| **Name** | StoreParda |
+| **Name** | TallyThreads |
 | **Spelling** | `Parda` (from Hindi/Urdu *पर्दा* / پردہ — "curtain, veil, reveal"). **NEVER** `Parada` — that spelling collides phonetically with the Prada trademark (confirmed: PRADA S.A. has litigated over marks as distant as "RADA"). Any AI agent encountering "Parada" in a prompt, ticket, or comment should treat it as a typo and correct to "Parda". |
-| **Domain** | `storeparda.in` |
+| **Domain** | `tallythreads.in` |
 | **Target market** | Independent, multi-store/chain, and franchise cloth/garment retailers in India (v1 build target — see §2.II, §2.IX, §3) |
 | **Core differentiator** | The Purchase-Trip module — landed-cost tracking for owners who travel to source stock (Surat, Kerala, Bangladesh, etc.) before it ever reaches the shop |
 | **Brand colors** | Green `#2FBF71` · Lavender `#7B7FE0` |
@@ -36,15 +36,15 @@ explicitly (see §8), don't drift from it in a pull request.
   under a co-founder who is not bound by the developer's employment contract. No commits,
   no cloud resources, no dependencies should ever touch employer-owned infrastructure.
 - **This is a real product launch, not a pilot or trial.** Bandrip (the founder's
-  family's franchise store) is the first genuine customer StoreParda is launching
+  family's franchise store) is the first genuine customer TallyThreads is launching
   with — a committed ~6-month engagement to get it working, fix real issues as they
   surface, and ship real enhancements, before expanding to more customers. Nellore and
   Tirupati (two other family-run stores) are additional early stores alongside
   Bandrip — all three are real usage from day one, not disposable test data ahead of
   some later "real" launch.
 - **Two distinct owner roles exist and must not be conflated:** the **Platform Owner**
-  (the founder, operating StoreParda itself as a SaaS product) and a **Store Owner**
-  (a StoreParda customer who owns/runs one or more stores). Platform-level access is
+  (the founder, operating TallyThreads itself as a SaaS product) and a **Store Owner**
+  (a TallyThreads customer who owns/runs one or more stores). Platform-level access is
   never store-scoped, and store-level access is never automatically platform-wide.
   Detailed identity/role mechanics live in the `M1-auth-*` module specs, not here —
   this file only fixes the principle that the two are separate.
@@ -134,7 +134,7 @@ feature request list.
 
 ### VII. No Store Prefix, No Generic Names — But Don't Re-litigate Naming
 
-The name is StoreParda. The logo reuses the awning icon and green/lavender palette
+The name is TallyThreads. The logo reuses the awning icon and green/lavender palette
 established for the earlier "StoreNode" concept. This decision is closed — do not
 reopen it casually; naming churn has already cost real time in this project's history
 (see §8).
@@ -147,7 +147,7 @@ it does not belong in v1.
 
 ### IX. Store Model Extensibility — Build Two, Architect for Eight
 
-StoreParda recognizes eight store models found in Indian cloth/garment retail:
+TallyThreads recognizes eight store models found in Indian cloth/garment retail:
 
 1. Independent/standalone store
 2. Multi-store / chain
@@ -233,7 +233,7 @@ lines have been superseded. Franchise moved in specifically because a real case 
 
 ---
 
-## 5. Module Roadmap (Reference: full backlog in `storeparda-techstack-tasks.html`)
+## 5. Module Roadmap (Reference: full backlog in `tallythreads-techstack-tasks.html`)
 
 | Module | Scope | Est. hours |
 |---|---|---|
@@ -351,7 +351,7 @@ This constitution may be amended, but not casually. An amendment requires:
   split), not padding — so M1's total moves from 106.5h to 115h and the project total
   from 408.5h to 417h (§5).
 - **2026-08-22 (later still) — Reframed as a real launch, not a pilot; v1.4.0.**
-  Founder correction: StoreParda is not a low-stakes trial waiting for a "real"
+  Founder correction: TallyThreads is not a low-stakes trial waiting for a "real"
   customer later — Bandrip is a genuine customer being launched now, with a committed
   ~6-month engagement to fix real issues and ship real enhancements before reaching
   more customers. Every "pilot" reference in this file that implied otherwise has been
@@ -437,7 +437,7 @@ This constitution may be amended, but not casually. An amendment requires:
   `store-model-master-plan.md` §5. EBO and MBO/Boutique remain low-cost riders on this
   and the chain work respectively; only Wholesale/distributor and Omnichannel remain
   deferred (§3). M1's hour estimate has not been re-derived for any of this (§5).
-- **2026-08-21 — Store-model scope widened; v1.1.0.** Per founder direction: StoreParda's
+- **2026-08-21 — Store-model scope widened; v1.1.0.** Per founder direction: TallyThreads's
   addressable market includes eight recognized store models (Independent, Multi-store/chain,
   Franchise, EBO, MBO, Wholesale/distributor, Boutique/designer-label, Omnichannel — new
   §2.IX). v1 continues to build and ship only Independent + Multi-store/chain (§2.IX, §3) —
@@ -451,14 +451,14 @@ This constitution may be amended, but not casually. An amendment requires:
 - **2026-08-21 — Auth method: Google Sign-in + PIN replaces phone OTP; folded into v1.1.0.**
   §5's original M1 line specified phone OTP. Per founder direction (see `M1-auth-google.md`,
   drafted 2026-08-19), M1's actual auth path is Google Sign-in as the primary credential
-  check, with app identity held in StoreParda's own `members` table and a custom JWT
+  check, with app identity held in TallyThreads's own `members` table and a custom JWT
   (never `auth.users`) — plus a device-enrollment-gated PIN for fast repeat login,
   designed from the start to work identically from a future native client. Phone OTP is
   not being pursued. This entry closes out the deviation flagged (but not yet logged) when
   that decision was made; a follow-up entry should record the PIN/device-enrollment/
   store-invite design once it's written up as a spec, rather than letting that drift too.
 - **2026-08-18 — v1.0.0 ratified.** Consolidated decisions from planning discussion:
-  name (StoreParda, correcting the Parada/Prada collision risk), tech stack, offline-first
+  name (TallyThreads, correcting the Parada/Prada collision risk), tech stack, offline-first
   reversal (initially deferred to post-pilot, then reversed to offline-from-start per
   founder's explicit instruction), PWA-only launch (React Native deferred — founder's
   primary skill is React.js, not React Native; native app revisited only after PWA

@@ -1,4 +1,4 @@
-// Shared StoreParda JWT minting/verification for mint-member-session, set-pin, and
+// Shared TallyThreads JWT minting/verification for mint-member-session, set-pin, and
 // verify-pin. sub = members.id (never auth.users) — see M1-auth-google.md /
 // M1a-identity-auth.md for why. 30-day expiry matches the PIN validity window
 // (M1a-identity-auth.md Task 1 subtask 4), so a member's session and any given
@@ -29,7 +29,7 @@ export async function mintMemberJwt(memberId: string): Promise<string> {
     .sign(getJwtSecretKey());
 }
 
-/** Verifies a StoreParda-minted JWT (not a Supabase auth.users session) and returns members.id. */
+/** Verifies a TallyThreads-minted JWT (not a Supabase auth.users session) and returns members.id. */
 export async function verifyMemberJwt(token: string): Promise<string> {
   const { payload } = await jwtVerify(token, getJwtSecretKey());
   if (!payload.sub) throw new Error("Token has no subject");

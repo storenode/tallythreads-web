@@ -41,7 +41,7 @@ const log = (...args: unknown[]) => console.log("[useEntitlements]", ...args);
  *
  * Goes through the get-entitlements Edge Function rather than direct supabase.from()
  * REST calls: this Supabase project has no legacy JWT secret configured, so PostgREST
- * only trusts its own asymmetric signing keys and rejects our StoreParda-minted member
+ * only trusts its own asymmetric signing keys and rejects our TallyThreads-minted member
  * JWT outright (PGRST301/401 on every table). The Edge Function verifies that same JWT
  * itself (plain HS256, unrelated to PostgREST) and reads with the service-role key —
  * see get-entitlements/index.ts for the full explanation.
