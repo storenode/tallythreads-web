@@ -6,6 +6,7 @@
  */
 
 import { db, type Member } from "@/db";
+import { clearEntitlements } from "@/lib/entitlementsCache";
 
 type CacheableMember = Omit<Member, "jwt" | "is_active" | "cached_at">;
 
@@ -15,7 +16,10 @@ type CacheableMember = Omit<Member, "jwt" | "is_active" | "cached_at">;
  * deletion: the previously active member's own row/JWT/PIN enrollment is untouched
  * server-side and remains switchable-back-to later.
  */
-export async function cacheActiveMember(member: CacheableMember, jwt: string): Promise<void> {
+export async function cacheActiveMember(
+  member: CacheableMember,
+  jwt: string,
+): Promise<void> {
   const now = new Date().toISOString();
   await db.transaction("rw", db.members, async () => {
     await db.members.where("is_active").equals(1).modify({ is_active: 0 });
@@ -25,7 +29,9 @@ export async function cacheActiveMember(member: CacheableMember, jwt: string): P
 
 /** Clears (deletes) only the currently active member's cached row — sign-out. */
 export async function clearActiveMember(): Promise<void> {
+  const active = await getActiveMember();
   await db.members.where("is_active").equals(1).delete();
+  if (active) await clearEntitlements(active.id);
 }
 
 async function getActiveMember(): Promise<Member | undefined> {

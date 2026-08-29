@@ -4,12 +4,18 @@ import { supabaseAuthClient } from "@/lib/supabaseAuthClient";
 import { getDeviceId } from "@/lib/deviceId";
 import { cacheActiveMember } from "@/lib/memberSession";
 import { resolvePostSignInPath } from "@/features/auth/resolvePostSignInPath";
-import { getRememberedEmail, setRememberedEmail, clearRememberedEmail } from "@/lib/rememberedEmail";
+import {
+  getRememberedEmail,
+  setRememberedEmail,
+  clearRememberedEmail,
+} from "@/lib/rememberedEmail";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Logo } from "@/components/ui/Logo";
 import { GoogleSignInButton } from "@/features/home/components/GoogleSignInButton";
 import type { Member } from "@/db";
+import { useLoadingGate } from "@/hooks/useLoadingGate";
+import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 
 interface VerifyPinResponse {
   jwt: string;
@@ -26,49 +32,53 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState(() => getRememberedEmail() ?? "");
   const [pin, setPin] = useState("");
-  const [rememberMe, setRememberMe] = useState(() => getRememberedEmail() !== null);
+  const [rememberMe, setRememberMe] = useState(
+    () => getRememberedEmail() !== null,
+  );
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { isLoading, withLoading } = useLoadingGate();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setIsSubmitting(true);
 
-    const { data, error: fnError } = await supabaseAuthClient.functions.invoke<VerifyPinResponse>(
-      "verify-pin",
-      { body: { email, pin, device_id: getDeviceId() } },
-    );
+    await withLoading(async () => {
+      const { data, error: fnError } =
+        await supabaseAuthClient.functions.invoke<VerifyPinResponse>(
+          "verify-pin",
+          { body: { email, pin, device_id: getDeviceId() } },
+        );
 
-    setIsSubmitting(false);
-
-    if (fnError || !data) {
-      let message = "Couldn't sign you in. Please try again.";
-      if (fnError && "context" in fnError && fnError.context instanceof Response) {
-        try {
-          const body = await fnError.context.clone().json();
-          if (typeof body?.error === "string") message = body.error;
-        } catch {
-          // fall back to the generic message
+      if (fnError || !data) {
+        let message = "Couldn't sign you in. Please try again.";
+        if (
+          fnError &&
+          "context" in fnError &&
+          fnError.context instanceof Response
+        ) {
+          try {
+            const body = await fnError.context.clone().json();
+            if (typeof body?.error === "string") message = body.error;
+          } catch {
+            /* fall back */
+          }
         }
+        setError(message);
+        return; // withLoading's finally still runs — spinner turns off correctly
       }
-      setError(message);
-      return;
-    }
 
-    if (rememberMe) {
-      setRememberedEmail(email);
-    } else {
-      clearRememberedEmail();
-    }
+      if (rememberMe) setRememberedEmail(email);
+      else clearRememberedEmail();
 
-    await cacheActiveMember(data.member, data.jwt);
-    const destination = await resolvePostSignInPath(data.member.id);
-    navigate(destination, { replace: true });
+      await cacheActiveMember(data.member, data.jwt);
+      const destination = await resolvePostSignInPath(data.member.id);
+      navigate(destination, { replace: true });
+    });
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg p-6">
+      <LoadingOverlay show={isLoading} scope="page" label="Signing you in…" />
       <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-surface-2 p-6">
         <div className="flex justify-center">
           <Logo size="sm" />
@@ -76,7 +86,8 @@ export default function LoginPage() {
         <div>
           <h1 className="text-lg font-semibold text-fg">Sign in</h1>
           <p className="mt-1 text-sm text-fg-muted">
-            PIN sign-in only works on a device you've already signed into with Google.
+            PIN sign-in only works on a device you've already signed into with
+            Google.
           </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -95,7 +106,9 @@ export default function LoginPage() {
               autoComplete="off"
               placeholder="PIN"
               value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(e) =>
+                setPin(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
             />
           </div>
           <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
@@ -108,13 +121,15 @@ export default function LoginPage() {
             Remember my email on this device
           </label>
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? "Signing in…" : "Sign in with PIN"}
+          <Button type="submit" disabled={isLoading} className="w-full">
+            {isLoading ? "Signing in…" : "Sign in with PIN"}
           </Button>
         </form>
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-border" />
-          <span className="text-xs font-medium tracking-wide text-fg-muted uppercase">or</span>
+          <span className="text-xs font-medium tracking-wide text-fg-muted uppercase">
+            or
+          </span>
           <div className="h-px flex-1 bg-border" />
         </div>
         <GoogleSignInButton label="Sign in with Google" className="w-full" />

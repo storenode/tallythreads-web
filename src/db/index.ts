@@ -3,6 +3,7 @@ import type { Product } from "./products";
 import type { Invoice } from "./invoices";
 import type { OutboxItem } from "./outbox";
 import type { Member } from "./members";
+import type { CachedEntitlements } from "./entitlements";
 
 // Re-export entity types so external code keeps importing from `@/db`.
 export type { SyncMeta } from "./types";
@@ -10,12 +11,18 @@ export type { Product } from "./products";
 export type { Invoice } from "./invoices";
 export type { OutboxItem } from "./outbox";
 export type { Member } from "./members";
+export type {
+  CachedEntitlements,
+  OrgEntitlement,
+  StoreEntitlement,
+} from "./entitlements";
 
 export const db = new Dexie("tallythreads") as Dexie & {
   products: EntityTable<Product, "_localId">;
   invoices: EntityTable<Invoice, "_localId">;
   outbox: EntityTable<OutboxItem, "id">;
   members: EntityTable<Member, "id">;
+  entitlements: EntityTable<CachedEntitlements, "memberId">;
 };
 
 // ─── Migration history ───────────────────────────────────────────────
@@ -47,4 +54,10 @@ db.version(3)
 
 db.version(4).stores({
   members: "id, google_id, is_active",
+});
+
+// v5: cache slot for one member's resolved entitlements (roles + permissions
+// across all scopes), durable across reload/offline — see db/entitlements.ts.
+db.version(5).stores({
+  entitlements: "memberId",
 });
