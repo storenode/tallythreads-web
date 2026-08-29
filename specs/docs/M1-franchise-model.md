@@ -22,7 +22,6 @@ deliberate design point, not an oversight.
 ## 1. Scope
 
 **In scope:**
-
 - `franchise_groups` linking a franchisor `organization` to one or more franchisee stores
 - The generalized `access_grants` primitive (already planned in `store-model-master-plan.md`),
   applied here to give a franchisor read-only visibility into its linked stores
@@ -34,7 +33,6 @@ deliberate design point, not an oversight.
   stores (constitution §2.IV)
 
 **Out of scope (deferred):**
-
 - The franchisor dashboard's actual UI polish (the access mechanism is speced here; the
   screens are a later build task)
 - Wholesale/distributor and Omnichannel (separate, still-deferred docs)
@@ -135,12 +133,12 @@ worked numbers from their agreement — not writing new code.
 
 **Primitives:**
 
-| Type                      | What it does                                                                            |
-| ------------------------- | --------------------------------------------------------------------------------------- |
-| `percentage_of_gross`     | Takes `rate` × the original monthly gross revenue                                       |
-| `percentage_of_remainder` | Takes `rate` × whatever's left after prior steps have been deducted                     |
-| `fixed_fee`               | A flat amount, independent of revenue                                                   |
-| `minimum_guarantee`       | Tops up the franchisor's total to at least `amount`, if the steps above would give less |
+| Type | What it does |
+|---|---|
+| `percentage_of_gross` | Takes `rate` × the original monthly gross revenue |
+| `percentage_of_remainder` | Takes `rate` × whatever's left after prior steps have been deducted |
+| `fixed_fee` | A flat amount, independent of revenue |
+| `minimum_guarantee` | Tops up the franchisor's total to at least `amount`, if the steps above would give less |
 
 Any `percentage_of_gross` or `percentage_of_remainder` step may carry a `condition`:
 `{ metric: "gross_revenue", operator: ">" | ">=", threshold_paise, basis: "cliff" | "slab" }`.
@@ -158,11 +156,7 @@ the output breakdown. Final output: `{ breakdown, total_to_franchisor_paise, sto
 ```json
 {
   "steps": [
-    {
-      "type": "percentage_of_gross",
-      "rate": 0.5,
-      "label": "stock_replacement"
-    },
+    { "type": "percentage_of_gross", "rate": 0.50, "label": "stock_replacement" },
     {
       "type": "percentage_of_remainder",
       "rate": 0.13,
@@ -181,12 +175,12 @@ the output breakdown. Final output: `{ breakdown, total_to_franchisor_paise, sto
 **Worked example (paise omitted for readability — see `store-model-master-plan.md` §5
 for the full table and the open boundary/basis questions):**
 
-| Gross revenue | stock_replacement | royalty    | Total to franchisor | Store net    |
-| ------------- | ----------------- | ---------- | ------------------- | ------------ |
-| ₹2,50,000     | ₹1,25,000         | ₹0         | ₹1,25,000           | ₹1,25,000    |
-| ₹3,00,000     | ₹1,50,000         | ₹0         | ₹1,50,000           | ₹1,50,000    |
-| ₹3,00,001     | ₹1,50,000.50      | ₹19,500.07 | ₹1,69,500.57        | ₹1,30,500.43 |
-| ₹3,50,000     | ₹1,75,000         | ₹22,750    | ₹1,97,750           | ₹1,52,250    |
+| Gross revenue | stock_replacement | royalty | Total to franchisor | Store net |
+|---|---|---|---|---|
+| ₹2,50,000 | ₹1,25,000 | ₹0 | ₹1,25,000 | ₹1,25,000 |
+| ₹3,00,000 | ₹1,50,000 | ₹0 | ₹1,50,000 | ₹1,50,000 |
+| ₹3,00,001 | ₹1,50,000.50 | ₹19,500.07 | ₹1,69,500.57 | ₹1,30,500.43 |
+| ₹3,50,000 | ₹1,75,000 | ₹22,750 | ₹1,97,750 | ₹1,52,250 |
 
 **Real limit of this pattern:** some contracts will have a term these primitives can't
 express — a seasonal rate, a payout cap, a rate tied to year-over-year growth. When that
@@ -253,5 +247,5 @@ this spec only fixes the access mechanism.
 2. Settlement cadence and rounding rule (calendar month? any particular day cutoff?).
 3. Does the ₹3L threshold apply per store, or aggregated across every store one
    franchisor supplies? (Matters once Bandrip has more than one store on TallyThreads.)
-4. Should a franchisee ever see the _formula_, or only their own resulting statement?
+4. Should a franchisee ever see the *formula*, or only their own resulting statement?
    (Affects what `access_grants`/UI expose back to the store owner.)

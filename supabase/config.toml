@@ -440,11 +440,9 @@ verify_jwt = false
 import_map = "./functions/verify-pin/deno.json"
 entrypoint = "./functions/verify-pin/index.ts"
 
-# verify_jwt = false: carries TallyThreads's own custom JWT (verified manually inside
-# the function via _shared/jwt.ts), not a Supabase-issued one — see get-entitlements/
-# index.ts for why direct PostgREST access with that JWT doesn't work on this project.
-[functions.get-entitlements]
-enabled = true
-verify_jwt = false
-import_map = "./functions/get-entitlements/deno.json"
-entrypoint = "./functions/get-entitlements/index.ts"
+# get-entitlements, admin-list-roles, admin-create-role, admin-patch-role, and
+# admin-delete-role were removed in favor of direct PostgREST calls from the client —
+# PostgREST now trusts our member JWT (legacy JWT secret matches APP_JWT_SECRET, see
+# 20260824000000_enable_rls_all_tables.sql) and RLS policies
+# (20260826000000_roles_entitlements_rls_policies.sql) enforce what those functions used
+# to enforce in code, platform_admin-only role mutations included.

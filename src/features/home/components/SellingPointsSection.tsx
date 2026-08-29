@@ -14,7 +14,7 @@ export function SellingPointsSection() {
         <div className="mt-14 grid gap-10 sm:grid-cols-3">
           {sellingPoints.map(({ icon: Icon, title, description }) => (
             <div key={title} className="text-center sm:text-left">
-              <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-parda-lavender-500/10 text-parda-lavender-600 sm:mx-0 dark:text-parda-lavender-500">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-tt-lavender-500/10 text-tt-lavender-600 sm:mx-0 dark:text-tt-lavender-500">
                 <Icon size={22} aria-hidden />
               </div>
               <h3 className="mt-4 font-display text-lg font-semibold text-fg">

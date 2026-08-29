@@ -157,13 +157,13 @@ tutorial here; theme values live in CSS via `@theme`.
 @import 'tailwindcss';
 
 @theme {
-  --color-parda-green-50: #eafaf1;
-  --color-parda-green-500: #2fbf71;   /* brand green, Constitution §0 */
-  --color-parda-green-600: #26a05e;
-  --color-parda-green-700: #1d7a47;
-  --color-parda-lavender-50: #eeeffc;
-  --color-parda-lavender-500: #7b7fe0; /* brand lavender */
-  --color-parda-lavender-600: #6165c9;
+  --color-tt-green-50: #eafaf1;
+  --color-tt-green-500: #2fbf71;   /* brand green, Constitution §0 */
+  --color-tt-green-600: #26a05e;
+  --color-tt-green-700: #1d7a47;
+  --color-tt-lavender-50: #eeeffc;
+  --color-tt-lavender-500: #7b7fe0; /* brand lavender */
+  --color-tt-lavender-600: #6165c9;
 
   --font-sans: 'Inter', system-ui, sans-serif;
 }
@@ -176,7 +176,7 @@ body {
 }
 ```
 
-These generate `bg-parda-green-500`, `text-parda-lavender-600`, etc. automatically.
+These generate `bg-tt-green-500`, `text-tt-lavender-600`, etc. automatically.
 
 ---
 
@@ -444,7 +444,7 @@ export function AppShell() {
           <NavLink key={to} to={to}
             className={({ isActive }) =>
               `flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs ${
-                isActive ? 'text-parda-green-600' : 'text-slate-500'
+                isActive ? 'text-tt-green-600' : 'text-slate-500'
               }`}>
             <Icon size={20} aria-hidden />
             {label}

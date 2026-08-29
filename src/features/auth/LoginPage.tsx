@@ -6,6 +6,8 @@ import { cacheActiveMember } from "@/lib/memberSession";
 import { resolvePostSignInPath } from "@/features/auth/resolvePostSignInPath";
 import { getRememberedEmail, setRememberedEmail, clearRememberedEmail } from "@/lib/rememberedEmail";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Logo } from "@/components/ui/Logo";
 import { GoogleSignInButton } from "@/features/home/components/GoogleSignInButton";
 import type { Member } from "@/db";
 
@@ -68,6 +70,9 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg p-6">
       <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-surface-2 p-6">
+        <div className="flex justify-center">
+          <Logo size="sm" />
+        </div>
         <div>
           <h1 className="text-lg font-semibold text-fg">Sign in</h1>
           <p className="mt-1 text-sm text-fg-muted">
@@ -76,22 +81,21 @@ export default function LoginPage() {
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <input
-              type="email"
+            <Input
+              type="text"
               autoComplete="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-border bg-bg px-4 py-3 text-fg outline-none focus:border-parda-green-500"
+              placeholder="you"
+              suffix="@gmail.com"
+              value={email.replace(/@gmail\.com$/i, "")}
+              onChange={(e) => setEmail(`${e.target.value.trim()}@gmail.com`)}
             />
-            <input
+            <Input
               type="password"
               inputMode="numeric"
               autoComplete="off"
               placeholder="PIN"
               value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="w-full rounded-lg border border-border bg-bg px-4 py-3 text-fg outline-none focus:border-parda-green-500"
             />
           </div>
           <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
@@ -99,7 +103,7 @@ export default function LoginPage() {
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="size-4 cursor-pointer rounded border-border accent-parda-green-500"
+              className="size-4 cursor-pointer rounded border-border accent-tt-green-500"
             />
             Remember my email on this device
           </label>

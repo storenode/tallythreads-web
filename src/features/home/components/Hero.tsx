@@ -22,8 +22,8 @@ export function Hero() {
           </p>
           <h1 className="font-display text-4xl font-bold tracking-tight text-fg sm:text-5xl md:text-6xl">
             Run your cloth store from{" "}
-            <span className="text-parda-green-500">billing</span> to{" "}
-            <span className="text-parda-lavender-500">sourcing trips</span>
+            <span className="text-tt-green-500">billing</span> to{" "}
+            <span className="text-tt-lavender-500">sourcing trips</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lg text-fg-muted">
             TallyThreads tracks landed cost from the moment you buy stock in Surat or

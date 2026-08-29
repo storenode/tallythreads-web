@@ -205,7 +205,7 @@ doesn't need another migration).
    - Name: `TallyThreads Web (Supabase)`
    - **Authorized JavaScript origins:** add `http://localhost:5173` (Vite dev server
      default) and the production PWA origin once deployed (e.g.
-     `https://app.tallythreads.com`)
+     (domain not yet decided under the TallyThreads name))
    - **Authorized redirect URIs:** add the Supabase callback URL — this is
      `https://<your-project-ref>.supabase.co/auth/v1/callback` (the exact value is
      also shown by Supabase in the dashboard steps below; add it here after copying it
@@ -232,7 +232,7 @@ doesn't need another migration).
      `http://localhost:5173` during development)
    - **Redirect URLs:** add every origin the OAuth flow may redirect back to —
      `http://localhost:5173/**` for dev, the production origin
-     `https://app.tallythreads.com/**` once deployed. This is what Supabase checks
+     (domain not yet decided under the TallyThreads name)/** once deployed. This is what Supabase checks
      against the `redirectTo` the client passes to `signInWithOAuth`, so a mismatch
      here causes silent redirect failures.
 7. No changes needed to **JWT Settings** — the project's existing JWT secret (already

@@ -19,9 +19,9 @@ export function FeaturesSection() {
           {features.map(({ icon: Icon, title, description }) => (
             <div
               key={title}
-              className="rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-parda-green-500/40"
+              className="rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-tt-green-500/40"
             >
-              <div className="flex size-11 items-center justify-center rounded-xl bg-parda-green-500/10 text-parda-green-600 dark:text-parda-green-500">
+              <div className="flex size-11 items-center justify-center rounded-xl bg-tt-green-500/10 text-tt-green-600 dark:text-tt-green-500">
                 <Icon size={22} aria-hidden />
               </div>
               <h3 className="mt-4 font-display text-lg font-semibold text-fg">

@@ -6,7 +6,7 @@ export function CTASection() {
   return (
     <section className="py-20 sm:py-28">
       <Container>
-        <div className="rounded-3xl bg-gradient-to-br from-parda-green-500 to-parda-lavender-600 px-6 py-16 text-center sm:px-16">
+        <div className="rounded-3xl bg-gradient-to-br from-tt-green-500 to-tt-lavender-600 px-6 py-16 text-center sm:px-16">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
             Bring your store online, at your own pace
           </h2>

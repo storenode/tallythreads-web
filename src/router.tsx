@@ -1,34 +1,11 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
-import { AppShell } from "@/components/AppShell";
-import { AuthGuard } from "@/features/auth/AuthGuard";
+import { createBrowserRouter } from "react-router-dom";
 import { authRoutes } from "@/features/auth/router";
-import { adminRoutes } from "@/features/admin/router";
 import { homeRoutes } from "@/features/home/router";
-import { billingRoutes } from "@/features/billing/router";
-import { inventoryRoutes } from "@/features/inventory/router";
-import { tripsRoutes } from "@/features/trips/router";
-import { reportsRoutes } from "@/features/reports/router";
-import { settingsRoutes } from "@/features/settings/router";
 
-export const router = createBrowserRouter([
-  ...homeRoutes,
-  ...authRoutes,
-  ...adminRoutes,
-  {
-    path: "/app",
-    element: <AuthGuard />,
-    children: [
-      {
-        element: <AppShell />,
-        children: [
-          { index: true, element: <Navigate to="bill" replace /> },
-          ...billingRoutes,
-          ...inventoryRoutes,
-          ...tripsRoutes,
-          ...reportsRoutes,
-          ...settingsRoutes,
-        ],
-      },
-    ],
-  },
-]);
+// Pared back to the foundation as of the 2026-08-29 cleanup: marketing/home + Google
+// login + PIN setup only. The admin console, org portal, and store-ops (/app) shell
+// (billing/inventory/trips/reports/settings) were all removed from src/ — see the
+// delete list from that cleanup for what to bring back and when. Nothing in
+// supabase/ (migrations, RLS, edge functions) was touched; this is a frontend-only
+// reset.
+export const router = createBrowserRouter([...homeRoutes, ...authRoutes]);

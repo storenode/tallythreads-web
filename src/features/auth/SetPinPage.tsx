@@ -93,7 +93,7 @@ export default function SetPinPage() {
             placeholder="New PIN"
             value={pin}
             onChange={(e) => handlePinChange(e.target.value)}
-            className="w-full rounded-lg border border-border bg-bg px-4 py-3 text-fg outline-none focus:border-parda-green-500"
+            className="w-full rounded-lg border border-border bg-bg px-4 py-3 text-fg outline-none focus:border-tt-green-500"
           />
           <input
             type="password"
@@ -103,7 +103,7 @@ export default function SetPinPage() {
             value={confirmPin}
             onChange={(e) => handleConfirmPinChange(e.target.value)}
             aria-invalid={liveMismatch}
-            className={`w-full rounded-lg border bg-bg px-4 py-3 text-fg outline-none focus:border-parda-green-500 ${
+            className={`w-full rounded-lg border bg-bg px-4 py-3 text-fg outline-none focus:border-tt-green-500 ${
               liveMismatch ? "border-red-500" : "border-border"
             }`}
           />

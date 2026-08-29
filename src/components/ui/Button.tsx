@@ -5,9 +5,9 @@ type Size = "sm" | "md" | "lg" | "xl";
 
 const variantClasses: Record<Variant, string> = {
   primary:
-    "bg-parda-green-500 text-white hover:enabled:bg-parda-green-600 shadow-sm shadow-parda-green-500/20 disabled:bg-fg-muted disabled:text-bg disabled:shadow-none",
+    "bg-tt-green-500 text-white hover:enabled:bg-tt-green-600 shadow-sm shadow-tt-green-500/20 disabled:bg-fg-muted disabled:text-bg disabled:shadow-none",
   secondary:
-    "bg-parda-lavender-500 text-white hover:enabled:bg-parda-lavender-600 shadow-sm shadow-parda-lavender-500/20 disabled:bg-fg-muted disabled:text-bg disabled:shadow-none",
+    "bg-tt-lavender-500 text-white hover:enabled:bg-tt-lavender-600 shadow-sm shadow-tt-lavender-500/20 disabled:bg-fg-muted disabled:text-bg disabled:shadow-none",
   ghost:
     "bg-transparent text-fg border border-border hover:enabled:bg-surface-2 disabled:text-fg-muted disabled:border-border/60",
 };

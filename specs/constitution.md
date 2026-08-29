@@ -1,6 +1,6 @@
 # TallyThreads — Project Constitution
 
-**Version:** 1.5.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-08-22 · **Status:** Active
+**Version:** 1.9.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-08-29 · **Status:** Active
 
 This document is the source of truth for how TallyThreads is built. Any human contributor
 or AI coding agent (Claude Code, etc.) working on this repo MUST read this file first and
@@ -15,13 +15,20 @@ explicitly (see §8), don't drift from it in a pull request.
 | | |
 |---|---|
 | **Name** | TallyThreads |
-| **Spelling** | `Parda` (from Hindi/Urdu *पर्दा* / پردہ — "curtain, veil, reveal"). **NEVER** `Parada` — that spelling collides phonetically with the Prada trademark (confirmed: PRADA S.A. has litigated over marks as distant as "RADA"). Any AI agent encountering "Parada" in a prompt, ticket, or comment should treat it as a typo and correct to "Parda". |
-| **Domain** | `tallythreads.in` |
+| **Domain** | (domain not yet decided under the TallyThreads name) |
 | **Target market** | Independent, multi-store/chain, and franchise cloth/garment retailers in India (v1 build target — see §2.II, §2.IX, §3) |
 | **Core differentiator** | The Purchase-Trip module — landed-cost tracking for owners who travel to source stock (Surat, Kerala, Bangladesh, etc.) before it ever reaches the shop |
 | **Brand colors** | Green `#2FBF71` · Lavender `#7B7FE0` |
 | **Tagline** | "వస్త్ర దుకాణాల ఆపరేటింగ్ సిస్టమ్" / "Cloth store operating system" |
 | **Trademark status** | ⚠️ India Trademark Registry search (class 9 + 35 + 42) **not yet completed** as of ratification. Do not proceed to public launch until this is closed out with a lawyer. |
+
+> **Naming history note (added 2026-08-26):** during a planning session this project's docs
+> briefly used "StoreParda" as a working name, including a Parda-vs-Prada trademark-collision
+> discussion that applied only to that working name. The actual codebase, package name, and
+> repo-level specs never changed from TallyThreads — the rename was never carried past the
+> planning docs. This constitution (and the rest of the `claude/*` doc set) has been reverted
+> to TallyThreads to match reality; see §8's 2026-08-26 entry. The Prada-collision
+> concern does not apply to the name TallyThreads and is not carried forward.
 
 ---
 
@@ -115,7 +122,10 @@ before anything ships to a real store:
    `gstCalc.ts` tests the discount-drops-below-threshold edge case. Confirm the exact
    boundary (`>` vs. `>=` ₹3,00,000) and the revenue basis (gross vs. taxable value)
    against the real signed agreement before writing the tests, not after. Full worked
-   example: `store-model-master-plan.md` §5.
+   example: `store-model-master-plan.md` §5. **Not yet implemented as code** — as of
+   v1.8.0 only the franchise *linkage* (M1c: `franchise_groups`/`franchise_memberships`)
+   is being built; this settlement calculation itself is M1d, still unscheduled (§5,
+   §8's 2026-08-27 entry).
 
 A bug here either overcharges a customer (trust destroyed instantly), misprices stock
 (silent margin erosion the owner won't notice for months), or mis-settles a franchise
@@ -126,18 +136,23 @@ someone finally reconciles by hand). No exceptions.
 
 Scope for v1 (P1) is deliberately narrow: Purchase Trips, Inventory + Barcode, Billing +
 GST, basic Reports, Settings, plus (as of 2026-08-21) Franchise settlement and
-goods-received-from-franchisor, since a real franchise case exists (§2.IX, §8). AI Studio
-(Claude-powered descriptions, video scripts, review summarization), loyalty programs, and
-the two remaining deferred store models in §2.IX (Wholesale, Omnichannel) are P2+ — built
-only after Bandrip and the other early stores generate real usage data and a real
-feature request list.
+goods-received-from-franchisor, since a real franchise case exists (§2.IX, §8). Loyalty
+programs and the two remaining deferred store models in §2.IX (Wholesale, Omnichannel)
+are P2+ — built only after Bandrip and the other early stores generate real usage data
+and a real feature request list. AI Studio (Claude-powered descriptions, video scripts,
+review summarization) moved from an explicit non-goal to "role model designed, module
+unscheduled" as of v1.6.0 (§3, §8) — its role/permission scaffolding exists now, but the
+module itself — actual Claude API integration, a content data model, any UI — is still
+gated on the same real-usage-data bar as everything else in this paragraph, and has no
+hour estimate or slot in §5.
 
 ### VII. No Store Prefix, No Generic Names — But Don't Re-litigate Naming
 
 The name is TallyThreads. The logo reuses the awning icon and green/lavender palette
 established for the earlier "StoreNode" concept. This decision is closed — do not
 reopen it casually; naming churn has already cost real time in this project's history
-(see §8).
+(see §8, including a 2026-08-26 correction where planning docs had drifted to a
+different working name — "StoreParda" — without the codebase ever actually changing).
 
 ### VIII. Budget and Time Are Both Hard Constraints
 
@@ -177,6 +192,13 @@ or an omnichannel sales channel can attach to it later as additional structure, 
 schema rewrite. §6 has the specific architecture rule this implies; §2.IV explains why
 Purchase-Trip is not assumed mandatory for Franchise or Wholesale.
 
+**As of v1.8.0, Franchise (item #3) has real schema, not just an architectural
+promise** — see §8's 2026-08-27 entry. The distinction that makes a store "franchise"
+rather than "chain" is a `franchise_memberships` row linking it to a `franchise_groups`
+row, exactly as `M1-core-tenancy-schema.md` §4's derived `store_business_model` view
+always specified — this amendment is that view (and the two tables it reads) actually
+being migrated onto the live database, not a change to the design itself.
+
 ---
 
 ## 3. Non-Goals for v1 (Explicitly Out of Scope)
@@ -185,7 +207,6 @@ Purchase-Trip is not assumed mandatory for Franchise or Wholesale.
   revenue justifies the native-app investment — see §8 for the reasoning trail). The
   auth/identity design should stay usable from a future native client without rework
   (see `M1-auth-google.md`), even though no mobile client is built in v1.
-- ❌ AI Studio (Claude-powered video scripts, review collection, trend analysis)
 - ❌ Multi-vertical support (jewelry, furniture, footwear) — see §2.II
 - ❌ Wholesale/distributor and Omnichannel store models (§2.IX, items #6 and #8) — no UI
   or workflow built for these in v1; the data model must not preclude them later (§2.IX, §6)
@@ -197,6 +218,18 @@ Purchase-Trip is not assumed mandatory for Franchise or Wholesale.
 2026-08-21 changelog entries in §8. Both were previously listed here as non-goals; those
 lines have been superseded. Franchise moved in specifically because a real case exists
 (Bandrip), not as a speculative expansion — see §2.IX.
+
+**AI Studio's role/permission model moved into scope as of v1.6.0 (2026-08-26)** — see
+that changelog entry in §8, `M-ai-studio.md`, and `M-role-permission-model.md`. The
+"❌ AI Studio" line previously here has been superseded, but narrowly: only the role
+scaffolding (`platform_editor`/`platform_content_lead` roles, `content.create`/
+`.review`/`.publish` permission keys) has been seeded. The module itself — real Claude
+API integration, a content data model, any UI — is not scheduled into §5's roadmap and
+has no hour estimate, gated on the same real-usage-data bar §2.VI describes for the
+remaining P2+ items. Worth flagging plainly: unlike Franchise, this amendment isn't
+driven by a concrete customer case — §8's amendment rule asks for "a clear reason tied
+to real evidence... not a mid-session change of mind," and this one rests on explicit
+founder direction alone, not a real AI Studio customer request yet.
 
 ---
 
@@ -238,7 +271,7 @@ lines have been superseded. Franchise moved in specifically because a real case 
 | Module | Scope | Est. hours |
 |---|---|---|
 | M0 | Project foundation, PWA config, CI | 8 |
-| M1 | Identity, tenancy, franchise linkage & settlement engine, RLS — five sub-phases (M1a–M1e) fully speced in `M1-task-plan.md`. Covers: Google Sign-in + device-gated PIN (`M1-auth-google.md`, `M1a-identity-auth.md` — M1a Tasks 1–2 implemented, see §8); organizations/stores/roles/permissions/memberships/store_invitations/access_grants/channels, now with a platform/organization/store role model and a TDD-built entitlements function (`M1b-core-tenancy.md` v2.0.0); `stock_locations`/`stock_transfers` and `franchise_groups`/`franchise_memberships` plus the settlement rule engine (`M1-franchise-model.md`); full column reference in `M1-schema-reference.md`; RLS across all of it, including the `stock_transfers` org/franchise-link validation (§8) | 115 |
+| M1 | Identity, tenancy, franchise linkage & settlement engine, RLS — five sub-phases (M1a–M1e) fully speced in `M1-task-plan.md`. Covers: Google Sign-in + device-gated PIN (`M1-auth-google.md`, `M1a-identity-auth.md` — M1a Tasks 1–2 implemented, see §8); organizations/stores/roles/permissions/memberships/store_invitations/access_grants/channels, now with a platform/organization/store role model and a TDD-built entitlements function (`M1b-core-tenancy.md` v2.0.0); `stock_locations`/`stock_transfers` and `franchise_groups`/`franchise_memberships` plus the settlement rule engine (`M1-franchise-model.md`) — **franchise linkage now under active build, see §8's 2026-08-27 entry**; full column reference in `M1-schema-reference.md`; RLS across all of it, including the `stock_transfers` org/franchise-link validation (§8) | 115 |
 | M2 | **Offline sync engine** (Dexie ⇄ Supabase push/pull) | 62 |
 | M3 | Inventory, variant matrix, barcode | 36 |
 | M4 | **Purchase-Trip module** (landed cost engine) | 52 |
@@ -249,11 +282,28 @@ lines have been superseded. Franchise moved in specifically because a real case 
 | M9 | Launch prep | 16 |
 | **Total** | | **417 hrs (~42 weeks @ 10 hr/wk, ~11–12 months w/ buffer)** |
 
+**AI Studio has no module number or hour estimate yet** (see §2.VI, §3's 2026-08-26
+amendment, `M-ai-studio.md`) — its role model is seeded ahead of time, same treatment
+`M3`/`M4`/`M5`'s permission keys got in `M1b`, but it isn't in this table because it
+isn't scheduled. It gets a number and a line here once `M-ai-studio.md` §5's open
+questions are answered and it's actually estimated — not before.
+
+**M1c (Franchise linkage) status as of v1.8.0:** `franchise_groups`/`franchise_memberships`
+and the `store_business_model` view are being migrated for real, driven by building an
+actual demo organization ("Bandrip Demo") that needs a genuine franchisor/franchisee
+relationship rather than a same-mechanism-as-chain placeholder. This is linkage only —
+M1c's other two subtasks (stock locations/transfers, goods-received-from-franchisor) and
+M1d (the settlement rule engine itself, `lib/franchiseSettlement.ts`) remain unbuilt and
+unscheduled beyond `M1-task-plan.md`'s existing hour estimates. See §8's 2026-08-27 entry.
+
 **Sequencing rule:** M2 must be stable and tested before M3, M4, or M5 begin in earnest.
 Building inventory/billing/trip features on top of an unstable sync layer means rework
 later — the foundation is not allowed to be "good enough for now." M1's own five
 sub-phases (M1a–M1e) are themselves sequential and precede M2 — M2 is the next module
-after M1 closes out, not a parallel track.
+after M1 closes out, not a parallel track. **M1c's franchise-linkage work (above) is a
+targeted exception, not a reordering of this rule** — it's a small, self-contained
+schema addition needed to make real demo/test data honest, not the start of building
+M1c's UI or M1d's settlement engine ahead of M2.
 
 **M1's hour estimate is 115h** (was 18h originally, then 102h, then 106.5h; +8.5h
 reconciled 2026-08-22 when M1b reached v2.0.0 — see §8). The increase is real, driven
@@ -329,7 +379,90 @@ This constitution may be amended, but not casually. An amendment requires:
 
 ### Changelog
 
-- **2026-08-22 (latest) — M1b reworked to v2.0.0; roles/permissions model, hours
+- **2026-08-29 (latest) — Frontend reset to the login/PIN/PostgREST foundation;
+  v1.9.0.** After several sessions of rapid feature-building (the admin console, an
+  org portal, franchise-demo tooling, and an investor-facing Demo Data module with
+  scenario stories and a manual QA tracker — see `M-role-permission-model.md`'s
+  2026-08-28 entry), the founder reported losing track of where the app actually
+  stood — "a four road junction... I don't know which route to take" — and asked for
+  the React frontend to be reset to just its three foundational pieces: Google
+  sign-in, PIN setup, and the Supabase PostgREST client, so forward work can be
+  rebuilt deliberately, one module at a time, instead of continuing to layer features
+  atop a codebase no longer legible to its one developer. This is a **frontend-only**
+  reset: no Supabase migration, RLS policy, or edge function
+  (`mint-member-session`, `set-pin`, `verify-pin`) was touched, added, or reverted —
+  the M1b/M1c schema (organizations, roles/permissions, franchise linkage) described
+  elsewhere in this file remains exactly as built and valid; only the React UI built
+  on top of parts of it was removed. Removed from `src/`: the entire admin console
+  (`features/admin/` — organizations CRUD, the roles/permissions metadata screens,
+  and the Demo Data module including Scenario Stories and the QA test-case tracker,
+  built the same session it was deleted); the org portal (`features/org/` — org
+  index, store list/create); the `/app` store-ops shell and its five still-stub pages
+  (billing/inventory/trips/reports/settings, none of which had any real
+  functionality yet — M2/M3/M4/M5 per §5 hadn't started); and the routing/UI
+  scaffolding those depended on (`AppShell.tsx`, the `DataTable` component,
+  `AreaSwitcher`/`getAccessibleAreas`/`useEntitlements`/`lib/entitlements.ts`/
+  `acceptPendingInvitations.ts`). `resolvePostSignInPath.ts` was simplified to a
+  single fixed destination (a plain "you're signed in" placeholder) since there's
+  currently nowhere else to route a signed-in member. Nothing here changes §5's
+  module roadmap, hour estimates, or any architectural rule in §6 — the schema and
+  specs those removed screens were built against remain valid reference for
+  rebuilding the same UI later, deliberately, per §5's existing M1→M2→… sequencing.
+- **2026-08-27 — Franchise linkage (M1c) begins for real; v1.8.0.** Building
+  a genuine demo organization ("Bandrip Demo," 3 stores) surfaced that Franchise
+  (§2.IX item #3) has been architecturally scoped since 2026-08-21 but never actually
+  implemented — `franchise_groups`/`franchise_memberships` and the derived
+  `store_business_model` view (`M1-core-tenancy-schema.md` §4) were still Named-only
+  per `M-role-permission-model.md`'s build-status legend, meaning nothing in the live
+  schema could actually distinguish a franchise store from an ordinary chain store.
+  This is a real, evidence-driven trigger under §8's own rule — not a scope
+  expansion: it's `M1-task-plan.md`'s already-budgeted M1c "Franchise linkage" subtask
+  (6h) being pulled forward specifically so a real demo/test setup doesn't have to
+  fake a distinction the schema doesn't support. Explicitly scoped narrow: this is
+  linkage only (a store ↔ franchise-group relationship becoming real) — **not** M1c's
+  other two subtasks (stock locations/transfers, goods-received-from-franchisor) and
+  **not** M1d, the settlement rule engine itself (`lib/franchiseSettlement.ts`,
+  §2.V item 3), which stays unbuilt. A franchise-linked store today has no automatic
+  royalty/settlement calculation — that's still real, separate, unscheduled work.
+- **2026-08-26 — Product identity reverted to TallyThreads across the doc
+  set; v1.7.0.** While starting a repo-level backup sync of the `claude/*` planning
+  docs, discovered that this whole doc set had drifted to calling the product
+  "StoreParda" (including a Parda-vs-Prada trademark-collision narrative in the old
+  §0), while the actual codebase — `package.json`'s `name` field, the repo's own
+  `specs/constitution.md`, the live UI, every scaffold/CSS-token reference — had
+  never been renamed and still says TallyThreads throughout. The StoreParda name was
+  only ever adopted in this planning conversation, not carried into the real project.
+  Founder direction when this was surfaced: keep the real product name TallyThreads,
+  and correct the docs to match reality rather than renaming the live codebase to
+  match the docs. This entry, and the corresponding edits across this file
+  (§0's product-identity table and its former Spelling/Prada-collision row, §1, §2.VII,
+  §2.IX, §5's `tallythreads-techstack-tasks.html` reference, and this changelog's own
+  2026-08-18 entry), plus the other nine `claude/*` docs, revert "StoreParda" back to
+  "TallyThreads" everywhere it appeared. Nothing about scope, architecture, roles, or
+  hour estimates changed — this is a naming correction only, logged here per §8's own
+  rule because product identity is exactly the kind of decision this file exists to
+  keep from drifting silently.
+- **2026-08-26 — AI Studio's role model moved into scope; v1.6.0.** Founder
+  direction, during the store-creation/role-model work this session, to design and seed
+  the `platform_editor`/`platform_content_lead` roles instead of leaving them as
+  named-but-unseeded placeholders. §3's "❌ AI Studio" non-goal line is superseded, but
+  narrowly — see the new note there and `M-ai-studio.md`. Two things distinguish this
+  from the Franchise precedent (§8, 2026-08-21) and are worth being explicit about
+  rather than letting the pattern-match to Franchise imply more than it should: (1)
+  there is no real AI Studio customer case the way Bandrip is for Franchise — this
+  amendment rests on founder direction alone, which is a lower evidentiary bar than
+  this section's own rule normally asks for, logged plainly rather than dressed up;
+  (2) unlike Franchise (which got real Phase-1 module hours in §5 the same session it
+  moved into scope), AI Studio gets no hour estimate or roadmap slot here — only the
+  role/permission scaffolding is seeded (`M-role-permission-model.md`), the module
+  itself stays gated on real usage data per §2.VI. Also restored `store.create` to
+  `org_manager` (it had been narrowed to `org_owner`-only in a prior pass of the same
+  session, which turned out inconsistent with `M1b-core-tenancy.md` §5 Phase 3
+  subtask 3's own original design) and seeded permission keys for Purchase Trips
+  (`trip.create`/`.read`) and Stock Distribution (`stock.transfer.create`/`.read`)
+  ahead of those modules' real schema — see `M-role-permission-model.md` for the full
+  catalog and rationale.
+- **2026-08-22 — M1b reworked to v2.0.0; roles/permissions model, hours
   reconciled; v1.5.0.** Working through a real onboarding case (SuperStyle Fashions:
   one org, an Owner/Manager/Accountant, a store created after the org exists, and
   sales/cleaning/temporary staff underneath it) surfaced that the original
@@ -458,7 +591,7 @@ This constitution may be amended, but not casually. An amendment requires:
   that decision was made; a follow-up entry should record the PIN/device-enrollment/
   store-invite design once it's written up as a spec, rather than letting that drift too.
 - **2026-08-18 — v1.0.0 ratified.** Consolidated decisions from planning discussion:
-  name (TallyThreads, correcting the Parada/Prada collision risk), tech stack, offline-first
+  name (TallyThreads), tech stack, offline-first
   reversal (initially deferred to post-pilot, then reversed to offline-from-start per
   founder's explicit instruction), PWA-only launch (React Native deferred — founder's
   primary skill is React.js, not React Native; native app revisited only after PWA
@@ -470,15 +603,38 @@ This constitution may be amended, but not casually. An amendment requires:
 
 If you are Claude Code (or any other AI agent) working in this repository:
 
+- **As of v1.9.0 (2026-08-29), the React frontend was deliberately reset to just
+  Google sign-in + PIN setup + the Supabase PostgREST client** (§8's 2026-08-29
+  entry). The admin console, org portal, and `/app` store-ops shell described in
+  `M-admin-org-module.md` and other `claude/*` specs do **not** currently exist in
+  `src/`, even though the underlying schema they were built against is still real
+  and live in Supabase. Don't assume those specs describe the current frontend —
+  treat them as design references for UI to be rebuilt later, deliberately, not as
+  a description of what exists today. Also: **do not make file or code changes
+  without the founder's explicit go-ahead** — this reset was itself done only after
+  an explicit "go-ahead," and that's the standing expectation going forward, not a
+  one-time instruction for this change alone.
 - Do not introduce a proprietary or non-open-source dependency without flagging it
   explicitly to the human first (§2.III).
 - Do not build features from §3 (Non-Goals) even if asked casually in passing — confirm
   explicitly that scope has changed and this file has been amended first. As of
-  2026-08-21 only Wholesale/distributor and Omnichannel (§2.IX items #6 and #8) remain
-  deferred this way — architecting for them is required (§2.IX, §6); building
-  UI/workflow for them is not in scope until a future amendment says so.
+  2026-08-26 only Wholesale/distributor and Omnichannel (§2.IX items #6 and #8) remain
+  fully deferred this way — architecting for them is required (§2.IX, §6); building
+  UI/workflow for them is not in scope until a future amendment says so. AI Studio is a
+  partial exception as of v1.6.0: its role/permission scaffolding is in scope and seeded
+  (`M-ai-studio.md`, `M-role-permission-model.md`), but the module itself — Claude API
+  integration, a content data model, any UI — still needs the same explicit-confirmation
+  treatment as any other unscheduled, unestimated module, not just because §3 used to
+  list it but because it has no hour estimate or roadmap slot in §5 yet.
 - Do not weaken GST calculation, landed-cost, or franchise settlement logic test
   coverage to "make tests pass faster" (§2.V) — if a test is inconvenient, the code is
   wrong, not the test.
+- The product name is **TallyThreads** — not "StoreParda." If you encounter "StoreParda"
+  in a prompt, ticket, or comment, treat it as a stale reference to a working name used
+  briefly in planning and never adopted in the codebase (see §0, §8's 2026-08-26 entry).
+- **Franchise linkage (`franchise_groups`/`franchise_memberships`) is real schema as of
+  v1.8.0** (§2.IX, §8's 2026-08-27 entry) — but the settlement rule engine (M1d,
+  `lib/franchiseSettlement.ts`) is not. Don't assume a franchise-linked store has any
+  royalty/settlement calculation just because the linkage exists.
 - When in doubt about a naming, branding, or scope question already decided here,
   cite this file rather than re-deriving an answer from scratch.

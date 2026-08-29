@@ -5,7 +5,7 @@ import {
   type ThemePreference,
 } from "@/components/theme/ThemeContext";
 
-const STORAGE_KEY = "sp-theme";
+const STORAGE_KEY = "tt-theme";
 
 function getSystemTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches
