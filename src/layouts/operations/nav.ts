@@ -7,14 +7,18 @@ export interface OperationsNavItem {
   icon: ComponentType<{ className?: string }>;
 }
 
-// Footer tab bar items for the operations shell (/ops). Pages are stubs for now —
-// M2 (offline sync) hasn't started and M3/M5 (Inventory/POS) aren't built yet, the
-// same caveat the pre-cleanup /app shell had. See M-role-permission-model.md for
-// which roles (store_manager, store_sales_staff, ...) land here.
-export const operationsNav: OperationsNavItem[] = [
-  { label: "Billing", to: "/ops/billing", icon: Receipt },
-  { label: "Inventory", to: "/ops/inventory", icon: Boxes },
-  { label: "Trips", to: "/ops/trips", icon: Truck },
-  { label: "Reports", to: "/ops/reports", icon: BarChart3 },
-  { label: "Settings", to: "/ops/settings", icon: Settings },
-];
+// Footer tab bar items for the operations shell. A function, not a static list,
+// because every link needs to carry the current :storeId (2026-08-30, once /ops
+// became store-scoped). Pages are stubs for now — M2 (offline sync) hasn't started
+// and M3/M5 (Inventory/POS) aren't built yet, the same caveat the pre-cleanup /app
+// shell had. See M-role-permission-model.md for which roles (store_manager,
+// store_sales_staff, ...) land here.
+export function getOperationsNav(storeId: string): OperationsNavItem[] {
+  return [
+    { label: "Billing", to: `/ops/${storeId}/billing`, icon: Receipt },
+    { label: "Inventory", to: `/ops/${storeId}/inventory`, icon: Boxes },
+    { label: "Trips", to: `/ops/${storeId}/trips`, icon: Truck },
+    { label: "Reports", to: `/ops/${storeId}/reports`, icon: BarChart3 },
+    { label: "Settings", to: `/ops/${storeId}/settings`, icon: Settings },
+  ];
+}

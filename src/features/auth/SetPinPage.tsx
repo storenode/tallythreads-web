@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { getDeviceId } from "@/lib/deviceId";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +19,7 @@ const PIN_PATTERN = /^\d{4,6}$/;
  */
 export default function SetPinPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { member, isLoading: memberLoading, isSignedIn } = useMember();
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -70,7 +72,7 @@ export default function SetPinPage() {
       }
 
       const destination = member
-        ? await resolvePostSignInPath(member.id)
+        ? await resolvePostSignInPath(queryClient, member.id)
         : "/no-store";
       navigate(destination, { replace: true });
     });

@@ -1,8 +1,8 @@
 import { Navigate, type RouteObject } from "react-router-dom";
 import { AuthGuard } from "@/features/auth/AuthGuard";
 import { RequireArea } from "@/features/auth/RequireArea";
-import ConsoleShell from "@/layouts/console/ConsoleShell";
-import { orgNav } from "./nav";
+import { RequireOrgAccess } from "@/features/auth/RequireOrgAccess";
+import OrgConsoleLayout from "./OrgConsoleLayout";
 
 export const storeRoutes: RouteObject[] = [
   {
@@ -13,17 +13,26 @@ export const storeRoutes: RouteObject[] = [
         element: <RequireArea area="org" />,
         children: [
           {
-            element: <ConsoleShell nav={orgNav} />,
+            index: true,
+            lazy: async () => ({
+              Component: (await import("./OrgPickerPage")).default,
+            }),
+          },
+          {
+            path: ":orgId",
+            element: <RequireOrgAccess />,
             children: [
               {
-                index: true,
-                element: <Navigate to="/org/stores" replace />,
-              },
-              {
-                path: "stores",
-                lazy: async () => ({
-                  Component: (await import("./pages/StoresListPage")).default,
-                }),
+                element: <OrgConsoleLayout />,
+                children: [
+                  { index: true, element: <Navigate to="stores" replace /> },
+                  {
+                    path: "stores",
+                    lazy: async () => ({
+                      Component: (await import("./pages/StoresListPage")).default,
+                    }),
+                  },
+                ],
               },
             ],
           },

@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 import type { CachedEntitlements } from "@/db";
 import { cacheEntitlements } from "@/lib/entitlementsCache";
 
@@ -69,17 +69,44 @@ export async function fetchEntitlements(): Promise<Entitlements> {
   return entitlements;
 }
 
+/** React Query key for one member's entitlements. Shared so callers outside a
+ * component (resolvePostSignInPath) can seed the cache the hook then reads. */
+export const entitlementsKey = (memberId: string | undefined) =>
+  ["auth", "entitlements", memberId] as const;
+
+/** Entitlements change rarely within a session (a role edit is an admin action,
+ * not something the signed-in member does mid-flow), so a freshly-seeded value
+ * stays authoritative for a while instead of every mounting guard refetching. */
+export const ENTITLEMENTS_STALE_TIME = 5 * 60 * 1000;
+
+/**
+ * Fetches entitlements once and primes both caches: the React Query cache (so
+ * `useEntitlements` downstream is an immediate hit, no second network call right
+ * after sign-in) and the Dexie cache (offline/reload durability). Call from the
+ * sign-in flow before navigating; see resolvePostSignInPath.ts.
+ */
+export async function primeEntitlements(
+  queryClient: QueryClient,
+  memberId: string,
+): Promise<Entitlements> {
+  const fresh = await fetchEntitlements();
+  queryClient.setQueryData(entitlementsKey(memberId), fresh);
+  await cacheEntitlements(memberId, fresh);
+  return fresh;
+}
+
 /** Hook — call only from inside a component. Fetches, then writes through to
  * the Dexie cache on success so the result survives offline/reload. */
 export function useEntitlements(memberId: string | undefined) {
   return useQuery({
-    queryKey: ["auth", "entitlements", memberId],
+    queryKey: entitlementsKey(memberId),
     queryFn: async () => {
       const fresh = await fetchEntitlements();
       if (memberId) await cacheEntitlements(memberId, fresh);
       return fresh;
     },
     enabled: !!memberId,
+    staleTime: ENTITLEMENTS_STALE_TIME,
   });
 }
 

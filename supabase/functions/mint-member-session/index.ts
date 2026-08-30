@@ -93,15 +93,45 @@ async function handle(req: Request): Promise<Response> {
     last_modified_at: new Date().toISOString(),
   };
 
-  // Upsert keyed on google_id — the stable identifier, not the mutable email.
-  const { data: member, error: upsertError } = await admin
+  // Resolve this Google identity to a members row. An org invite can pre-create a
+  // placeholder row (google_id null, is_active false) keyed on the invited email,
+  // before this person has ever signed in — and any memberships/organizations rows
+  // already point at THAT id. So look for such a placeholder first and activate it
+  // in place, keeping its id; otherwise fall back to the normal google_id upsert.
+  const MEMBER_COLS =
+    "id, google_id, google_email, email_verified, first_name, last_name, avatar_url, locale";
+
+  const { data: placeholder, error: placeholderLookupError } = await admin
     .from("members")
-    .upsert(profile, { onConflict: "google_id" })
-    .select("id, google_id, google_email, email_verified, first_name, last_name, avatar_url, locale")
-    .single();
+    .select("id")
+    .is("google_id", null)
+    .is("deleted_at", null)
+    .ilike("google_email", googleEmail)
+    .maybeSingle();
+
+  if (placeholderLookupError) {
+    console.error("placeholder lookup failed:", placeholderLookupError);
+    return json(
+      { error: "Failed to resolve member", detail: placeholderLookupError.message },
+      500,
+    );
+  }
+
+  const { data: member, error: upsertError } = placeholder
+    ? await admin
+        .from("members")
+        .update({ ...profile, is_active: true })
+        .eq("id", placeholder.id)
+        .select(MEMBER_COLS)
+        .single()
+    : await admin
+        .from("members")
+        .upsert({ ...profile, is_active: true }, { onConflict: "google_id" })
+        .select(MEMBER_COLS)
+        .single();
 
   if (upsertError || !member) {
-    console.error("members upsert failed:", upsertError);
+    console.error("members resolve failed:", upsertError);
     return json(
       {
         error: "Failed to persist member",

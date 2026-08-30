@@ -12,6 +12,10 @@ export interface Area {
  * Which top-level areas a signed-in member can reach, derived from their
  * entitlements. Mirrors the exact checks RequireArea.tsx uses to gate each route
  * tree, so "shown in the switcher" and "actually allowed in" never disagree.
+ *
+ * Both `to` targets point at each area's own index (/org, /ops) rather than a
+ * specific org/store id — OrgPickerPage/StorePickerPage do the "which one"
+ * resolution themselves (2026-08-30), so this never has to guess.
  */
 export function getAccessibleAreas(
   entitlements: Entitlements | undefined,
@@ -22,7 +26,7 @@ export function getAccessibleAreas(
     areas.push({ key: "admin", label: "Admin", to: "/admin" });
   }
   if (entitlements.organizations.length > 0) {
-    areas.push({ key: "org", label: "Organization", to: "/org/stores" });
+    areas.push({ key: "org", label: "Organization", to: "/org" });
   }
   if (entitlements.stores.length > 0) {
     areas.push({ key: "ops", label: "Operations", to: "/ops" });

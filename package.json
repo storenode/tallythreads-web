@@ -10,6 +10,7 @@
     "lint": "oxlint",
     "typecheck": "tsc -b --noEmit",
     "typecheck:restart": "tsc -b --clean && tsc -b --noEmit",
+    "clear:cache": "rm -rf node_modules/.vite dev-dist",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",

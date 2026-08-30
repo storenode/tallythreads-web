@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Menu, PanelLeft } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { AreaSwitcher } from "@/features/auth/AreaSwitcher";
@@ -8,12 +9,15 @@ interface ConsoleHeaderProps {
   collapsed: boolean;
   onToggleMobile: () => void;
   onToggleCollapsed: () => void;
+  /** Extra content (e.g. OrgSwitcher) rendered before AreaSwitcher/AccountMenu. */
+  extra?: ReactNode;
 }
 
 export function ConsoleHeader({
   collapsed,
   onToggleMobile,
   onToggleCollapsed,
+  extra,
 }: ConsoleHeaderProps) {
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur sm:px-6">
@@ -42,6 +46,7 @@ export function ConsoleHeader({
       <Logo size="sm" className={collapsed ? "" : "lg:hidden"} />
 
       <div className="ml-auto flex items-center gap-3">
+        {extra}
         <AreaSwitcher />
         <AccountMenu />
       </div>

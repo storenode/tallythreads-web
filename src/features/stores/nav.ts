@@ -1,11 +1,13 @@
 import { Store } from "lucide-react";
 import type { ConsoleNavSection } from "@/layouts/console/nav";
 
-// Dedicated org back-office nav — replaces the adminNav placeholder that was
-// standing in here (see storeRoutes' previous TODO). Grows as org-scoped pages
-// land (members, settings, ...).
-export const orgNav: ConsoleNavSection[] = [
-  {
-    items: [{ label: "Stores", to: "/org/stores", icon: Store }],
-  },
-];
+// Dedicated org back-office nav. A function, not a static list, because every link
+// needs to carry the current :orgId (2026-08-30, once /org became org-scoped) —
+// unlike adminNav, which has nowhere dynamic to point.
+export function getOrgNav(orgId: string): ConsoleNavSection[] {
+  return [
+    {
+      items: [{ label: "Stores", to: `/org/${orgId}/stores`, icon: Store }],
+    },
+  ];
+}

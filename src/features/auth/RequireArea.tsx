@@ -1,6 +1,9 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useMember } from "@/features/auth/useMember";
-import { useEntitlements, type Entitlements } from "@/features/auth/entitlements";
+import {
+  useEntitlements,
+  type Entitlements,
+} from "@/features/auth/entitlements";
 import type { AreaKey } from "@/features/auth/getAccessibleAreas";
 
 function isAllowed(
@@ -35,11 +38,13 @@ interface RequireAreaProps {
  */
 export function RequireArea({ area }: RequireAreaProps) {
   const { member, isLoading: memberLoading } = useMember();
-  const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements(
-    member?.id,
-  );
+  const { data: entitlements, isError } = useEntitlements(member?.id);
 
-  if (memberLoading || (member && entitlementsLoading && !entitlements)) {
+  // Wait until entitlements have actually resolved. `isLoading` can briefly be
+  // false while `data` is still undefined (observer just enabled), and acting on
+  // that gap sends a member with real access to /no-store — then the post-sign-in
+  // resolver bounces them back here, looping.
+  if (memberLoading || (member && !entitlements && !isError)) {
     return null;
   }
 

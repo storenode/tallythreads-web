@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabaseAuthClient } from "@/lib/supabaseAuthClient";
 import { getDeviceId } from "@/lib/deviceId";
 import { cacheActiveMember } from "@/lib/memberSession";
@@ -30,6 +31,7 @@ interface VerifyPinResponse {
  */
 export default function LoginPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState(() => getRememberedEmail() ?? "");
   const [pin, setPin] = useState("");
   const [rememberMe, setRememberMe] = useState(
@@ -71,7 +73,10 @@ export default function LoginPage() {
       else clearRememberedEmail();
 
       await cacheActiveMember(data.member, data.jwt);
-      const destination = await resolvePostSignInPath(data.member.id);
+      const destination = await resolvePostSignInPath(
+        queryClient,
+        data.member.id,
+      );
       navigate(destination, { replace: true });
     });
   }

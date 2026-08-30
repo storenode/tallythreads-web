@@ -1,14 +1,19 @@
-import { NavLink } from "react-router-dom";
-import { operationsNav } from "./nav";
+import { NavLink, useParams } from "react-router-dom";
+import { getOperationsNav } from "./nav";
 
 /**
  * Bottom tab bar — the operations shell has no sidebar (unlike ConsoleShell); this
- * is its only navigation, sized for a thumb on a counter tablet/phone.
+ * is its only navigation, sized for a thumb on a counter tablet/phone. Reads the
+ * current :storeId itself (rather than taking it as a prop) since it's always
+ * rendered inside the /ops/:storeId route tree.
  */
 export function OperationsTabBar() {
+  const { storeId } = useParams<{ storeId: string }>();
+  const nav = getOperationsNav(storeId ?? "");
+
   return (
     <nav className="sticky bottom-0 z-20 flex shrink-0 border-t border-border bg-surface/95 backdrop-blur">
-      {operationsNav.map((item) => (
+      {nav.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
