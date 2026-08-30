@@ -25,7 +25,6 @@ export function AdminHeader({
     [member?.first_name, member?.last_name].filter(Boolean).join(" ").trim() ||
     null;
   const email = member?.google_email ?? null;
-  const displayName = firstName ?? fullName ?? email ?? "Admin";
   const initial = (fullName ?? email ?? "A").slice(0, 1).toUpperCase();
 
   const [menuOpen, setMenuOpen] = useState(false);
