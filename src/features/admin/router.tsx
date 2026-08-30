@@ -38,6 +38,12 @@ export const adminRoutes: RouteObject[] = [
                 .OrganizationEditPage,
             }),
           },
+          {
+            path: "roles",
+            lazy: async () => ({
+              Component: (await import("./roles/RolesPage")).default,
+            }),
+          },
         ],
       },
     ],
