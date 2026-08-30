@@ -2,15 +2,20 @@ import { createBrowserRouter } from "react-router-dom";
 import { authRoutes } from "@/features/auth/router";
 import { homeRoutes } from "@/features/home/router";
 import { adminRoutes } from "@/features/admin/router";
+import { storeRoutes } from "./features/stores/router";
+import { operationsRoutes } from "@/features/operations/router";
 
-// Pared back to the foundation as of the 2026-08-29 cleanup: marketing/home + Google
-// login + PIN setup only. The admin console, org portal, and store-ops (/app) shell
-// (billing/inventory/trips/reports/settings) were all removed from src/ — see the
-// delete list from that cleanup for what to bring back and when. Nothing in
-// supabase/ (migrations, RLS, edge functions) was touched; this is a frontend-only
-// reset.
+// The 2026-08-29 cleanup pared this back to marketing/home + Google login + PIN
+// setup, then admin (/admin) and org back-office (/org) were rebuilt on the shared
+// ConsoleShell. 2026-08-30 adds the operations area (/ops — billing/inventory/
+// trips/reports/settings, bottom-tab shell instead of ConsoleShell's sidebar) plus
+// RequireArea gating on all three route trees and the header AreaSwitcher. Nothing
+// in supabase/ (migrations, RLS, edge functions) was touched by the 2026-08-29
+// reset; this file just tracks which frontend route trees currently exist.
 export const router = createBrowserRouter([
   ...homeRoutes,
   ...authRoutes,
   ...adminRoutes,
+  ...storeRoutes,
+  ...operationsRoutes,
 ]);

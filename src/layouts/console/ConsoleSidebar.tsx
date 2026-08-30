@@ -1,9 +1,11 @@
 import { NavLink } from "react-router-dom";
 import { X } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
-import { adminNav } from "../nav";
+import type { ConsoleNavSection } from "./nav";
 
-interface AdminSidebarProps {
+interface ConsoleSidebarProps {
+  /** Nav sections to render. */
+  nav: ConsoleNavSection[];
   /** Mobile drawer open state. */
   mobileOpen: boolean;
   /** Desktop: hide the sidebar entirely. */
@@ -11,11 +13,12 @@ interface AdminSidebarProps {
   onClose: () => void;
 }
 
-export function AdminSidebar({
+export function ConsoleSidebar({
+  nav,
   mobileOpen,
   collapsed,
   onClose,
-}: AdminSidebarProps) {
+}: ConsoleSidebarProps) {
   return (
     <>
       {/* Mobile backdrop */}
@@ -45,7 +48,7 @@ export function AdminSidebar({
         </div>
 
         <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
-          {adminNav.map((section, i) => (
+          {nav.map((section, i) => (
             <div key={section.heading ?? i}>
               {section.heading && (
                 <p className="px-3 pb-1.5 text-xs font-medium uppercase tracking-wide text-fg-muted">

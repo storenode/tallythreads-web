@@ -8,23 +8,10 @@ import {
   ScrollText,
   Settings,
 } from "lucide-react";
-import type { ComponentType } from "react";
-
-export interface AdminNavItem {
-  label: string;
-  to: string;
-  icon: ComponentType<{ className?: string }>;
-  /** `true` -> only match the exact path (used for the index route). */
-  end?: boolean;
-}
-
-export interface AdminNavSection {
-  heading?: string;
-  items: AdminNavItem[];
-}
+import type { ConsoleNavSection } from "@/layouts/console/nav";
 
 // Static placeholders — swap `to` targets / add-remove items as routes land.
-export const adminNav: AdminNavSection[] = [
+export const adminNav: ConsoleNavSection[] = [
   {
     items: [
       { label: "Dashboard", to: "/admin", icon: LayoutDashboard, end: true },
@@ -34,8 +21,7 @@ export const adminNav: AdminNavSection[] = [
     heading: "Tenancy",
     items: [
       { label: "Organizations", to: "/admin/organizations", icon: Building2 },
-      { label: "Stores", to: "/admin/stores", icon: Store },
-      { label: "Members", to: "/admin/members", icon: Users },
+      { label: "Stores", to: "/org/stores", icon: Store },
     ],
   },
   {
