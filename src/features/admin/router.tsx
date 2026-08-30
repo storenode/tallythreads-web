@@ -17,6 +17,27 @@ export const adminRoutes: RouteObject[] = [
               Component: (await import("./pages/admin.home")).default,
             }),
           },
+          {
+            path: "organizations",
+            lazy: async () => ({
+              Component: (await import("./organizations/OrganizationListPage"))
+                .default,
+            }),
+          },
+          {
+            path: "organizations/new",
+            lazy: async () => ({
+              Component: (await import("./organizations/OrganizationForm"))
+                .default,
+            }),
+          },
+          {
+            path: "organizations/:orgId/edit",
+            lazy: async () => ({
+              Component: (await import("./organizations/OrganizationForm"))
+                .OrganizationEditPage,
+            }),
+          },
         ],
       },
     ],
