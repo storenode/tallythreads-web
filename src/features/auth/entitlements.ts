@@ -65,6 +65,55 @@ export async function fetchEntitlements(): Promise<Entitlements> {
     }
   }
 
+  // Cascade: an org-scoped role granting billing.read or inventory.read means that
+  // member operates every store in that org — org_owner/org_manager, per
+  // M-role-permission-model.md §2 ("operate any store in the org") and §4's matrix —
+  // not just stores they separately hold a store-level row on. Without this, someone
+  // with zero explicit store_manager/store_sales_staff rows (e.g. a plain org_owner)
+  // would never see the Operations area or any store in it, despite the permission
+  // matrix already granting them billing/inventory access everywhere in their org.
+  // org_accountant is correctly excluded — it has neither permission. This is the
+  // client-side mirror of has_store_permission()'s org-cascade branch
+  // (supabase/migrations — see that function's own comment); every downstream reader
+  // of entitlements.stores (RequireArea, AreaSwitcher, StorePickerPage, StoreSwitcher,
+  // RequireStoreAccess, hasPermission below) picks this up for free.
+  const cascadeOrgIds = entitlements.organizations
+    .filter(
+      (o) =>
+        o.permissions.includes("billing.read") ||
+        o.permissions.includes("inventory.read"),
+    )
+    .map((o) => o.organizationId);
+
+  if (cascadeOrgIds.length > 0) {
+    const { data: cascadeStores, error: cascadeError } = await supabase
+      .from("stores")
+      .select("id, organization_id")
+      .in("organization_id", cascadeOrgIds)
+      .is("deleted_at", null);
+
+    if (cascadeError) {
+      log("cascade store fetch failed:", cascadeError);
+      throw cascadeError;
+    }
+
+    const existingStoreIds = new Set(entitlements.stores.map((s) => s.storeId));
+    for (const store of cascadeStores ?? []) {
+      if (existingStoreIds.has(store.id)) continue;
+      const org = entitlements.organizations.find(
+        (o) => o.organizationId === store.organization_id,
+      );
+      if (!org) continue;
+      entitlements.stores.push({
+        storeId: store.id,
+        organizationId: store.organization_id,
+        role: org.role,
+        permissions: org.permissions,
+      });
+      existingStoreIds.add(store.id);
+    }
+  }
+
   log("fetched:", entitlements);
   return entitlements;
 }
