@@ -1,8 +1,19 @@
-import { Navigate, type RouteObject } from "react-router-dom";
+import {
+  Navigate,
+  useParams,
+  type RouteObject,
+} from "react-router-dom";
 import { AuthGuard } from "@/features/auth/AuthGuard";
 import { RequireArea } from "@/features/auth/RequireArea";
 import { RequireOrgAccess } from "@/features/auth/RequireOrgAccess";
-import OrgConsoleLayout from "./OrgConsoleLayout";
+import ConsoleShell from "@/layouts/console/ConsoleShell";
+import { getOrgAdminNav } from "./nav";
+
+// Wrapper so the nav can carry the current :orgId into its link targets.
+function OrgAdminShell() {
+  const { orgId } = useParams<{ orgId: string }>();
+  return <ConsoleShell nav={getOrgAdminNav(orgId ?? "")} />;
+}
 
 export const storeRoutes: RouteObject[] = [
   {
@@ -23,13 +34,24 @@ export const storeRoutes: RouteObject[] = [
             element: <RequireOrgAccess />,
             children: [
               {
-                element: <OrgConsoleLayout />,
+                element: <OrgAdminShell />,
                 children: [
                   { index: true, element: <Navigate to="stores" replace /> },
                   {
                     path: "stores",
                     lazy: async () => ({
-                      Component: (await import("./pages/StoresListPage")).default,
+                      Component: (await import("./pages/StoresListPage"))
+                        .default,
+                    }),
+                  },
+                  {
+                    // Org self-service profile edit — reuses the admin edit
+                    // form, minus the archive flow, gated by RequireArea "org"
+                    // + RequireOrgAccess instead of "admin".
+                    path: "edit",
+                    lazy: async () => ({
+                      Component: (await import("./pages/OrgProfilePage"))
+                        .default,
                     }),
                   },
                 ],

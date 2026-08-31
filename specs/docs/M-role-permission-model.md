@@ -4,7 +4,7 @@
 **Parent docs:** `M1b-core-tenancy.md` §1–2 (the platform/organization/store mechanism
 this all runs on), `constitution.md` v1.8.0 §2.IX/§3/§5, `store-model-master-plan.md`,
 `M1-franchise-model.md`, `M-ai-studio.md`
-**Version:** 1.2.0
+**Version:** 1.3.0
 
 ---
 
@@ -61,7 +61,7 @@ Every row below is tagged with one of three statuses, because "the role exists" 
 | `org.create` | Tenancy | Live | Platform admin only |
 | `store.create` | Tenancy | Live | `org_owner` + `org_manager` (restored 2026-08-26, see §7) |
 | `staff.invite` / `staff.revoke` | Tenancy | Seeded — still no *general* store-level invite UI (org-level invite via Invite Member exists). **Narrow exception (2026-08-28):** the admin-only Demo Data module (`src/features/admin/demo/`) can send store-scoped invites, but only for the self-franchised demo organizations it manages — not a real staff-invite screen for any org. See §7's 2026-08-28 entry | `org_owner`, `org_manager` |
-| `org.manage_members` | Tenancy | Seeded — no UI yet | `org_owner` only |
+| `org.manage_members` | Tenancy | **Partially Live (2026-08-31)** — now also gates real RLS on `organizations` UPDATE (`20260831010000_organizations_crud_permission_matrix.sql`), so an `org_owner` can edit their own org profile / soft-archive it. The member-management UI it was named for still doesn't exist | `org_owner` only |
 | `inventory.write` / `inventory.read` | Inventory (M3) | Seeded — no `products`/stock tables yet | `org_owner`, `org_manager`, `store_sales_staff`, `store_temp_staff` |
 | `billing.write` / `billing.read` | POS/Billing (M5) | Seeded — no `invoices` table yet | `org_owner`, `org_manager`, `store_sales_staff`, `store_temp_staff` |
 | `reports.read` | Reports (M6) | Seeded — no reports built yet | `org_owner`, `org_manager`, `org_accountant` |
@@ -131,6 +131,17 @@ now, symmetric with `org_manager` not having `settlement.read` — flag if that'
 
 ## 7. Changelog
 
+- **2026-08-31 — `organizations` write policies aligned with §4.** New migration
+  `20260831010000_organizations_crud_permission_matrix.sql`: UPDATE on `organizations`
+  is now `is_platform_admin() or has_org_permission(id, 'org.manage_members')` (was
+  platform-admin-only), making the org self-service profile screen
+  (`OrgProfilePage.tsx` → `updateOrganization`) actually work for an `org_owner`. Also
+  adds an explicit platform-admin-only DELETE policy mirroring
+  `hard_delete_organization()`'s internal guard. INSERT is unchanged (still
+  platform-admin-only — `org.create` is granted to no role). Soft archive
+  (`UPDATE ... SET deleted_at`) rides the same UPDATE policy, so an `org_owner` can
+  archive their own org — the accepted trade-off of reusing `org.manage_members`
+  rather than adding a per-column guard.
 - **2026-08-28 — Demo Data admin module adds a narrow, demo-scoped store-invite
   UI.** `src/features/admin/demo/` (reachable from AdminShell's sidenav) lets a
   platform admin create and re-create self-franchised demo organizations —

@@ -557,7 +557,7 @@ function toDefaults(org: Organization): EditFormValues {
   };
 }
 
-function MembersCard({ org }: { org: Organization }) {
+export function MembersCard({ org }: { org: Organization }) {
   const { data: members, isLoading, isError } = useOrganizationMembers(org.id);
   const revokeMember = useRevokeOrganizationMember(org.id);
   const inviteMember = useInviteOrganizationMember(org.id);
@@ -869,15 +869,27 @@ export function OrganizationEditPage() {
   return <EditForm org={org} orgId={orgId} />;
 }
 
-function EditForm({ org, orgId }: { org: Organization; orgId: string }) {
+/**
+ * The organization edit form itself — core + registration cards, logo, and the
+ * Save / Cancel row. Self-contained (owns its useForm, patch-building and
+ * submit); `doneTo` is where Cancel and a successful save navigate. Shared by
+ * the admin console edit page and the org self-service page under /org.
+ */
+export function OrganizationEditFormCard({
+  org,
+  orgId,
+  doneTo,
+}: {
+  org: Organization;
+  orgId: string;
+  doneTo: string;
+}) {
   const navigate = useNavigate();
   const updateOrg = useUpdateOrganization();
-  const archiveOrg = useArchiveOrganization();
   const uploadLogo = useUploadOrganizationLogo();
   const removeLogo = useRemoveOrganizationLogo();
   const { isLoading, withLoading } = useLoadingGate();
   const [serverError, setServerError] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const form = useForm<EditFormValues>({
     resolver: zodResolver(editSchema) as Resolver<EditFormValues>,
@@ -920,54 +932,22 @@ function EditForm({ org, orgId }: { org: Organization; orgId: string }) {
 
       if (Object.keys(patch).length === 0) {
         // Nothing changed in the form (a logo swap isn't a form field) — just
-        // return to the list rather than leaving the user stuck on the page.
-        navigate(LIST_PATH);
+        // return rather than leaving the user stuck on the page.
+        navigate(doneTo);
         return;
       }
 
       try {
         await updateOrg.mutateAsync({ id: orgId, patch });
-        navigate(LIST_PATH);
+        navigate(doneTo);
       } catch (err) {
         setServerError(errorMessage(err, "Couldn't save your changes."));
       }
     });
 
-  const handleArchive = () =>
-    withLoading(async () => {
-      setServerError(null);
-      try {
-        await archiveOrg.mutateAsync(orgId);
-        navigate(LIST_PATH);
-      } catch (err) {
-        setConfirmOpen(false);
-        setServerError(errorMessage(err, "Couldn't archive the organization."));
-      }
-    });
-
   return (
-    <div className="space-y-6">
+    <>
       <LoadingOverlay show={isLoading} scope="page" label="Saving…" />
-
-      <PageHeading
-        action={
-          <Link
-            to={LIST_PATH}
-            className="text-sm font-medium text-fg-muted hover:text-fg"
-          >
-            ← Back
-          </Link>
-        }
-      >
-        {org.name}
-      </PageHeading>
-
-      {!org.primary_contact_member_id && (
-        <p className="rounded-lg border border-warning-text/40 bg-warning-bg px-3 py-2 text-sm text-warning-text">
-          This organization has no primary contact. Assign one from the Members
-          section below.
-        </p>
-      )}
 
       <FormProvider {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -991,7 +971,7 @@ function EditForm({ org, orgId }: { org: Organization; orgId: string }) {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => navigate(LIST_PATH)}
+              onClick={() => navigate(doneTo)}
               disabled={isLoading}
             >
               Cancel
@@ -1002,6 +982,54 @@ function EditForm({ org, orgId }: { org: Organization; orgId: string }) {
           </div>
         </form>
       </FormProvider>
+    </>
+  );
+}
+
+function EditForm({ org, orgId }: { org: Organization; orgId: string }) {
+  const navigate = useNavigate();
+  const archiveOrg = useArchiveOrganization();
+  const { isLoading, withLoading } = useLoadingGate();
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleArchive = () =>
+    withLoading(async () => {
+      setServerError(null);
+      try {
+        await archiveOrg.mutateAsync(orgId);
+        navigate(LIST_PATH);
+      } catch (err) {
+        setConfirmOpen(false);
+        setServerError(errorMessage(err, "Couldn't archive the organization."));
+      }
+    });
+
+  return (
+    <div className="space-y-6">
+      <LoadingOverlay show={isLoading} scope="page" label="Archiving…" />
+
+      <PageHeading
+        action={
+          <Link
+            to={LIST_PATH}
+            className="text-sm font-medium text-fg-muted hover:text-fg"
+          >
+            ← Back
+          </Link>
+        }
+      >
+        {org.name}
+      </PageHeading>
+
+      {!org.primary_contact_member_id && (
+        <p className="rounded-lg border border-warning-text/40 bg-warning-bg px-3 py-2 text-sm text-warning-text">
+          This organization has no primary contact. Assign one from the Members
+          section below.
+        </p>
+      )}
+
+      <OrganizationEditFormCard org={org} orgId={orgId} doneTo={LIST_PATH} />
 
       <MembersCard org={org} />
 
@@ -1022,6 +1050,8 @@ function EditForm({ org, orgId }: { org: Organization; orgId: string }) {
           </Button>
         </div>
       </Card>
+
+      {serverError && <p className="text-sm text-red-500">{serverError}</p>}
 
       <Modal
         open={confirmOpen}
