@@ -1,5 +1,10 @@
 import { supabase } from "@/lib/supabaseClient";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  memberProfileRpcParams,
+  type InviteMemberResult,
+  type MemberProfileFields,
+} from "@/components/forms/member/types";
 
 export type RegistrationType = "independent" | "chain" | "franchise";
 export type LegalEntityType =
@@ -324,19 +329,100 @@ export async function revokeOrganizationMember(
   if (error) throw error;
 }
 
-export interface InviteOrgMemberInput {
+export interface OrgMemberDetail extends MemberProfileFields {
+  memberId: string;
+  membershipId: string;
+  roleName: string;
+  email: string;
+}
+
+interface RawOrgMemberDetailRow {
+  id: string;
+  member_id: string;
+  roles: { name: string } | null;
+  members: {
+    google_email: string;
+    first_name: string | null;
+    last_name: string | null;
+    mobile_number: string | null;
+    aadhaar_number: string | null;
+    pan_number: string | null;
+    date_of_joining: string | null;
+    emergency_contact_name: string | null;
+    emergency_contact_phone: string | null;
+    address_line1: string | null;
+    address_line2: string | null;
+    city: string | null;
+    state: string | null;
+    pincode: string | null;
+  } | null;
+}
+
+const s2 = (v: string | null | undefined) => v ?? "";
+
+/** One member's full profile + their role in this org — backs the "edit member"
+ * page's pre-fill. Relies on the same RLS that lets the Members card read fellow
+ * members (org.manage_members, 20260831020000_org_manage_members_read_members.sql). */
+export async function fetchOrgMemberDetail(
+  orgId: string,
+  memberId: string,
+): Promise<OrgMemberDetail> {
+  const { data, error } = await supabase
+    .from("memberships")
+    .select(
+      "id, member_id, roles(name), members(google_email, first_name, last_name, mobile_number, aadhaar_number, pan_number, date_of_joining, emergency_contact_name, emergency_contact_phone, address_line1, address_line2, city, state, pincode)",
+    )
+    .eq("organization_id", orgId)
+    .eq("member_id", memberId)
+    .is("deleted_at", null)
+    .single();
+  if (error) throw error;
+
+  const row = data as unknown as RawOrgMemberDetailRow;
+  const m = row.members;
+  return {
+    memberId: row.member_id,
+    membershipId: row.id,
+    roleName: row.roles?.name ?? "",
+    email: m?.google_email ?? "",
+    firstName: s2(m?.first_name),
+    lastName: s2(m?.last_name),
+    mobileNumber: s2(m?.mobile_number),
+    aadhaarNumber: s2(m?.aadhaar_number),
+    panNumber: s2(m?.pan_number),
+    dateOfJoining: s2(m?.date_of_joining),
+    emergencyContactName: s2(m?.emergency_contact_name),
+    emergencyContactPhone: s2(m?.emergency_contact_phone),
+    addressLine1: s2(m?.address_line1),
+    addressLine2: s2(m?.address_line2),
+    city: s2(m?.city),
+    state: s2(m?.state),
+    pincode: s2(m?.pincode),
+  };
+}
+
+/** Overwrites (not backfills — see update_member_profile()'s own comment) an
+ * existing member's profile fields. Does not touch email or role. */
+export async function updateOrgMemberProfile(
+  orgId: string,
+  memberId: string,
+  input: MemberProfileFields,
+): Promise<void> {
+  const { error } = await supabase.rpc("update_member_profile", {
+    target_member_id: memberId,
+    target_org_id: orgId,
+    ...memberProfileRpcParams(input),
+  });
+  if (error) throw error;
+}
+
+export interface InviteOrgMemberInput extends MemberProfileFields {
   email: string;
   role_name: "org_owner" | "org_manager" | "org_accountant";
   is_primary_contact: boolean;
 }
 
-export interface InviteOrgMemberResult {
-  member_id: string;
-  email: string;
-  role_name: string;
-  already_member: boolean;
-  is_placeholder: boolean;
-}
+export type InviteOrgMemberResult = InviteMemberResult;
 
 export async function inviteOrganizationMember(
   orgId: string,
@@ -347,6 +433,7 @@ export async function inviteOrganizationMember(
     invite_email: input.email,
     invite_role_name: input.role_name,
     invite_is_primary_contact: input.is_primary_contact,
+    ...memberProfileRpcParams(input),
   });
   if (error) throw error;
   return data as InviteOrgMemberResult;
@@ -482,6 +569,43 @@ export function useInviteOrganizationMember(orgId: string | undefined) {
         queryKey: [...ORGANIZATIONS_KEY, orgId],
       });
       queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_KEY });
+    },
+  });
+}
+
+function orgMemberDetailKey(
+  orgId: string | undefined,
+  memberId: string | undefined,
+) {
+  return [...orgMembersKey(orgId), "detail", memberId] as const;
+}
+
+export function useOrgMemberDetail(
+  orgId: string | undefined,
+  memberId: string | undefined,
+) {
+  return useQuery({
+    queryKey: orgMemberDetailKey(orgId, memberId),
+    queryFn: () => fetchOrgMemberDetail(orgId!, memberId!),
+    enabled: !!orgId && !!memberId,
+  });
+}
+
+export function useUpdateOrgMemberProfile(orgId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      memberId,
+      input,
+    }: {
+      memberId: string;
+      input: MemberProfileFields;
+    }) => updateOrgMemberProfile(orgId!, memberId, input),
+    onSuccess: (_void, { memberId }) => {
+      queryClient.invalidateQueries({ queryKey: orgMembersKey(orgId) });
+      queryClient.invalidateQueries({
+        queryKey: orgMemberDetailKey(orgId, memberId),
+      });
     },
   });
 }

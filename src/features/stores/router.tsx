@@ -45,12 +45,56 @@ export const storeRoutes: RouteObject[] = [
                     }),
                   },
                   {
+                    path: "stores/new",
+                    lazy: async () => ({
+                      Component: (await import("./pages/StoreCreatePage"))
+                        .default,
+                    }),
+                  },
+                  {
+                    path: "stores/:storeId/edit",
+                    lazy: async () => ({
+                      Component: (await import("./pages/StoreEditPage"))
+                        .default,
+                    }),
+                  },
+                  {
+                    path: "stores/:storeId/members/new",
+                    lazy: async () => ({
+                      Component: (
+                        await import("./pages/StoreMemberCreatePage")
+                      ).default,
+                    }),
+                  },
+                  {
+                    path: "stores/:storeId/members/:memberId/edit",
+                    lazy: async () => ({
+                      Component: (
+                        await import("./pages/StoreMemberEditPage")
+                      ).default,
+                    }),
+                  },
+                  {
                     // Org self-service profile edit — reuses the admin edit
                     // form, minus the archive flow, gated by RequireArea "org"
                     // + RequireOrgAccess instead of "admin".
                     path: "edit",
                     lazy: async () => ({
                       Component: (await import("./pages/OrgProfilePage"))
+                        .default,
+                    }),
+                  },
+                  {
+                    path: "members/new",
+                    lazy: async () => ({
+                      Component: (await import("./pages/OrgMemberCreatePage"))
+                        .default,
+                    }),
+                  },
+                  {
+                    path: "members/:memberId/edit",
+                    lazy: async () => ({
+                      Component: (await import("./pages/OrgMemberEditPage"))
                         .default,
                     }),
                   },

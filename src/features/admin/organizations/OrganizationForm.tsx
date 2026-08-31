@@ -24,14 +24,12 @@ import { OrganizationCoreFields } from "./OrganizationCoreFields";
 import {
   useArchiveOrganization,
   useCreateOrganization,
-  useInviteOrganizationMember,
   useOrganization,
   useOrganizationMembers,
   useRevokeOrganizationMember,
   useUpdateOrganization,
   useRemoveOrganizationLogo,
   useUploadOrganizationLogo,
-  type InviteOrgMemberInput,
   type LegalEntityType,
   type Organization,
   type RegistrationType,
@@ -558,9 +556,9 @@ function toDefaults(org: Organization): EditFormValues {
 }
 
 export function MembersCard({ org }: { org: Organization }) {
+  const navigate = useNavigate();
   const { data: members, isLoading, isError } = useOrganizationMembers(org.id);
   const revokeMember = useRevokeOrganizationMember(org.id);
-  const inviteMember = useInviteOrganizationMember(org.id);
   const updateOrg = useUpdateOrganization();
 
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -592,14 +590,6 @@ export function MembersCard({ org }: { org: Organization }) {
     }
   };
 
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] =
-    useState<InviteOrgMemberInput["role_name"]>("org_manager");
-  const [invitePrimary, setInvitePrimary] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteNotice, setInviteNotice] = useState<string | null>(null);
-
   const handleRevoke = async (membershipId: string) => {
     setRevokeError(null);
     try {
@@ -607,32 +597,6 @@ export function MembersCard({ org }: { org: Organization }) {
       setConfirmingId(null);
     } catch (err) {
       setRevokeError(errorMessage(err, "Couldn't remove this member."));
-    }
-  };
-
-  const handleInvite = async () => {
-    setInviteError(null);
-    setInviteNotice(null);
-    const email = inviteEmail.trim();
-    if (!email || !z.string().email().safeParse(email).success) {
-      setInviteError("Enter a valid email address.");
-      return;
-    }
-    try {
-      const result = await inviteMember.mutateAsync({
-        email,
-        role_name: inviteRole,
-        is_primary_contact: invitePrimary,
-      });
-      setInviteEmail("");
-      setInvitePrimary(false);
-      setInviteNotice(
-        result.already_member
-          ? `${result.email} is already a member with this role.`
-          : `Invited ${result.email} as ${ORG_ROLE_LABELS[result.role_name] ?? result.role_name}.`,
-      );
-    } catch (err) {
-      setInviteError(errorMessage(err, "Couldn't send the invite."));
     }
   };
 
@@ -645,60 +609,12 @@ export function MembersCard({ org }: { org: Organization }) {
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => setInviteOpen((v) => !v)}
+          onClick={() => navigate(`/org/${org.id}/members/new`)}
         >
-          {inviteOpen ? "Close" : "Invite member"}
+          Add member
         </Button>
       }
     >
-      {inviteOpen && (
-        <div className="mb-4 space-y-3 rounded-xl border border-border p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              label="Email"
-              type="email"
-              placeholder="person@example.com"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-            />
-            <SingleSelect
-              label="Role"
-              placeholder={null}
-              options={INVITE_ROLE_OPTIONS.map((o) => ({ ...o }))}
-              value={inviteRole}
-              onChange={(e) =>
-                setInviteRole(
-                  e.target.value as InviteOrgMemberInput["role_name"],
-                )
-              }
-            />
-          </div>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
-            <input
-              type="checkbox"
-              className="size-4 cursor-pointer rounded border-border accent-tt-green-500"
-              checked={invitePrimary}
-              onChange={(e) => setInvitePrimary(e.target.checked)}
-            />
-            Make primary contact
-          </label>
-          {inviteError && <p className="text-sm text-red-500">{inviteError}</p>}
-          {inviteNotice && (
-            <p className="text-sm text-tt-green-600">{inviteNotice}</p>
-          )}
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleInvite}
-              disabled={inviteMember.isPending}
-            >
-              {inviteMember.isPending ? "Inviting…" : "Send invite"}
-            </Button>
-          </div>
-        </div>
-      )}
-
       {isLoading && (
         <div className="flex justify-center py-6">
           <Spinner size={20} />
@@ -722,8 +638,11 @@ export function MembersCard({ org }: { org: Organization }) {
                 key={m.membershipId}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3"
               >
-                <div>
-                  <p className="text-sm font-medium text-fg">
+                <Link
+                  to={`/org/${org.id}/members/${m.memberId}/edit`}
+                  className="group"
+                >
+                  <p className="text-sm font-medium text-fg group-hover:text-tt-green-600 group-hover:underline">
                     {name || m.email}
                     {isPrimary && (
                       <span className="ml-2 text-xs font-medium text-tt-lavender-600">
@@ -731,8 +650,10 @@ export function MembersCard({ org }: { org: Organization }) {
                       </span>
                     )}
                   </p>
-                  <p className="text-xs text-fg-muted">{m.email}</p>
-                </div>
+                  <p className="text-xs text-fg-muted group-hover:text-tt-green-600 group-hover:underline">
+                    {m.email}
+                  </p>
+                </Link>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs font-medium text-fg-muted">
                     {ORG_ROLE_LABELS[m.roleName] ?? m.roleName}
