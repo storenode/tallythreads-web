@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { getDeviceId } from "@/lib/deviceId";
 import { Button } from "@/components/ui/Button";
+import { Logo } from "@/components/ui/Logo";
 import { useMember } from "@/features/auth/useMember";
 import { resolvePostSignInPath } from "@/features/auth/resolvePostSignInPath";
 import { useLoadingGate } from "@/hooks/useLoadingGate";
@@ -89,6 +90,9 @@ export default function SetPinPage() {
         onSubmit={handleSubmit}
         className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-surface-2 p-6"
       >
+        <div className="flex justify-center">
+          <Logo size="sm" />
+        </div>
         <div>
           <h1 className="text-lg font-semibold text-fg">
             Create a PIN for this device
