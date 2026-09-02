@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Building2,
   Store,
-  Users,
   ShieldCheck,
   CreditCard,
   ScrollText,
