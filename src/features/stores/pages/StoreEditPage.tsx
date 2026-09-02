@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { useForm, type Resolver } from "react-hook-form";
+import { FormProvider, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/Button";
@@ -12,11 +12,13 @@ import { Spinner } from "@/components/ui/Spinner";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { useLoadingGate } from "@/hooks/useLoadingGate";
 import { useMember } from "@/features/auth/useMember";
-import { useEntitlements } from "@/features/auth/entitlements";
+import { useEntitlements, hasPermission } from "@/features/auth/entitlements";
 import { roleDisplayName } from "@/features/admin/roles/roles";
+import { StoreDetailsFields } from "../StoreDetailsFields";
 import {
   useArchiveStore,
   useHardDeleteStore,
+  useRestoreStore,
   useRevokeStoreMember,
   useStore,
   useStoreMembers,
@@ -27,9 +29,22 @@ function errorMessage(err: unknown, fallback: string) {
   return err instanceof Error && err.message ? err.message : fallback;
 }
 
+const s = (v: string | null | undefined) => v ?? "";
+
 const editStoreSchema = z.object({
   name: z.string().trim().min(1, "Store name is required"),
   store_code: z.string(),
+  address_line1: z.string(),
+  address_line2: z.string(),
+  city: z.string(),
+  state: z.string(),
+  pincode: z.string(),
+  country: z.string(),
+  phone_number: z.string(),
+  email: z.string(),
+  gstin: z.string(),
+  opening_time: z.string(),
+  closing_time: z.string(),
 });
 
 type EditStoreValues = z.infer<typeof editStoreSchema>;
@@ -168,31 +183,56 @@ export default function StoreEditPage() {
   const { data: store, isLoading, isError } = useStore(storeId);
   const updateStore = useUpdateStore();
   const archiveStore = useArchiveStore(orgId);
+  const restoreStore = useRestoreStore(orgId);
   const hardDeleteStore = useHardDeleteStore(orgId);
   const { member } = useMember();
   const { data: entitlements } = useEntitlements(member?.id);
-  const isPlatformAdmin = entitlements?.platformRole === "platform_admin";
+  // store.delete is org_owner-only (not org_manager) — see M-role-permission-model.md
+  // §3. hasPermission() already treats platform_admin as an automatic pass, so this
+  // one check covers both "platform admin" and "org_owner with store.delete" without
+  // needing a separate isPlatformAdmin flag. Gates Archive, Restore, and Delete
+  // permanently alike — all three are delete-shaped actions now, unlike store.edit
+  // (name/address/contact/hours), which org_manager keeps.
+  const canDelete = hasPermission(entitlements, "store.delete", {
+    organizationId: orgId,
+  });
 
   const { isLoading: isSaving, withLoading } = useLoadingGate();
   const [serverError, setServerError] = useState<string | null>(null);
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [confirmName, setConfirmName] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const listTo = `/org/${orgId}/stores`;
 
+  const form = useForm<EditStoreValues>({
+    resolver: zodResolver(editStoreSchema) as Resolver<EditStoreValues>,
+    values: store
+      ? {
+          name: store.name,
+          store_code: s(store.store_code),
+          address_line1: s(store.address_line1),
+          address_line2: s(store.address_line2),
+          city: s(store.city),
+          state: s(store.state),
+          pincode: s(store.pincode),
+          country: s(store.country),
+          phone_number: s(store.phone_number),
+          email: s(store.email),
+          gstin: s(store.gstin),
+          opening_time: s(store.opening_time),
+          closing_time: s(store.closing_time),
+        }
+      : undefined,
+  });
   const {
     register,
     handleSubmit,
     formState: { errors, dirtyFields },
-  } = useForm<EditStoreValues>({
-    resolver: zodResolver(editStoreSchema) as Resolver<EditStoreValues>,
-    values: store
-      ? { name: store.name, store_code: store.store_code ?? "" }
-      : undefined,
-  });
+  } = form;
 
   if (isLoading) {
     return (
@@ -216,13 +256,30 @@ export default function StoreEditPage() {
     );
   }
 
+  const isArchived = !!store.deleted_at;
+
   const onSubmit = (values: EditStoreValues) =>
     withLoading(async () => {
       setServerError(null);
-      const patch: { name?: string; store_code?: string | null } = {};
+      const patch: Record<string, string | null> = {};
       if (dirtyFields.name) patch.name = values.name.trim();
-      if (dirtyFields.store_code)
-        patch.store_code = values.store_code.trim() || null;
+      if (dirtyFields.store_code) patch.store_code = values.store_code.trim() || null;
+      if (dirtyFields.address_line1)
+        patch.address_line1 = values.address_line1.trim() || null;
+      if (dirtyFields.address_line2)
+        patch.address_line2 = values.address_line2.trim() || null;
+      if (dirtyFields.city) patch.city = values.city.trim() || null;
+      if (dirtyFields.state) patch.state = values.state.trim() || null;
+      if (dirtyFields.pincode) patch.pincode = values.pincode.trim() || null;
+      if (dirtyFields.country) patch.country = values.country.trim() || null;
+      if (dirtyFields.phone_number)
+        patch.phone_number = values.phone_number.trim() || null;
+      if (dirtyFields.email) patch.email = values.email.trim() || null;
+      if (dirtyFields.gstin) patch.gstin = values.gstin.trim() || null;
+      if (dirtyFields.opening_time)
+        patch.opening_time = values.opening_time || null;
+      if (dirtyFields.closing_time)
+        patch.closing_time = values.closing_time || null;
 
       if (Object.keys(patch).length === 0) return;
 
@@ -238,10 +295,20 @@ export default function StoreEditPage() {
       setArchiveError(null);
       try {
         await archiveStore.mutateAsync(storeId);
-        navigate(listTo);
+        setArchiveConfirmOpen(false);
       } catch (err) {
         setArchiveConfirmOpen(false);
         setArchiveError(errorMessage(err, "Couldn't archive the store."));
+      }
+    });
+
+  const handleRestore = () =>
+    withLoading(async () => {
+      setRestoreError(null);
+      try {
+        await restoreStore.mutateAsync(storeId);
+      } catch (err) {
+        setRestoreError(errorMessage(err, "Couldn't restore the store."));
       }
     });
 
@@ -273,60 +340,98 @@ export default function StoreEditPage() {
         {store.name}
       </PageHeading>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <Card title="Store">
-          <div className="space-y-4">
-            <Input
-              label="Store name"
-              error={errors.name?.message}
-              {...register("name")}
-            />
-            <Input
-              label="Store code"
-              error={errors.store_code?.message}
-              {...register("store_code")}
-            />
-          </div>
-        </Card>
-
-        {serverError && <p className="text-sm text-red-500">{serverError}</p>}
-
-        <div className="flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => navigate(listTo)}
-            disabled={isSaving}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSaving}>
-            {isSaving ? "Saving…" : "Save changes"}
-          </Button>
+      {isArchived && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-tt-lavender-500/40 bg-tt-lavender-500/5 p-4">
+          <p className="text-sm text-fg-muted">
+            This store is archived and hidden from the console.
+            {!canDelete &&
+              " Ask an org owner or platform admin to restore it."}
+          </p>
+          {canDelete && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleRestore}
+              disabled={restoreStore.isPending}
+            >
+              {restoreStore.isPending ? "Restoring…" : "Restore"}
+            </Button>
+          )}
         </div>
-      </form>
+      )}
+      {restoreError && <p className="text-sm text-red-500">{restoreError}</p>}
+
+      <FormProvider {...form}>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <Card title="Store">
+            <div className="space-y-4">
+              <Input
+                label="Store name"
+                error={errors.name?.message}
+                {...register("name")}
+              />
+              <Input
+                label="Store code"
+                error={errors.store_code?.message}
+                {...register("store_code")}
+              />
+            </div>
+          </Card>
+
+          <Card
+            title="Store details"
+            desc="Address, contact, GST, and business hours. Optional."
+          >
+            <StoreDetailsFields />
+          </Card>
+
+          {serverError && <p className="text-sm text-red-500">{serverError}</p>}
+
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => navigate(listTo)}
+              disabled={isSaving}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </form>
+      </FormProvider>
 
       <StoreMembersCard orgId={orgId} storeId={storeId} />
 
-      <Card title="Danger zone">
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-sm text-fg-muted">
-            Archiving hides this store from the console. It can be restored
-            later by an engineer.
-          </p>
-          <Button
-            type="button"
-            variant="ghost"
-            className="border-red-500/50 text-red-500 hover:enabled:bg-red-500/10"
-            onClick={() => setArchiveConfirmOpen(true)}
-            disabled={isSaving}
-          >
-            Archive
-          </Button>
-        </div>
+      {canDelete && (
+        <Card title="Danger zone">
+          {!isArchived && (
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-fg-muted">
+                Archiving hides this store from the console. It can be
+                restored later from here or from an org owner/platform admin.
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                className="border-red-500/50 text-red-500 hover:enabled:bg-red-500/10"
+                onClick={() => setArchiveConfirmOpen(true)}
+                disabled={isSaving}
+              >
+                Archive
+              </Button>
+            </div>
+          )}
 
-        {isPlatformAdmin && (
-          <div className="flex items-center justify-between gap-4 border-t border-border pt-6">
+          <div
+            className={
+              isArchived
+                ? "flex items-center justify-between gap-4"
+                : "flex items-center justify-between gap-4 border-t border-border pt-6"
+            }
+          >
             <p className="text-sm text-fg-muted">
               Permanently deletes this store and its entire footprint: members,
               invitations, channels, franchise links, and access grants. This
@@ -341,12 +446,12 @@ export default function StoreEditPage() {
               Delete permanently
             </Button>
           </div>
-        )}
 
-        {archiveError && (
-          <p className="text-sm text-red-500">{archiveError}</p>
-        )}
-      </Card>
+          {archiveError && (
+            <p className="text-sm text-red-500">{archiveError}</p>
+          )}
+        </Card>
+      )}
 
       <Modal
         open={archiveConfirmOpen}
@@ -355,7 +460,7 @@ export default function StoreEditPage() {
       >
         <p className="text-sm text-fg-muted">
           <span className="font-medium text-fg">{store.name}</span> will be
-          soft-deleted and removed from the console.
+          soft-deleted and removed from the console. It can be restored later.
         </p>
         <div className="mt-6 flex justify-end gap-3">
           <Button
@@ -369,8 +474,9 @@ export default function StoreEditPage() {
             type="button"
             className="bg-red-500 hover:enabled:bg-red-600"
             onClick={handleArchive}
+            disabled={archiveStore.isPending}
           >
-            Archive
+            {archiveStore.isPending ? "Archiving…" : "Archive"}
           </Button>
         </div>
       </Modal>

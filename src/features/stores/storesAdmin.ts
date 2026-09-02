@@ -7,6 +7,7 @@ import {
 } from "@/components/forms/member/types";
 
 const s2 = (v: string | null | undefined) => v ?? "";
+const n = (v: string) => v.trim() || null;
 
 /**
  * Stores CRUD + members data layer — the store counterpart of
@@ -25,6 +26,17 @@ export interface Store {
   organization_id: string;
   name: string;
   store_code: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
+  country: string | null;
+  phone_number: string | null;
+  email: string | null;
+  gstin: string | null;
+  opening_time: string | null;
+  closing_time: string | null;
   created_at: string;
   last_modified_at: string;
   deleted_at: string | null;
@@ -33,11 +45,33 @@ export interface Store {
 export interface CreateStoreInput {
   name: string;
   store_code: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+  phone_number: string;
+  email: string;
+  gstin: string;
+  opening_time: string;
+  closing_time: string;
 }
 
 export interface UpdateStoreInput {
   name?: string;
   store_code?: string | null;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  country?: string | null;
+  phone_number?: string | null;
+  email?: string | null;
+  gstin?: string | null;
+  opening_time?: string | null;
+  closing_time?: string | null;
 }
 
 const STORES_KEY = ["org-portal", "stores"] as const;
@@ -63,7 +97,18 @@ export async function createStore(
     .insert({
       organization_id: organizationId,
       name: input.name.trim(),
-      store_code: input.store_code.trim() || null,
+      store_code: n(input.store_code),
+      address_line1: n(input.address_line1),
+      address_line2: n(input.address_line2),
+      city: n(input.city),
+      state: n(input.state),
+      pincode: n(input.pincode),
+      country: n(input.country),
+      phone_number: n(input.phone_number),
+      email: n(input.email),
+      gstin: n(input.gstin),
+      opening_time: n(input.opening_time),
+      closing_time: n(input.closing_time),
     })
     .select()
     .single();
@@ -85,11 +130,19 @@ export async function updateStore(
   return data;
 }
 
+/** Soft-deletes a store via the archive_store() RPC — platform_admin or store.delete
+ * (org_owner) only, NOT store.edit, unlike the rest of the stores UPDATE surface. A
+ * raw client update can no longer touch deleted_at at all (see the stores UPDATE
+ * RLS's WITH CHECK), so this RPC is the only path now. */
 export async function archiveStore(id: string): Promise<void> {
-  const { error } = await supabase
-    .from("stores")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("id", id);
+  const { error } = await supabase.rpc("archive_store", { store_id: id });
+  if (error) throw error;
+}
+
+/** Un-archives a store via restore_store() — same store.delete/platform_admin gate
+ * as archiveStore(). */
+export async function restoreStore(id: string): Promise<void> {
+  const { error } = await supabase.rpc("restore_store", { store_id: id });
   if (error) throw error;
 }
 
@@ -316,6 +369,21 @@ export function useArchiveStore(organizationId: string | undefined) {
   return useMutation({
     mutationFn: archiveStore,
     onSuccess: () => {
+      // Broad invalidation (not just [...STORES_KEY, organizationId]) — archiving
+      // also has to refresh the archived-stores list (stores.ts) and this store's
+      // own detail query, both of which nest under the same STORES_KEY prefix.
+      queryClient.invalidateQueries({ queryKey: STORES_KEY });
+      queryClient.invalidateQueries({ queryKey: [...STORES_KEY, organizationId] });
+    },
+  });
+}
+
+export function useRestoreStore(organizationId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: restoreStore,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: STORES_KEY });
       queryClient.invalidateQueries({ queryKey: [...STORES_KEY, organizationId] });
     },
   });

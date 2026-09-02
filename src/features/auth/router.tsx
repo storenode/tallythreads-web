@@ -42,4 +42,19 @@ export const authRoutes: RouteObject[] = [
       },
     ],
   },
+  {
+    // Reached when resolvePostSignInPath sees more than one accessible area (Admin
+    // console / Organization / Store Operations) — lets the member choose instead of
+    // one area silently winning. See LaunchPage.tsx.
+    path: "/launch",
+    element: <AuthGuard />,
+    children: [
+      {
+        index: true,
+        lazy: async () => ({
+          Component: (await import("./LaunchPage")).default,
+        }),
+      },
+    ],
+  },
 ];

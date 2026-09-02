@@ -30,7 +30,6 @@ export default function StorePickerPage() {
   }
 
   if (storeIds.length === 0) {
-    debugger;
     return <Navigate to="/no-store" replace />;
   }
 

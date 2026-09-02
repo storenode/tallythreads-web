@@ -115,6 +115,7 @@ export async function fetchEntitlements(): Promise<Entitlements> {
   }
 
   log("fetched:", entitlements);
+  log("entitlements <:::> String ", JSON.stringify(entitlements));
   return entitlements;
 }
 
