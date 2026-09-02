@@ -12,28 +12,24 @@
 </style>
 
 <g transform="translate(0,14)">
-<!-- node dot at the awning peak -->
 <circle cx="256" cy="80" r="20" class="sp-green-fill"/>
-<circle cx="256" cy="80" r="37" fill="none" class="sp-purple-stroke" stroke-width="7" opacity="0.4"/>
+<circle cx="256" cy="80" r="37" fill="none" class="sp-purple-stroke" stroke-width="6"/>
 
-<!-- scalloped awning: rail + 4 alternating pennants -->
 <path d="M144 152 q0 -16 16 -16 h192 q16 0 16 16" fill="none" class="sp-purple-stroke" stroke-width="7" stroke-linecap="round"/>
-<path d="M144 152 h56 v42 a28 20 0 0 1 -56 0 z" class="sp-green-fill" opacity="0.9"/>
-<path d="M200 152 h56 v42 a28 20 0 0 1 -56 0 z" class="sp-purple-fill" opacity="0.9"/>
-<path d="M256 152 h56 v42 a28 20 0 0 1 -56 0 z" class="sp-green-fill" opacity="0.9"/>
-<path d="M312 152 h56 v42 a28 20 0 0 1 -56 0 z" class="sp-purple-fill" opacity="0.9"/>
+<path d="M144 152 h56 v42 a28 20 0 0 1 -56 0 z" class="sp-green-fill"/>
+<path d="M200 152 h56 v42 a28 20 0 0 1 -56 0 z" class="sp-purple-fill"/>
+<path d="M256 152 h56 v42 a28 20 0 0 1 -56 0 z" class="sp-green-fill"/>
+<path d="M312 152 h56 v42 a28 20 0 0 1 -56 0 z" class="sp-purple-fill"/>
 
-<!-- counter: U-frame then countertop bar -->
+<rect x="188" y="332" width="34" height="74" rx="10" class="sp-green-fill"/>
+<rect x="239" y="332" width="34" height="74" rx="10" class="sp-purple-fill"/>
+<rect x="290" y="332" width="34" height="74" rx="10" class="sp-green-fill"/>
 <path d="M172 320 v84 q0 10 10 10 h148 q10 0 10 -10 v-84" fill="none" class="sp-purple-stroke" stroke-width="7" stroke-linecap="round"/>
 <rect x="148" y="300" width="216" height="22" rx="9" class="sp-purple-fill"/>
 
-<!-- thread spool sitting on the counter -->
 <rect x="216" y="228" width="80" height="15" rx="5" class="sp-green-fill"/>
 <rect x="216" y="286" width="80" height="15" rx="5" class="sp-green-fill"/>
 <rect x="230" y="243" width="52" height="43" rx="3" class="sp-purple-fill"/>
-<path d="M234 254 h44 M234 264 h44 M234 274 h44" fill="none" class="sp-green-stroke" stroke-width="3.5" stroke-linecap="round" opacity="0.55"/>
-
-<!-- trailing wiggly thread draped over the counter -->
-<path d="M296 262 q20 -6 26 10 q6 18 -10 26 q-13 8 0 22" fill="none" class="sp-green-stroke" stroke-width="6" stroke-linecap="round"/>
+<path d="M234 254 h44 M234 264 h44 M234 274 h44" fill="none" class="sp-green-stroke" stroke-width="3.5" stroke-linecap="round"/>
 </g>
 </svg>
