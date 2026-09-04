@@ -29,6 +29,11 @@
      component. See index.css's :root/[data-theme="dark"] blocks for the raw
      gray/brand/success/warning/error values these point at. */
   --color-brand: var(--tt-brand);
+  /* Fixed brand shades for the underline Tabs component — light uses 500, the
+     `dark:` variant swaps to the lighter 400. Both point at the raw TailAdmin
+     scale already defined in :root, so the component carries no hex. */
+  --color-brand-400: var(--ta-brand-400);
+  --color-brand-500: var(--ta-brand-500);
   --color-brand-subtle-bg: var(--tt-brand-subtle-bg);
   --color-brand-text-active: var(--tt-brand-text-active);
   --color-success-text: var(--tt-success-text);
