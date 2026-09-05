@@ -1,6 +1,6 @@
 # TallyThreads — Project Constitution
 
-**Version:** 1.9.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-08-29 · **Status:** Active
+**Version:** 1.10.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-05 · **Status:** Active
 
 This document is the source of truth for how TallyThreads is built. Any human contributor
 or AI coding agent (Claude Code, etc.) working on this repo MUST read this file first and
@@ -115,14 +115,24 @@ before anything ships to a real store:
 3. **Franchise settlement calculation** (`lib/franchiseSettlement.ts`) — added 2026-08-21
    once a real franchise case existed (Bandrip, see §8). Computes the stock-replacement
    share and royalty a franchise store owes its franchisor: e.g. Bandrip's 50% stock
-   share, plus 13% royalty calculated on the *remainder after that share* (not gross —
-   corrected 2026-08-21) once monthly revenue crosses ₹3,00,000. This is still a
-   **cliff**, not a slab — crossing the threshold taxes the whole month's post-share
-   remainder, not just the excess — which must be tested explicitly, the same way
-   `gstCalc.ts` tests the discount-drops-below-threshold edge case. Confirm the exact
-   boundary (`>` vs. `>=` ₹3,00,000) and the revenue basis (gross vs. taxable value)
-   against the real signed agreement before writing the tests, not after. Full worked
-   example: `store-model-master-plan.md` §5. **Not yet implemented as code** — as of
+   share, then the store's own running expenses (rent, power, utilities, salesperson
+   salary), and **then** a 13% royalty on the *post-expense owner balance* — gated on
+   monthly gross revenue crossing ₹3,00,000. The royalty base was corrected 2026-09-05
+   (v1.10.0): it is the balance after both the stock share *and* the store's expenses,
+   not the post-share remainder an earlier draft used — confirmed against the real
+   Nellore Bandrip agreement, where ₹4,00,000 gross yields a ₹15,860 royalty and
+   ₹1,06,140 owner take-home (not the ₹26,000 the old post-share base implied). The
+   threshold is still a **cliff**, not a slab — crossing ₹3,00,000 (strictly `>`, so
+   exactly ₹3,00,000 pays no royalty) taxes the whole post-expense balance, not just the
+   excess — and the boundary must be tested explicitly, the same way `gstCalc.ts` tests
+   the discount-drops-below-threshold edge case. Note the metric that *gates* the royalty
+   (gross revenue) is distinct from the base it is *charged on* (post-expense balance).
+   These terms are Bandrip's specific agreement and differ per customer: the engine is a
+   **hybrid** — a data-driven config recipe of reusable primitives by default, with a
+   coded-plugin fallback (a whitelist registry, never `eval` on stored data) for
+   contracts the primitives can't express. Still to confirm before tests: whether the
+   gross basis is gross-with-GST or taxable value. Full design + worked table + golden
+   test: `reference/franchise-settlement.md` §4. **Not yet implemented as code** — as of
    v1.8.0 only the franchise *linkage* (M1c: `franchise_groups`/`franchise_memberships`)
    is being built; this settlement calculation itself is M1d, still unscheduled (§5,
    §8's 2026-08-27 entry).
@@ -187,7 +197,7 @@ six.** Concretely: a `stores` table's ownership relationship must not hard-code 
 one owner, exactly one store" (multi-store/chain and franchise both break that in v1);
 and the identity/hierarchy structure being built for #1–#3 (owner ↔ store links, invites,
 roles, and a generalized `access_grants` primitive rather than a franchise-specific one —
-see `store-model-master-plan.md`) should be shaped so that a wholesale/distributor link
+see `reference/schema.md`) should be shaped so that a wholesale/distributor link
 or an omnichannel sales channel can attach to it later as additional structure, not as a
 schema rewrite. §6 has the specific architecture rule this implies; §2.IV explains why
 Purchase-Trip is not assumed mandatory for Franchise or Wholesale.
@@ -195,7 +205,7 @@ Purchase-Trip is not assumed mandatory for Franchise or Wholesale.
 **As of v1.8.0, Franchise (item #3) has real schema, not just an architectural
 promise** — see §8's 2026-08-27 entry. The distinction that makes a store "franchise"
 rather than "chain" is a `franchise_memberships` row linking it to a `franchise_groups`
-row, exactly as `M1-core-tenancy-schema.md` §4's derived `store_business_model` view
+row, exactly as `reference/schema.md` §5's derived `store_business_model` view
 always specified — this amendment is that view (and the two tables it reads) actually
 being migrated onto the live database, not a change to the design itself.
 
@@ -206,7 +216,7 @@ being migrated onto the live database, not a change to the design itself.
 - ❌ React Native mobile app (deferred until PWA validates the model; revisit once
   revenue justifies the native-app investment — see §8 for the reasoning trail). The
   auth/identity design should stay usable from a future native client without rework
-  (see `M1-auth-google.md`), even though no mobile client is built in v1.
+  (see `reference/schema.md` §1), even though no mobile client is built in v1.
 - ❌ Multi-vertical support (jewelry, furniture, footwear) — see §2.II
 - ❌ Wholesale/distributor and Omnichannel store models (§2.IX, items #6 and #8) — no UI
   or workflow built for these in v1; the data model must not preclude them later (§2.IX, §6)
@@ -283,9 +293,9 @@ founder direction alone, not a real AI Studio customer request yet.
 | **Total** | | **417 hrs (~42 weeks @ 10 hr/wk, ~11–12 months w/ buffer)** |
 
 **AI Studio has no module number or hour estimate yet** (see §2.VI, §3's 2026-08-26
-amendment, `M-ai-studio.md`) — its role model is seeded ahead of time, same treatment
+amendment, `roadmap/future/ai-studio.md`) — its role model is seeded ahead of time, same treatment
 `M3`/`M4`/`M5`'s permission keys got in `M1b`, but it isn't in this table because it
-isn't scheduled. It gets a number and a line here once `M-ai-studio.md` §5's open
+isn't scheduled. It gets a number and a line here once `roadmap/future/ai-studio.md` §5's open
 questions are answered and it's actually estimated — not before.
 
 **M1c (Franchise linkage) status as of v1.8.0:** `franchise_groups`/`franchise_memberships`
@@ -342,7 +352,7 @@ customer (Bandrip), not a hypothetical.
   visibility into another party's store data (Platform Owner support access, a
   franchisor's visibility into a franchisee, later an accountant/auditor) is implemented
   as one generalized grant — `{grantee, scope, permission, granted_by, expires_at}` — not
-  a bespoke mechanism per relationship. See `store-model-master-plan.md`.
+  a bespoke mechanism per relationship. See `reference/schema.md` §2.
 - **Central stock distribution (`stock_locations`/`stock_transfers`):** a godown/warehouse
   distributing stock to one or more stores is modeled the same way whether the recipient
   stores belong to the same owner (multi-store/chain, no settlement implied) or a
@@ -379,7 +389,33 @@ This constitution may be amended, but not casually. An amendment requires:
 
 ### Changelog
 
-- **2026-08-29 (latest) — Frontend reset to the login/PIN/PostgREST foundation;
+- **2026-09-05 (latest) — Franchise settlement royalty base corrected; settlement engine
+  made an explicit hybrid; v1.10.0.** Planning the Operations roadmap (Billing/Inventory/
+  Trips/Reports/Settings) with the founder surfaced two things about the franchise
+  settlement money-logic (§2.V item 3) that needed fixing before any of it is coded, both
+  confirmed against the **real Nellore Bandrip agreement** (the founder's family owns that
+  store, so this is first-hand contract knowledge, not a hypothetical — the strongest
+  evidence bar §8 asks for). (1) **Royalty base corrected:** the 13% royalty is charged on
+  the store owner's *post-expense* balance (after the 50% stock share *and* the store's own
+  running expenses — rent, power, utilities, salesperson salary), not on the post-share
+  remainder the 2026-08-21 design assumed. On ₹4,00,000 September gross this is a ₹15,860
+  royalty and ₹1,06,140 owner take-home, versus the ₹26,000 the old base implied — a real
+  difference, and the kind of money-logic error §2.V exists to catch before a partner is
+  mis-settled every month. The ₹3,00,000 cliff boundary is confirmed strictly `>`. (2)
+  **Engine is a hybrid:** in answer to the founder's question about how to do Java-style
+  per-customer agreement classes without reflection, the engine resolves an agreement
+  either from a data-driven JSON recipe of reusable primitives (default — a new customer
+  who fits existing primitives is onboarded by a DB row, no redeploy) or from a coded
+  plugin in a compile-time whitelist registry (fallback for exotic contracts — the direct
+  equivalent of a Java agreement class + redeploy). A hard security rule bars ever passing
+  stored DB data to `eval`/`new Function`/dynamic import. This extends — does not replace —
+  §2.V's "small reusable rule engine configured per contract": "configured" now spans both
+  a config recipe and a registered plugin. Full design, `deduct_expenses` primitive, the
+  `to_franchisor` distinction, worked table, and golden test are in `reference/franchise-settlement.md`
+  v2.0.0 §4. **Docs only — no application code was written** (M1d remains unscheduled per
+  §5); this is the deliberate "spec before code" step §9 requires, done ahead of the
+  Operations roadmap discussion it came out of.
+- **2026-08-29 — Frontend reset to the login/PIN/PostgREST foundation;
   v1.9.0.** After several sessions of rapid feature-building (the admin console, an
   org portal, franchise-demo tooling, and an investor-facing Demo Data module with
   scenario stories and a manual QA tracker — see `M-role-permission-model.md`'s
@@ -603,17 +639,16 @@ This constitution may be amended, but not casually. An amendment requires:
 
 If you are Claude Code (or any other AI agent) working in this repository:
 
-- **As of v1.9.0 (2026-08-29), the React frontend was deliberately reset to just
-  Google sign-in + PIN setup + the Supabase PostgREST client** (§8's 2026-08-29
-  entry). The admin console, org portal, and `/app` store-ops shell described in
-  `M-admin-org-module.md` and other `claude/*` specs do **not** currently exist in
-  `src/`, even though the underlying schema they were built against is still real
-  and live in Supabase. Don't assume those specs describe the current frontend —
-  treat them as design references for UI to be rebuilt later, deliberately, not as
-  a description of what exists today. Also: **do not make file or code changes
-  without the founder's explicit go-ahead** — this reset was itself done only after
-  an explicit "go-ahead," and that's the standing expectation going forward, not a
-  one-time instruction for this change alone.
+- **The frontend was reset on 2026-08-29 (§8) and the foundation UI has since been
+  rebuilt on top of it.** Current shipped surface: Google sign-in + PIN, an admin
+  console (`src/features/admin/`), a stores area (`src/features/stores/`), and a
+  store-scoped Operations shell at `/ops/:storeId` whose five tabs are still stubs.
+  For an at-a-glance map of what's built and what's next, see **`roadmap/status.md`**;
+  for the live schema, **`reference/schema.md`**. Treat the code as the source
+  of truth for shipped UI (the pre-reset spec docs describing an older `/admin`+`/org`+
+  `/app` shell layout were removed in the 2026-09-05 doc cleanup). Also: **do not make
+  file or code changes without the founder's explicit go-ahead** — this is the standing
+  expectation, not a one-time instruction.
 - Do not introduce a proprietary or non-open-source dependency without flagging it
   explicitly to the human first (§2.III).
 - Do not build features from §3 (Non-Goals) even if asked casually in passing — confirm

@@ -1,0 +1,135 @@
+erDiagram
+    members ||--o{ devices : "enrolls"
+    members ||--o{ memberships : "granted via"
+    members ||--o{ access_grants : "grantee"
+    roles ||--o{ memberships : "role_id"
+    roles ||--o{ role_permissions : ""
+    permissions ||--o{ role_permissions : ""
+    roles ||--o{ store_invitations : "role_id"
+    organizations ||--o{ stores : "owns"
+    organizations ||--o{ memberships : "org scope"
+    organizations ||--o{ store_invitations : "org invite"
+    organizations ||--o{ franchise_groups : "franchisor"
+    organizations ||--o{ demo_scenarios : ""
+    stores ||--o{ memberships : "store scope"
+    stores ||--o{ store_invitations : "store invite"
+    stores ||--o{ channels : "sells via"
+    stores ||--o{ franchise_memberships : "linked"
+    franchise_groups ||--o{ franchise_memberships : ""
+    franchise_groups ||--o{ settlement_rules : "terms"
+    stores ||--|| store_business_model : "derives (view)"
+
+    members {
+        uuid id PK
+        text google_id UK "nullable"
+        text google_email "not null"
+        boolean email_verified
+        text pin "legacy/reserved — real PIN is devices.pin_hash"
+        boolean is_active
+        text first_name_last_name_avatar_locale
+        text HR_fields "mobile, aadhaar, pan, emergency, DOJ, address"
+    }
+    devices {
+        uuid id PK
+        uuid device_id "hardware/browser id"
+        uuid member_id FK
+        text pin_hash "bcrypt — never raw"
+        timestamptz pin_expires_at "30-day"
+        int pin_failed_attempts
+        timestamptz pin_locked_until
+        text UNIQUE "device_id + member_id"
+    }
+    organizations {
+        uuid id PK
+        text name
+        text registration_type "CHECK independent|chain|franchise"
+        text status "CHECK trial|active|suspended|churned"
+        text legal_name_gstin_pan_address "profile"
+        smallint financial_year_start_month
+        boolean is_demo
+        uuid primary_contact_member_id FK
+        uuid onboarded_by FK
+    }
+    stores {
+        uuid id PK
+        uuid organization_id FK
+        text store_code
+        text name
+        text address_gstin_phone_email "profile"
+        time opening_time_closing_time
+    }
+    roles {
+        uuid id PK
+        text name UK
+        text scope_type "CHECK platform|organization|store"
+        boolean is_system
+    }
+    permissions {
+        uuid id PK
+        text key UK
+        text module
+        boolean is_system
+    }
+    role_permissions {
+        uuid role_id FK
+        uuid permission_id FK
+    }
+    memberships {
+        uuid id PK
+        uuid member_id FK
+        uuid role_id FK
+        uuid organization_id FK "nullable"
+        uuid store_id FK "nullable"
+    }
+    store_invitations {
+        uuid id PK
+        uuid store_id FK "nullable"
+        uuid organization_id FK "nullable"
+        uuid role_id FK
+        text invited_email
+        text token UK
+        text status "CHECK pending|accepted|expired|revoked"
+    }
+    access_grants {
+        uuid id PK
+        uuid grantee_member_id FK
+        text scope_type "CHECK organization|store"
+        uuid scope_id
+        text permission "CHECK read_only|reports_only|full"
+    }
+    channels {
+        uuid id PK
+        uuid store_id FK
+        text channel_type "CHECK pos|online"
+    }
+    franchise_groups {
+        uuid id PK
+        uuid franchisor_org_id FK
+        text name
+    }
+    franchise_memberships {
+        uuid id PK
+        uuid store_id FK
+        uuid franchise_group_id FK
+        date agreement_start
+        date agreement_end "null = active"
+    }
+    settlement_rules {
+        uuid id PK
+        uuid franchise_group_id FK
+        jsonb config "not null (no plugin_id yet — see §7)"
+        date effective_from
+        date effective_to
+    }
+    demo_scenarios {
+        uuid id PK
+        uuid organization_id FK
+        text headline_problem_solution
+        jsonb walkthrough_steps
+    }
+    qa_test_cases {
+        uuid id PK
+        text section_title_description
+        text status "CHECK not_run|passed|failed|blocked"
+        uuid last_run_by FK
+    }

@@ -6,7 +6,7 @@ back here rather than duplicating the content.
 
 ## Workflow
 
-1. Before starting a task: create `specs/tasks/<id>-<slug>.md` using the template below,
+1. Before starting a task: create `specs/roadmap/<id>-<slug>.md` (or `roadmap/future/` for unscheduled sketches) using the template below,
    and open a linked GitHub issue for it — put the issue (and the project board, if the
    task is added to it) in the spec's `Tracking` line, and put the spec's file path in
    the issue body. Neither system syncs automatically; both links are added by hand.

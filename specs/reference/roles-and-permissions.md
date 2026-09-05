@@ -1,20 +1,20 @@
-# M-role-permission-model — The Full Role & Permission Catalog
+# Roles & Permissions — The Full Role & Permission Catalog
 
 **Status:** Living reference, consolidates decisions already made elsewhere
-**Parent docs:** `M1b-core-tenancy.md` §1–2 (the platform/organization/store mechanism
-this all runs on), `constitution.md` v1.8.0 §2.IX/§3/§5, `store-model-master-plan.md`,
-`M1-franchise-model.md`, `M-ai-studio.md`
+**Parent docs:** `schema.md` §2 (the platform/organization/store RBAC mechanism this all
+runs on), `constitution.md` §2.IX/§3/§5, `franchise-settlement.md`,
+`../roadmap/future/ai-studio.md`
 **Version:** 1.3.0
 
 ---
 
 ## 0. Why this doc exists
 
-`M1b-core-tenancy.md` §1 already defines the mechanism (one `memberships` row per
+`schema.md` §1 already defines the mechanism (one `memberships` row per
 grant, three scopes, one `resolveEntitlements`/`hasPermission` function) and the roles
 that existed when it was written. What it doesn't do is enumerate every permission key
 each module needs, module by module, in one place — that's scattered across
-`store-model-master-plan.md`, `M1-franchise-model.md`, and conversation. This doc is
+`schema.md`, `franchise-settlement.md`, and conversation. This doc is
 that single table: every role, every permission key, which roles have which
 permissions, and — critically — **which of this is actually enforced today versus
 seeded ahead of schema that doesn't exist yet.** Nothing here changes the mechanism;
@@ -65,11 +65,11 @@ Every row below is tagged with one of three statuses, because "the role exists" 
 | `inventory.write` / `inventory.read` | Inventory (M3) | Seeded — no `products`/stock tables yet | `org_owner`, `org_manager`, `store_sales_staff`, `store_temp_staff` |
 | `billing.write` / `billing.read` | POS/Billing (M5) | Seeded — no `invoices` table yet | `org_owner`, `org_manager`, `store_sales_staff`, `store_temp_staff` |
 | `reports.read` | Reports (M6) | Seeded — no reports built yet | `org_owner`, `org_manager`, `org_accountant` |
-| `settlement.read` | Franchise settlement (`M1-franchise-model.md`) | **Partially Live (2026-08-27)** — now gates real RLS on `franchise_groups`/`franchise_memberships`/`settlement_rules` (franchise linkage + rule *storage*, `20260827000000_m1c_franchise_linkage.sql`); the `settlement_statements` table (evaluated settlement results) and M1d's rule engine (`lib/franchiseSettlement.ts`) are still not built — see `constitution.md` v1.8.0 §8's 2026-08-27 entry | `org_owner`, `org_accountant` |
+| `settlement.read` | Franchise settlement (`franchise-settlement.md`) | **Partially Live (2026-08-27)** — now gates real RLS on `franchise_groups`/`franchise_memberships`/`settlement_rules` (franchise linkage + rule *storage*, `20260827000000_m1c_franchise_linkage.sql`); the `settlement_statements` table (evaluated settlement results) and M1d's rule engine (`lib/franchiseSettlement.ts`) are still not built — see `constitution.md` v1.8.0 §8's 2026-08-27 entry | `org_owner`, `org_accountant` |
 | `maintenance.access` | Store ops | Seeded — no maintenance screen yet | `store_cleaning_staff` only |
 | `trip.create` / `trip.read` | Purchase Trips (M4) | **Seeded 2026-08-26** — no `trips`/landed-cost tables yet | `org_owner`, `org_manager` |
-| `stock.transfer.create` / `stock.transfer.read` | Stock Distribution (M1c, `store-model-master-plan.md` §1) | **Seeded 2026-08-26** — no `stock_locations`/`stock_transfers` tables yet | `org_owner`, `org_manager` |
-| `content.create` | AI Studio (`M-ai-studio.md`) | **Seeded 2026-08-26** — no content tables yet | `platform_editor`, `platform_content_lead` |
+| `stock.transfer.create` / `stock.transfer.read` | Stock Distribution (M1c, `schema.md` §1) | **Seeded 2026-08-26** — no `stock_locations`/`stock_transfers` tables yet | `org_owner`, `org_manager` |
+| `content.create` | AI Studio (`../roadmap/future/ai-studio.md`) | **Seeded 2026-08-26** — no content tables yet | `platform_editor`, `platform_content_lead` |
 | `content.review` / `content.publish` | AI Studio | **Seeded 2026-08-26** | `platform_content_lead` only |
 
 ## 4. Full matrix
@@ -124,7 +124,7 @@ in charge of *one specific store*: `staff.invite`/`.revoke` scoped to that store
 (inviting sales/cleaning/temp staff, not other managers), plus everything
 `store_sales_staff` already has. Mechanically this is a `store_id`-scoped
 `memberships` row like any other store role — no new mechanism, same as the Editor
-case in `M1b-core-tenancy.md` §1.3. Open question worth resolving before building it:
+case in `schema.md` §1.3. Open question worth resolving before building it:
 should a `store_manager` see that store's `reports.read`, or does financial visibility
 stay org-level-only (`org_owner`/`org_accountant`)? Drafted leaning toward "no" for
 now, symmetric with `org_manager` not having `settlement.read` — flag if that's wrong.
@@ -162,18 +162,18 @@ now, symmetric with `org_manager` not having `settlement.read` — flag if that'
   the same `settlement.read` permission this doc already had seeded for `org_owner`/
   `org_accountant`. Driven by building a genuine demo organization ("Bandrip Demo")
   that needed a real franchisor/franchisee relationship — see `constitution.md` v1.8.0
-  §8. This is `M1-task-plan.md`'s already-budgeted M1c "Franchise linkage" subtask
+  §8. This is `../roadmap/status.md`'s already-budgeted M1c "Franchise linkage" subtask
   pulled forward, not a new decision. Does **not** cover M1c's other two subtasks
   (stock locations/transfers, goods-received-from-franchisor) or M1d (the settlement
   rule engine that evaluates `settlement_rules.config` against real revenue) — both
   remain Seeded/unbuilt exactly as before.
 - **2026-08-26 — Initial version.** Consolidates the existing M1b role model with:
   (1) `store.create` restored to `org_manager` (the previous "org_owner only" pass
-  session had chosen turned out narrower than `M1b-core-tenancy.md` §5 Phase 3
+  session had chosen turned out narrower than `schema.md` §5 Phase 3
   subtask 3's own original design — a correction, not a new decision); (2) permission
   keys seeded for Purchase Trips and Stock Distribution, ahead of their real schema,
   per the "design now, build in sequence" call; (3) `platform_editor`/
   `platform_content_lead` seeded for the first time, following `constitution.md`
-  v1.6.0's amendment bringing AI Studio into scope — see `M-ai-studio.md`; (4) the
+  v1.6.0's amendment bringing AI Studio into scope — see `../roadmap/future/ai-studio.md`; (4) the
   proposed (not built) `store_manager` role documented for the still-deferred
   store-staff-assignment follow-up.

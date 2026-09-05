@@ -11,10 +11,10 @@ Supabase project ref: gmmeaplomgotqtivevkg (named "tallythreads")
 
 REFERENCE MATERIAL — read these before querying anything
 
-- supabase/M1-schema-diagram.svg the visual ERD (v3 + v4 supplier invoices)
+- supabase/schema.mmd the visual ERD (Mermaid; also embedded in specs/reference/schema.md)
 - supabase/migrations/\*.sql the actual source of truth for live schema
-- claude/M1-schema-reference.md consolidated table reference (project docs)
-- claude/M-role-permission-model.md the role/permission matrix (project docs)
+- specs/reference/schema.md consolidated table reference (verified against the live DB)
+- specs/reference/roles-and-permissions.md the role/permission matrix
 
 Where the diagram or the docs disagree with the migrations, THE MIGRATIONS WIN.
 Report every such disagreement as schema drift — that is one of the things I
@@ -24,7 +24,7 @@ CHECKS
 
 1. Table inventory
    List every table in schema public. Expected: 16. For each, say whether it
-   appears in M1-schema-diagram.svg. Flag both directions:
+   appears in supabase/schema.mmd. Flag both directions:
    - tables that exist live but are missing from the diagram
    - tables drawn in the diagram that were never migrated
      (I expect stock_locations, stock_transfers, settlement_statements to be

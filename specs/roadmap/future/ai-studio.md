@@ -1,12 +1,12 @@
-# M-ai-studio — AI Studio (Claude-Powered Content Generation)
+# AI Studio — Claude-Powered Content Generation
 
 **Status:** Draft — scope and role model only, not yet estimated or scheduled into the module roadmap
 **Version:** 0.1.0
 **Est:** Not yet estimated — gated on the open questions in §5 before this gets a module number (`constitution.md` §5)
-**Tracking:** Not yet created — open a GitHub issue once this moves from design to a scheduled build (see Workflow in `specs/tasks/README.md`)
-**Parent docs:** `constitution.md` v1.7.0 §2.VI/§3 (the amendment bringing this into scope), `M1b-Core-Tenancy-Schema.md` §1.3 (the Editor role mechanism this reuses), `docs/M-role-permission-model.md` §2–4 (the seeded roles/permissions this doc explains)
+**Tracking:** Not yet created — open a GitHub issue once this moves from design to a scheduled build (see Workflow in `../workflow.md`)
+**Parent docs:** `constitution.md` v1.7.0 §2.VI/§3 (the amendment bringing this into scope), `../../reference/schema.md` §1.3 (the Editor role mechanism this reuses), `../../reference/roles-and-permissions.md` §2–4 (the seeded roles/permissions this doc explains)
 
-This is a starting sketch, not an implementation-ready spec the way `M1-franchise-model.md`
+This is a starting sketch, not an implementation-ready spec the way `../../reference/franchise-settlement.md`
 is — real open questions in §5 need answers before this gets hour-estimated and slotted
 into the roadmap.
 
@@ -34,15 +34,15 @@ explicit about what that does and doesn't imply for sequencing.
 **Explicitly not in scope for this doc:**
 - Any actual Claude API integration code
 - UI/screens
-- Billing model for AI Studio usage (constitution §1.3 of `M1b-Core-Tenancy-Schema.md` notes
+- Billing model for AI Studio usage (constitution §1.3 of `../../reference/schema.md` notes
   "per-video billing to a store is a separate future concern," not touched here)
 - An hour estimate or roadmap slot — this needs the open questions in §5 answered
-  first, the same discipline `M1-franchise-model.md` went through before
-  `M1-task-plan.md` gave it hours
+  first, the same discipline `../../reference/franchise-settlement.md` went through before
+  `../status.md` gave it hours
 
-## 2. Role model (already seeded — see `docs/M-role-permission-model.md`)
+## 2. Role model (already seeded — see `../../reference/roles-and-permissions.md`)
 
-Mechanically identical to a store-scoped staff row (`M1b-Core-Tenancy-Schema.md` §1.3): an
+Mechanically identical to a store-scoped staff row (`../../reference/schema.md` §1.3): an
 editor or content lead gets a `memberships` row with `store_id` set to whichever
 store(s) they're assigned to, `organization_id` null. `resolveEntitlements` doesn't
 special-case this — it's a store-scoped role like any other, just carrying a
@@ -55,7 +55,7 @@ different permission bundle.
 
 Who assigns an editor to a store, and whether the store owner has any say in it, is
 one of §5's open questions — drafted as "platform_content_lead assigns editors"
-per `M1b-Core-Tenancy-Schema.md` §1's original note, not yet confirmed.
+per `../../reference/schema.md` §1's original note, not yet confirmed.
 
 ## 3. Data model — first sketch, not locked
 
@@ -86,7 +86,7 @@ invitations`), just with `has_org_permission`-style checks once this table is re
 
 ## 4. What Purchase-Trip's history suggests about doing this right
 
-`M1-franchise-model.md` and `Store_model_master_plan.md` §5 both show the pattern
+`../../reference/franchise-settlement.md` §4 shows the pattern
 this project uses for new money- or content-generating logic: a worked example
 against a real case, explicit open questions resolved *before* writing tests, not
 after. AI Studio doesn't have a real case yet (no store has asked for generated
@@ -102,12 +102,12 @@ explicitly deferred until a real customer need existed for Franchise.
    (`APP_JWT_SECRET`, service-role key).
 2. **Who assigns an editor to a store** — `platform_content_lead`, `platform_admin`
    only, or does the store owner (`org_owner`) get any input/approval? Drafted as
-   content_lead-assigns per `M1b-Core-Tenancy-Schema.md` §1, not confirmed.
+   content_lead-assigns per `../../reference/schema.md` §1, not confirmed.
 3. **Does the store owner see drafts before publish, or only the final published
    content?** Affects whether `store_sales_staff`/`org_owner` need any `content.*`
    read grant at all — none is seeded right now.
 4. **Billing** — per-item, per-store monthly, or bundled into the store's TallyThreads
-   subscription? `M1b-Core-Tenancy-Schema.md` §1.3 flags this as unresolved.
+   subscription? `../../reference/schema.md` §1.3 flags this as unresolved.
 5. **What happens to `content_items` if a store is deleted or unassigned from an
    editor?** Same soft-delete convention as everywhere else, but worth confirming
    published content doesn't just vanish from wherever it was published to (a
@@ -120,7 +120,7 @@ work on — it does not jump the module roadmap's queue (`constitution.md` §5's
 sequencing rule: M2 offline sync, not started, gates M3/M4/M5 in earnest; AI Studio
 was never on that numbered list to begin with and needs its own hour estimate before
 it is). The concrete result of this pass is: the role/permission model is seeded and
-ready (`docs/M-role-permission-model.md`), and this doc exists so the next real design
+ready (`../../reference/roles-and-permissions.md`), and this doc exists so the next real design
 session starts from these open questions instead of a blank page.
 
 ## Changelog
@@ -132,6 +132,6 @@ session starts from these open questions instead of a blank page.
 
 ## Notes
 
-- This module has no linked GitHub issue and no hour estimate — per `specs/tasks/README.md`'s
+- This module has no linked GitHub issue and no hour estimate — per `../workflow.md`'s
   Workflow section, open one when this moves from a design pass to a scheduled build,
   and put this file's path in the issue body at that point.
