@@ -49,6 +49,12 @@ export const adminRoutes: RouteObject[] = [
                   Component: (await import("./roles/RolesPage")).default,
                 }),
               },
+              {
+                path: "demo",
+                lazy: async () => ({
+                  Component: (await import("./demo")).default,
+                }),
+              },
             ],
           },
         ],

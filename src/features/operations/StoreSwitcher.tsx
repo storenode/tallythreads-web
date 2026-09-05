@@ -10,11 +10,21 @@ import { useMyStores } from "./myStores";
  * counterpart of OrgSwitcher. Lists every store the member has access to regardless
  * of organization (the cross-org staffing case), highlighting the current one.
  * Renders nothing when the member is tagged to only one store.
+ *
+ * Bugfix (2026-09-03): same gap as AreaSwitcher/LaunchPage — `useEntitlements`
+ * reads as settled with no data on the very first render before `member` itself
+ * resolves, which would read as "0 or 1 stores" and hide the switcher regardless
+ * of the real count. Guarded the same way.
  */
 export function StoreSwitcher() {
   const { storeId: currentStoreId } = useParams<{ storeId: string }>();
-  const { member } = useMember();
-  const { data: entitlements } = useEntitlements(member?.id);
+  const { member, isLoading: memberLoading } = useMember();
+  const {
+    data: entitlements,
+    isError: entitlementsError,
+  } = useEntitlements(member?.id);
+  const stillResolving =
+    memberLoading || (Boolean(member) && !entitlements && !entitlementsError);
   const storeIds = entitlements?.stores.map((s) => s.storeId) ?? [];
   const { data: stores } = useMyStores(storeIds);
 
@@ -37,7 +47,7 @@ export function StoreSwitcher() {
     };
   }, [open]);
 
-  if (storeIds.length <= 1) return null;
+  if (stillResolving || storeIds.length <= 1) return null;
 
   const current = stores?.find((s) => s.id === currentStoreId);
 

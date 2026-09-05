@@ -17,6 +17,15 @@ export const authRoutes: RouteObject[] = [
     }),
   },
   {
+    // Public demo launch link — redeems a grant token from the URL hash into a member
+    // session (no Google/PIN). Intentionally not behind AuthGuard: the opener has no
+    // session yet. See DemoLaunchPage + the demo-login edge function.
+    path: "/demo/launch",
+    lazy: async () => ({
+      Component: (await import("./DemoLaunchPage")).default,
+    }),
+  },
+  {
     // Requires a signed-in member (just came from Google or PIN sign-in) — AuthGuard
     // reads the cached active member, offline-capable like the /app/* guard.
     path: "/auth/set-pin",

@@ -440,6 +440,16 @@ verify_jwt = false
 import_map = "./functions/verify-pin/deno.json"
 entrypoint = "./functions/verify-pin/index.ts"
 
+# demo-login mints a member session for a demo-org member with no Google/PIN, so a
+# prospect or QA agent can open a "launch link". verify_jwt = false: the "issue" action
+# carries TallyThreads' own admin JWT (verified manually), and "redeem" carries a
+# short-lived grant token in the body — neither is a Supabase-issued JWT.
+[functions.demo-login]
+enabled = true
+verify_jwt = false
+import_map = "./functions/demo-login/deno.json"
+entrypoint = "./functions/demo-login/index.ts"
+
 # get-entitlements, admin-list-roles, admin-create-role, admin-patch-role, and
 # admin-delete-role were removed in favor of direct PostgREST calls from the client —
 # PostgREST now trusts our member JWT (legacy JWT secret matches APP_JWT_SECRET, see

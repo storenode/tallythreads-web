@@ -5,6 +5,7 @@ import {
   ShieldCheck,
   CreditCard,
   ScrollText,
+  Presentation,
   Settings,
 } from "lucide-react";
 import type { ConsoleNavSection } from "@/layouts/console/nav";
@@ -26,8 +27,9 @@ export const adminNav: ConsoleNavSection[] = [
   {
     heading: "Access",
     items: [
-      { label: "Roles & Permissions", to: "/admin/roles", icon: ShieldCheck },
       { label: "Audit Log", to: "/admin/audit", icon: ScrollText },
+      { label: "Demo", to: "/admin/demo", icon: Presentation },
+      { label: "Roles & Permissions", to: "/admin/roles", icon: ShieldCheck },
     ],
   },
   {

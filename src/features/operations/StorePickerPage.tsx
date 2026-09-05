@@ -7,21 +7,47 @@ import { useEntitlements } from "@/features/auth/entitlements";
 import { AccountMenu } from "@/features/auth/AccountMenu";
 import { useMyStores } from "./myStores";
 
+const log = (...args: unknown[]) => console.log("[StorePickerPage]", ...args);
+
 /**
  * Landing page for /ops — mirrors OrgPickerPage at the store level. Resolves the
  * signed-in member's store memberships: exactly one auto-redirects to
  * /ops/:storeId/billing, two or more render a picker (spanning every org the member
  * has store access in, not just one — see myStores.ts), zero falls back to
  * /no-store defensively.
+ *
+ * Bugfix (2026-09-03): this had the exact gap LaunchPage.tsx did (see that file's
+ * "Bugfix (2026-09-03)" note) and OrgPickerPage.tsx already guarded against —
+ * `entitlementsLoading` alone reads `false` on the very first render before
+ * `member` itself resolves, with `entitlements` still `undefined`, so `storeIds`
+ * read as `[]` and this navigated to /no-store before the real count ever loaded.
+ * Reported live: selecting Operations from the header AreaSwitcher after visiting
+ * Organization/Admin landed on /no-store instead of the one held store. Now
+ * guarded the same way OrgPickerPage already was.
  */
 export default function StorePickerPage() {
-  const { member } = useMember();
-  const { data: entitlements, isLoading: entitlementsLoading } =
-    useEntitlements(member?.id);
+  const { member, isLoading: memberLoading } = useMember();
+  const {
+    data: entitlements,
+    isError: entitlementsError,
+  } = useEntitlements(member?.id);
   const storeIds = entitlements?.stores.map((s) => s.storeId) ?? [];
   const { data: stores, isLoading: storesLoading } = useMyStores(storeIds);
 
-  if (entitlementsLoading || (storeIds.length > 0 && storesLoading)) {
+  const stillResolvingEntitlements =
+    memberLoading || (Boolean(member) && !entitlements && !entitlementsError);
+
+  log("state", {
+    memberId: member?.id,
+    memberLoading,
+    entitlementsError,
+    stillResolvingEntitlements,
+    hasEntitlements: Boolean(entitlements),
+    storeIds,
+    storesLoading,
+  });
+
+  if (stillResolvingEntitlements || (storeIds.length > 0 && storesLoading)) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
         <Spinner size={28} />
@@ -30,6 +56,7 @@ export default function StorePickerPage() {
   }
 
   if (storeIds.length === 0) {
+    log("no stores -> /no-store");
     return <Navigate to="/no-store" replace />;
   }
 
@@ -54,9 +81,7 @@ export default function StorePickerPage() {
           items={(stores ?? []).map((s) => ({
             id: s.id,
             title: s.name,
-            subtitle: [s.organizationName, s.store_code]
-              .filter(Boolean)
-              .join(" · "),
+            subtitle: [s.organizationName, s.store_code].filter(Boolean).join(" · "),
             to: `/ops/${s.id}/billing`,
           }))}
         />

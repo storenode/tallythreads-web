@@ -21,6 +21,7 @@ import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { useLoadingGate } from "@/hooks/useLoadingGate";
 import { LogoUpload } from "@/components/ui/LogoUpload";
 import { OrganizationCoreFields } from "./OrganizationCoreFields";
+import { FranchiseCard } from "../franchises/FranchiseCard";
 import {
   useArchiveOrganization,
   useCreateOrganization,
@@ -953,6 +954,8 @@ function EditForm({ org, orgId }: { org: Organization; orgId: string }) {
       <OrganizationEditFormCard org={org} orgId={orgId} doneTo={LIST_PATH} />
 
       <MembersCard org={org} />
+
+      <FranchiseCard org={org} />
 
       <Card title="Danger zone">
         <div className="flex items-center justify-between gap-4">

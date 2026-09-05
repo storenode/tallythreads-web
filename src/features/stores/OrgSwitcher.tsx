@@ -10,11 +10,21 @@ import { useMyOrganizations } from "./myOrganizations";
  * (via ConsoleShell's headerExtra) — distinct from AreaSwitcher, which jumps
  * between Admin/Organization/Operations; this one stays within Organization and
  * jumps between orgs. Renders nothing when the member belongs to only one.
+ *
+ * Bugfix (2026-09-03): same gap as AreaSwitcher/LaunchPage — `useEntitlements`
+ * reads as settled with no data on the very first render before `member` itself
+ * resolves, which would read as "0 or 1 organizations" and hide the switcher
+ * regardless of the real count. Guarded the same way.
  */
 export function OrgSwitcher() {
   const { orgId: currentOrgId } = useParams<{ orgId: string }>();
-  const { member } = useMember();
-  const { data: entitlements } = useEntitlements(member?.id);
+  const { member, isLoading: memberLoading } = useMember();
+  const {
+    data: entitlements,
+    isError: entitlementsError,
+  } = useEntitlements(member?.id);
+  const stillResolving =
+    memberLoading || (Boolean(member) && !entitlements && !entitlementsError);
   const orgIds = entitlements?.organizations.map((o) => o.organizationId) ?? [];
   const { data: orgs } = useMyOrganizations(orgIds);
 
@@ -37,7 +47,7 @@ export function OrgSwitcher() {
     };
   }, [open]);
 
-  if (orgIds.length <= 1) return null;
+  if (stillResolving || orgIds.length <= 1) return null;
 
   const current = orgs?.find((o) => o.id === currentOrgId);
 
