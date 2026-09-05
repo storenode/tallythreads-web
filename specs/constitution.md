@@ -1,6 +1,6 @@
 # TallyThreads — Project Constitution
 
-**Version:** 1.10.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-05 · **Status:** Active
+**Version:** 1.11.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-05 · **Status:** Active
 
 This document is the source of truth for how TallyThreads is built. Any human contributor
 or AI coding agent (Claude Code, etc.) working on this repo MUST read this file first and
@@ -146,7 +146,10 @@ someone finally reconciles by hand). No exceptions.
 
 Scope for v1 (P1) is deliberately narrow: Purchase Trips, Inventory + Barcode, Billing +
 GST, basic Reports, Settings, plus (as of 2026-08-21) Franchise settlement and
-goods-received-from-franchisor, since a real franchise case exists (§2.IX, §8). Loyalty
+goods-received-from-franchisor, since a real franchise case exists (§2.IX, §8), plus (as
+of 2026-09-05) the **Shift & Store Operations Log** (M10 — staff hours, petty-utility
+expenses with approval, shift-handover notes), a store-facing differentiator that also
+supplies the store-expense inputs the franchise settlement consumes (§2.V; §8). Loyalty
 programs and the two remaining deferred store models in §2.IX (Wholesale, Omnichannel)
 are P2+ — built only after Bandrip and the other early stores generate real usage data
 and a real feature request list. AI Studio (Claude-powered descriptions, video scripts,
@@ -220,7 +223,10 @@ being migrated onto the live database, not a change to the design itself.
 - ❌ Multi-vertical support (jewelry, furniture, footwear) — see §2.II
 - ❌ Wholesale/distributor and Omnichannel store models (§2.IX, items #6 and #8) — no UI
   or workflow built for these in v1; the data model must not preclude them later (§2.IX, §6)
-- ❌ Loyalty programs, staff commission tracking
+- ❌ Loyalty programs, staff **commission** tracking. (Note: staff **attendance/working-
+  hours, petty-expense logging, and shift-handover notes** are a *different* thing and are
+  now **in scope** as M10 — see §2.VI, §5, and §8's 2026-09-05 entry. Commission — a cut of
+  sales paid to staff — stays out.)
 - ❌ Payment gateway integration beyond recording payment mode (cash/UPI/card) —
   no card data storage, no PCI scope, ever
 
@@ -290,7 +296,8 @@ founder direction alone, not a real AI Studio customer request yet.
 | M7 | Settings, onboarding | 16 |
 | M8 | PWA polish, offline UX, shadow-mode verification before go-live with Bandrip | 30 |
 | M9 | Launch prep | 16 |
-| **Total** | | **417 hrs (~42 weeks @ 10 hr/wk, ~11–12 months w/ buffer)** |
+| M10 | **Shift & Store Operations Log** — sales-person login→logoff capture: working hours/attendance, petty-utility expense logging with approval, and end-of-shift handover notes (AI-assisted phrasing in a later phase). A store-facing differentiator vs. QueueBuster; feeds M1's franchise-settlement expense inputs. Speced in `roadmap/shift-store-ops-log.md`. **The M10 number is an identifier, not a build-position** — this module is store-facing and independent of M2–M5, so it can be built early (online-first) if chosen; see §8's 2026-09-05 entry | 24 |
+| **Total** | | **441 hrs (~44 weeks @ 10 hr/wk, ~11–12 months w/ buffer)** |
 
 **AI Studio has no module number or hour estimate yet** (see §2.VI, §3's 2026-08-26
 amendment, `roadmap/future/ai-studio.md`) — its role model is seeded ahead of time, same treatment
@@ -389,7 +396,28 @@ This constitution may be amended, but not casually. An amendment requires:
 
 ### Changelog
 
-- **2026-09-05 (latest) — Franchise settlement royalty base corrected; settlement engine
+- **2026-09-05 (latest) — Shift & Store Operations Log added to v1 scope as M10; v1.11.0.**
+  Founder direction, evidence-driven under §8's own rule: Bandrip's current POS
+  (QueueBuster) does not capture what happens *inside* a store shift, and the founder
+  identified three real gaps worth selling on — **(1) working hours / attendance** from a
+  sales-person's login→logoff, **(2) petty-utility expense logging with approval** (tea/
+  coffee/water refills, puja supplies, small store costs), and **(3) an end-of-shift
+  handover note** (AI-assisted phrasing in a later phase). This is a real store-facing
+  differentiator for the near-term customers (Nellore/Tirupati/Bandrip), not a
+  speculative feature. It is added to the §5 roadmap as **M10 (24h, project total
+  417h→441h)** and to §2.VI's v1 scope. Two deliberate boundaries: (a) it is **not** the
+  §3 "staff commission tracking" non-goal — attendance + petty cash + notes is a different
+  thing; commission (a cut of sales) stays out, and §3 now says so explicitly; (b) the
+  "AI Writer" here is staff *operational* notes, distinct from the AI Studio *marketing*
+  content module, and its Claude API call is server-side-only and deferred to a later
+  phase. There's a clean architectural fit worth noting: M10's hours (→ salary) and petty
+  expenses (→ utilities) are exactly the **store-expense inputs the franchise settlement
+  (§2.V, M1d) consumes** in its `deduct_expenses` step — the two modules complement each
+  other. The M10 *number* is an identifier, not a build-position: it's independent of
+  M2–M5 and store-facing, so it may be built early (online-first, with M2 sync retrofit
+  later) if chosen — that timing decision is deliberately still open. **Docs only — no
+  code** (spec: `roadmap/shift-store-ops-log.md`), the §9 "spec before code" step.
+- **2026-09-05 — Franchise settlement royalty base corrected; settlement engine
   made an explicit hybrid; v1.10.0.** Planning the Operations roadmap (Billing/Inventory/
   Trips/Reports/Settings) with the founder surfaced two things about the franchise
   settlement money-logic (§2.V item 3) that needed fixing before any of it is coded, both

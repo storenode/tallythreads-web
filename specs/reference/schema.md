@@ -354,6 +354,8 @@ decision later on whether `registration_type` should be relaxed to informational
   `franchise-settlement.md` / constitution §6; not migrated.
 - **`settlement_statements`** — computed monthly settlements (M1d). Not migrated.
 - **`settlement_rules.plugin_id`** + one-source check — the hybrid engine (M1d). Not migrated.
+- **`shifts` / `petty_expenses`** — Shift & Store Operations Log (M10). Designed in
+  `../roadmap/shift-store-ops-log.md`; not migrated. Feeds M1d's `deduct_expenses`.
 - Products / variant matrix / barcode — M3. Invoices / GST — M5. `content_items` (AI Studio) —
   see `../roadmap/future/ai-studio.md`.
 - **Client offline mirror:** `src/db/` (Dexie) already scaffolds local stores

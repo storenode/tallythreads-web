@@ -60,17 +60,21 @@ Operations are billing/inventory/reports, not a Purchase-Trip.
 | **M6** | GST reports, GSTR export | Not started |
 | **M7** | Settings, onboarding (incl. store GSTIN/address) | Not started |
 | **M8 / M9** | PWA polish + shadow-mode verification; launch prep with Bandrip | Not started |
+| **M10** | **Shift & Store Operations Log** — staff hours, petty-expense + approval, shift-handover notes (AI later) | **Speced, not built** (`shift-store-ops-log.md`). Store-facing differentiator; feeds M1d expenses; independent of M2–M5 (can start early, online-first) |
 
 ---
 
 ## Open decision — where to start Operations
 
-Three candidates were on the table (see `constitution.md` §5 for sequencing):
+Candidates (see `constitution.md` §5 for sequencing):
 1. **M2 first** — correct foundation, least visible.
 2. **M4 Purchase-Trip** — the product's core bet (Corporate sourcing), but skips M2.
 3. **M1d Settlement** — money-critical, pure logic, already speced, no M2 dependency.
+4. **M10 Shift & Store Ops Log** — store-facing differentiator (staff hours + petty
+   expenses + shift notes), independent of M2–M5, and produces the store-expense data M1d
+   consumes. Natural pairing: **M10 Phase 1 → M1d**.
 
-Not yet decided — this is the roadmap conversation to have next.
+Not yet decided — this is the roadmap conversation in progress.
 
 ---
 
