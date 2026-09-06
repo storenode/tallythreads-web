@@ -5,6 +5,7 @@ import {
   CreditCard,
   ScrollText,
   Settings,
+  Truck,
 } from "lucide-react";
 import type { ConsoleNavSection } from "@/layouts/console/nav";
 
@@ -27,6 +28,11 @@ export function getOrgAdminNav(orgId: string): ConsoleNavSection[] {
           icon: Building2,
         },
         { label: "Stores", to: `/org/${orgId}/stores`, icon: Store },
+        {
+          label: "Purchase Trips",
+          to: `/org/${orgId}/purchase-trips`,
+          icon: Truck,
+        },
       ],
     },
     {

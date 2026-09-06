@@ -4,6 +4,10 @@ import type { Invoice } from "./invoices";
 import type { OutboxItem } from "./outbox";
 import type { Member } from "./members";
 import type { CachedEntitlements } from "./entitlements";
+import type { PurchaseTrip } from "./purchaseTrips";
+import type { PurchaseInvoice } from "./purchaseInvoices";
+import type { PurchaseInvoiceItem } from "./purchaseInvoiceItems";
+import type { TripExpense } from "./tripExpenses";
 
 // Re-export entity types so external code keeps importing from `@/db`.
 export type { SyncMeta } from "./types";
@@ -16,6 +20,10 @@ export type {
   OrgEntitlement,
   StoreEntitlement,
 } from "./entitlements";
+export type { PurchaseTrip, TripRouteLeg, PurchaseTripStatus } from "./purchaseTrips";
+export type { PurchaseInvoice } from "./purchaseInvoices";
+export type { PurchaseInvoiceItem } from "./purchaseInvoiceItems";
+export type { TripExpense, TripExpenseCategory } from "./tripExpenses";
 
 export const db = new Dexie("tallythreads") as Dexie & {
   products: EntityTable<Product, "_localId">;
@@ -23,6 +31,10 @@ export const db = new Dexie("tallythreads") as Dexie & {
   outbox: EntityTable<OutboxItem, "id">;
   members: EntityTable<Member, "id">;
   entitlements: EntityTable<CachedEntitlements, "memberId">;
+  purchase_trips: EntityTable<PurchaseTrip, "_localId">;
+  purchase_invoices: EntityTable<PurchaseInvoice, "_localId">;
+  purchase_invoice_items: EntityTable<PurchaseInvoiceItem, "_localId">;
+  trip_expenses: EntityTable<TripExpense, "_localId">;
 };
 
 // ─── Migration history ───────────────────────────────────────────────
@@ -60,4 +72,15 @@ db.version(4).stores({
 // across all scopes), durable across reload/offline — see db/entitlements.ts.
 db.version(5).stores({
   entitlements: "memberId",
+});
+
+// v6 (M4): purchase-trip tables — trip, its supplier invoices, their line items,
+// and shared trip expenses. Sync-participating (_localId key, _dirty/last_modified_at
+// indexes), same shape as products/invoices.
+db.version(6).stores({
+  purchase_trips:
+    "_localId, id, organization_id, status, _dirty, last_modified_at",
+  purchase_invoices: "_localId, id, trip_id, _dirty, last_modified_at",
+  purchase_invoice_items: "_localId, id, invoice_id, _dirty, last_modified_at",
+  trip_expenses: "_localId, id, trip_id, _dirty, last_modified_at",
 });

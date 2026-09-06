@@ -1,8 +1,4 @@
-import {
-  Navigate,
-  useParams,
-  type RouteObject,
-} from "react-router-dom";
+import { Navigate, useParams, type RouteObject } from "react-router-dom";
 import { AuthGuard } from "@/features/auth/AuthGuard";
 import { RequireArea } from "@/features/auth/RequireArea";
 import { RequireOrgAccess } from "@/features/auth/RequireOrgAccess";
@@ -61,17 +57,15 @@ export const storeRoutes: RouteObject[] = [
                   {
                     path: "stores/:storeId/members/new",
                     lazy: async () => ({
-                      Component: (
-                        await import("./pages/StoreMemberCreatePage")
-                      ).default,
+                      Component: (await import("./pages/StoreMemberCreatePage"))
+                        .default,
                     }),
                   },
                   {
                     path: "stores/:storeId/members/:memberId/edit",
                     lazy: async () => ({
-                      Component: (
-                        await import("./pages/StoreMemberEditPage")
-                      ).default,
+                      Component: (await import("./pages/StoreMemberEditPage"))
+                        .default,
                     }),
                   },
                   {
@@ -96,6 +90,36 @@ export const storeRoutes: RouteObject[] = [
                     lazy: async () => ({
                       Component: (await import("./pages/OrgMemberEditPage"))
                         .default,
+                    }),
+                  },
+                  {
+                    path: "purchase-trips",
+                    lazy: async () => ({
+                      Component: (
+                        await import(
+                          "../purchaseTrips/pages/PurchaseTripsListPage"
+                        )
+                      ).default,
+                    }),
+                  },
+                  {
+                    path: "purchase-trips/new",
+                    lazy: async () => ({
+                      Component: (
+                        await import(
+                          "../purchaseTrips/pages/PurchaseTripCreatePage"
+                        )
+                      ).default,
+                    }),
+                  },
+                  {
+                    path: "purchase-trips/:tripLocalId",
+                    lazy: async () => ({
+                      Component: (
+                        await import(
+                          "../purchaseTrips/pages/PurchaseTripDetailPage"
+                        )
+                      ).default,
                     }),
                   },
                 ],

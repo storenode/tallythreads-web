@@ -67,7 +67,8 @@ Every row below is tagged with one of three statuses, because "the role exists" 
 | `reports.read` | Reports (M6) | Seeded — no reports built yet | `org_owner`, `org_manager`, `org_accountant` |
 | `settlement.read` | Franchise settlement (`franchise-settlement.md`) | **Partially Live (2026-08-27)** — now gates real RLS on `franchise_groups`/`franchise_memberships`/`settlement_rules` (franchise linkage + rule *storage*, `20260827000000_m1c_franchise_linkage.sql`); the `settlement_statements` table (evaluated settlement results) and M1d's rule engine (`lib/franchiseSettlement.ts`) are still not built — see `constitution.md` v1.8.0 §8's 2026-08-27 entry | `org_owner`, `org_accountant` |
 | `maintenance.access` | Store ops | Seeded — no maintenance screen yet | `store_cleaning_staff` only |
-| `trip.create` / `trip.read` | Purchase Trips (M4) | **Seeded 2026-08-26** — no `trips`/landed-cost tables yet | `org_owner`, `org_manager` |
+| `trip.create` / `trip.read` | Purchase Trips (M4) | **Live (2026-09-05)** — gate RLS on `purchase_trips`/`purchase_invoices`/`purchase_invoice_items`/`trip_expenses` (write / financial read) | `org_owner`, `org_manager` |
+| `trip.view_incoming` | Purchase Trips (M4) — visibility | **Live (2026-09-05)** — price-free `incoming_stock` view for store staff (no cost/MRP/margin), gated via `has_incoming_visibility()` | `store_sales_staff`, `store_temp_staff`, `store_manager` |
 | `stock.transfer.create` / `stock.transfer.read` | Stock Distribution (M1c, `schema.md` §1) | **Seeded 2026-08-26** — no `stock_locations`/`stock_transfers` tables yet | `org_owner`, `org_manager` |
 | `content.create` | AI Studio (`../roadmap/future/ai-studio.md`) | **Seeded 2026-08-26** — no content tables yet | `platform_editor`, `platform_content_lead` |
 | `content.review` / `content.publish` | AI Studio | **Seeded 2026-08-26** | `platform_content_lead` only |
@@ -90,6 +91,7 @@ unconditionally via `hasPermission`'s scope-agnostic platform_admin short-circui
 | `settlement.read` | ✓ | | ✓ | | | | |
 | `maintenance.access` | | | | | ✓ | | |
 | `trip.create` / `.read` | ✓ | ✓ | | | | | |
+| `trip.view_incoming` | | | | ✓ (sales/temp; + store_manager) | | | |
 | `stock.transfer.create` / `.read` | ✓ | ✓ | | | | | |
 | `content.create` | | | | | | ✓ | ✓ |
 | `content.review` / `.publish` | | | | | | | ✓ |

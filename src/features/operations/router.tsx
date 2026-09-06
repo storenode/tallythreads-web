@@ -39,6 +39,13 @@ export const operationsRoutes: RouteObject[] = [
                     }),
                   },
                   {
+                    path: "incoming",
+                    lazy: async () => ({
+                      Component: (await import("./pages/IncomingStockPage"))
+                        .default,
+                    }),
+                  },
+                  {
                     path: "trips",
                     lazy: async () => ({
                       Component: (await import("./pages/TripsPage")).default,

@@ -82,7 +82,7 @@ Not yet decided — this is the roadmap conversation in progress.
 
 Organized by purpose (see `../README.md` for the map): `constitution.md`;
 `reference/{schema.md, roles-and-permissions.md, franchise-settlement.md}`;
-`roadmap/{status.md (this file), workflow.md, future/ai-studio.md}`;
+`roadmap/{status.md (this file), workflow.md, backlog.md, purchase-trips.md, shift-store-ops-log.md, future/ai-studio.md}`;
 `journal/` (dated dev log). Root `CLAUDE.md` points here.
 
 Removed (recoverable via git) — completed-work build logs and stale/duplicate docs:

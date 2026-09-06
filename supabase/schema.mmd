@@ -18,6 +18,11 @@ erDiagram
     franchise_groups ||--o{ franchise_memberships : ""
     franchise_groups ||--o{ settlement_rules : "terms"
     stores ||--|| store_business_model : "derives (view)"
+    organizations ||--o{ purchase_trips : "sources"
+    members ||--o{ purchase_trips : "created_by"
+    purchase_trips ||--o{ purchase_invoices : ""
+    purchase_invoices ||--o{ purchase_invoice_items : ""
+    purchase_trips ||--o{ trip_expenses : ""
 
     members {
         uuid id PK
@@ -132,4 +137,36 @@ erDiagram
         text section_title_description
         text status "CHECK not_run|passed|failed|blocked"
         uuid last_run_by FK
+    }
+    purchase_trips {
+        uuid id PK
+        uuid organization_id FK "sourcing org"
+        uuid created_by FK
+        text title
+        text status "CHECK planning|active|completed"
+        jsonb route "planning legs"
+        bigint planned_budget_paise
+        bigint estimated_expenses_paise
+        numeric expected_margin_pct
+    }
+    purchase_invoices {
+        uuid id PK
+        uuid trip_id FK
+        text supplier_name "free-text (no master yet)"
+        jsonb margin_config "recipe; or…"
+        text margin_plugin_id "…plugin (at most one)"
+    }
+    purchase_invoice_items {
+        uuid id PK
+        uuid invoice_id FK
+        text description "model/style → product in M3"
+        int quantity
+        bigint unit_cost_paise
+        boolean is_trending "drives boosted margin"
+    }
+    trip_expenses {
+        uuid id PK
+        uuid trip_id FK
+        text category "CHECK travel|lodging|food|transport|other"
+        bigint amount_paise
     }

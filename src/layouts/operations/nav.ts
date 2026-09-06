@@ -1,4 +1,11 @@
-import { Receipt, Boxes, Truck, BarChart3, Settings } from "lucide-react";
+import {
+  Receipt,
+  Boxes,
+  Truck,
+  BarChart3,
+  Settings,
+  PackageOpen,
+} from "lucide-react";
 import type { ComponentType } from "react";
 
 export interface OperationsNavItem {
@@ -17,6 +24,11 @@ export function getOperationsNav(storeId: string): OperationsNavItem[] {
   return [
     { label: "Billing", to: `/ops/${storeId}/billing`, icon: Receipt },
     { label: "Inventory", to: `/ops/${storeId}/inventory`, icon: Boxes },
+    {
+      label: "Incoming Stock",
+      to: `/ops/${storeId}/incoming`,
+      icon: PackageOpen,
+    },
     { label: "Trips", to: `/ops/${storeId}/trips`, icon: Truck },
     { label: "Reports", to: `/ops/${storeId}/reports`, icon: BarChart3 },
     { label: "Settings", to: `/ops/${storeId}/settings`, icon: Settings },

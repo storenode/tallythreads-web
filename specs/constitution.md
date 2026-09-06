@@ -1,6 +1,6 @@
 # TallyThreads — Project Constitution
 
-**Version:** 1.11.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-05 · **Status:** Active
+**Version:** 1.12.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-05 · **Status:** Active
 
 This document is the source of truth for how TallyThreads is built. Any human contributor
 or AI coding agent (Claude Code, etc.) working on this repo MUST read this file first and
@@ -322,6 +322,14 @@ targeted exception, not a reordering of this rule** — it's a small, self-conta
 schema addition needed to make real demo/test data honest, not the start of building
 M1c's UI or M1d's settlement engine ahead of M2.
 
+**Amended 2026-09-05 (v1.12.0):** M2's **sync core is now being built *through* M4
+(Purchase-Trip)**, not strictly before it — an offline-first Purchase-Trip is its first
+real consumer. This is a deliberate reorder, not drift: §2.I requires offline-first from
+day one, and §7's "create offline → reconnect → confirm on Supabase" DoD can only be
+proven against a real feature. Building the push/pull loop against Purchase-Trip is the
+smarter path than a 62h engine with nothing exercising it. Purchase-Trip is store-facing
+and independent of M3/M5, so this doesn't pull those forward. See §8's 2026-09-05 entry.
+
 **M1's hour estimate is 115h** (was 18h originally, then 102h, then 106.5h; +8.5h
 reconciled 2026-08-22 when M1b reached v2.0.0 — see §8). The increase is real, driven
 by real scope — Google Sign-in + PIN, the full organizations/roles/permissions/
@@ -395,6 +403,24 @@ This constitution may be amended, but not casually. An amendment requires:
 2. An entry in this changelog explaining what changed and why.
 
 ### Changelog
+
+- **2026-09-05 (latest) — Purchase-Trip (M4) built offline-first, on M2's sync core; v1.12.0.**
+  Began building **M4 Purchase-Trip** as the first real feature, and — per Option B decided
+  this session — built it **offline-first with a Dexie sync core (a slice of M2)** rather than
+  online-first, making Purchase-Trip M2's first consumer. §5's sequencing rule is amended
+  accordingly (M2-core-alongside-M4 is a deliberate, evidence-backed reorder under §2.I +
+  §7, not drift). What landed (Phase 1, all offline + tested): the four `purchase_*` tables +
+  RLS (`trip.create`/`trip.read`) and a price-free `incoming_stock` view + `trip.view_incoming`
+  for store staff (visibility split); Dexie mirror + write-through + outbox + push/pull sync
+  worker (client-generated ids so offline parent→child works); pure money engines
+  `landedCost`/`purchaseMargin` (hybrid recipe/plugin)/`tripForecast` with golden tests
+  (§2.V); and the org-dashboard UI — trip list, create/plan (multi-leg route table with a
+  free generated Google-Maps verify-link, manual budgets, per-leg cart + a Cart/Cash-to-carry
+  readout, forecast) and trip detail (invoices/items/expenses, landed-cost/MRP table, summary,
+  planned-vs-actual). Full spec: `roadmap/purchase-trips.md`. **Phase 2 (Claude/Haiku budget
+  estimator) is NOT in this change** — it needs its own §3/§8 amendment + the API key, and is
+  deferred to a follow-up. Break-even/ROI, Places/Photon autocomplete, and hotel discovery
+  remain in `roadmap/backlog.md`.
 
 - **2026-09-05 (latest) — Shift & Store Operations Log added to v1 scope as M10; v1.11.0.**
   Founder direction, evidence-driven under §8's own rule: Bandrip's current POS

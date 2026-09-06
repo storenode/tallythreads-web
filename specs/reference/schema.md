@@ -15,8 +15,9 @@ this doc is kept to match it, not the other way round.
 
 ## 0. What actually exists
 
-**16 tables + 1 view are live.** Grouped below: Identity & Device, Tenancy/Roles/Access,
-Franchise, Demo/QA. Conventions: UUID PKs (`gen_random_uuid()`), soft delete (`deleted_at`),
+**20 tables + 2 views are live.** Grouped below: Identity & Device, Tenancy/Roles/Access,
+Franchise, Purchase-Trip (M4), Demo/QA. The two views are `store_business_model` (§5) and
+`incoming_stock` (§3A — the price-free store-staff feed). Conventions: UUID PKs (`gen_random_uuid()`), soft delete (`deleted_at`),
 `last_modified_at` for last-write-wins where present, timestamps are `timestamptz`, money
 (when it arrives) in integer paise.
 
@@ -45,6 +46,11 @@ erDiagram
     franchise_groups ||--o{ franchise_memberships : ""
     franchise_groups ||--o{ settlement_rules : "terms"
     stores ||--|| store_business_model : "derives (view)"
+    organizations ||--o{ purchase_trips : "sources"
+    members ||--o{ purchase_trips : "created_by"
+    purchase_trips ||--o{ purchase_invoices : ""
+    purchase_invoices ||--o{ purchase_invoice_items : ""
+    purchase_trips ||--o{ trip_expenses : ""
 
     members {
         uuid id PK
@@ -159,6 +165,38 @@ erDiagram
         text section_title_description
         text status "CHECK not_run|passed|failed|blocked"
         uuid last_run_by FK
+    }
+    purchase_trips {
+        uuid id PK
+        uuid organization_id FK "sourcing org"
+        uuid created_by FK
+        text title
+        text status "CHECK planning|active|completed"
+        jsonb route "planning legs"
+        bigint planned_budget_paise
+        bigint estimated_expenses_paise
+        numeric expected_margin_pct
+    }
+    purchase_invoices {
+        uuid id PK
+        uuid trip_id FK
+        text supplier_name "free-text (no master yet)"
+        jsonb margin_config "recipe; or…"
+        text margin_plugin_id "…plugin (at most one)"
+    }
+    purchase_invoice_items {
+        uuid id PK
+        uuid invoice_id FK
+        text description "model/style → product in M3"
+        int quantity
+        bigint unit_cost_paise
+        boolean is_trending "drives boosted margin"
+    }
+    trip_expenses {
+        uuid id PK
+        uuid trip_id FK
+        text category "CHECK travel|lodging|food|transport|other"
+        bigint amount_paise
     }
 ```
 
@@ -288,6 +326,52 @@ cached in Dexie keyed by `member_id` (offline-capable). Edge functions:
 
 ---
 
+## 3A. Purchase-Trip (M4)
+
+Records a buying trip and its purchases; landed cost, MRP, and forecast are **derived**
+(computed in `lib/`, not stored). Belongs to the **sourcing organization** (org-type
+independent). Design: `../roadmap/purchase-trips.md`. Migration:
+`20260905000000_m4_purchase_trips.sql`. RLS gates on `trip.read` (SELECT) / `trip.create`
+(write) via `has_org_permission`; child tables reach the org via their parent trip; DELETE
+is platform-admin-only (app soft-deletes via UPDATE). Money in integer paise.
+
+### `purchase_trips`
+`id`, `organization_id` FK (sourcing org), `created_by` FK → members, `title`,
+`status` CHECK (`planning`,`active`,`completed`), `start_date`, `end_date`, `route` jsonb
+(multi-leg planning table:
+`[{from,to,boarding,drop_point,distance_km,mode,price_paise,planned_purchase_paise}]`;
+`planned_purchase_paise` = the "cart" spend planned at that location;
+`distance_km` is form-required, the "Verify on map" link is generated free from from/to/mode
+at render, not stored — jsonb, so the leg shape changes with no migration),
+`planned_budget_paise`, `estimated_expenses_paise`,
+`expense_estimate_source` CHECK
+(`manual`,`ai`), `expected_margin_pct`, `notes`, `last_modified_at`, `deleted_at`.
+
+### `purchase_invoices`
+`id`, `trip_id` FK, `supplier_name` (free-text; no suppliers master yet), `supplier_gstin`,
+`supplier_invoice_no`, `invoice_date`, `margin_config` jsonb **or** `margin_plugin_id` text
+(one-source check), `notes`, `last_modified_at`, `deleted_at`.
+
+### `purchase_invoice_items`
+`id`, `invoice_id` FK, `description` (→ product in M3), `hsn_code`, `quantity` (>0),
+`unit_cost_paise` (≥0), `is_trending` bool, `last_modified_at`, `deleted_at`.
+
+### `trip_expenses`
+`id`, `trip_id` FK, `category` CHECK (`travel`,`lodging`,`food`,`transport`,`other`),
+`amount_paise` (≥0), `note`, `last_modified_at`, `deleted_at`.
+
+### `incoming_stock` (view — price-free store-staff feed)
+Migration `20260905010000_m4_incoming_stock_visibility.sql`. Exposes ONLY `trip_id`,
+`organization_id`, `status`, `trip_title`, `expected_by`, `item_id`, `description`,
+`quantity` — **no cost / landed / MRP / margin / budget / expense column exists in it**, so
+nothing financial can leak to store staff. `security_invoker = false` (reads the base
+tables past their `trip.read` RLS); per-row access is gated by the
+`has_incoming_visibility(org)` helper. Granted to `authenticated`; the new
+`trip.view_incoming` permission (store_sales_staff / store_temp_staff / store_manager) is
+what `has_incoming_visibility` checks for store staff. See `roles-and-permissions.md`.
+
+---
+
 ## 4. Demo & QA (admin-only tooling)
 
 ### `demo_scenarios` — investor/demo narratives attached to a demo org.
@@ -339,7 +423,8 @@ decision later on whether `registration_type` should be relaxed to informational
 
 **RLS/entitlement helpers (SECURITY DEFINER):** `is_platform_admin()`,
 `has_org_permission(target_organization_id, permission_key)`,
-`has_store_permission(target_store_id, permission_key)`.
+`has_store_permission(target_store_id, permission_key)`,
+`has_incoming_visibility(target_org)` (gates the `incoming_stock` view — §3A).
 
 **RPCs (write paths, all permission-gated):** `provision_organization_with_contacts`,
 `invite_organization_member`, `invite_store_member`, `update_member_profile`,
@@ -372,6 +457,15 @@ data model and the diagram.
 
 ## 8. Changelog
 
+- **v3.2.0 (2026-09-05)** — Added the **`incoming_stock` view** + `has_incoming_visibility()`
+  helper + the **`trip.view_incoming`** permission (migration
+  `20260905010000_m4_incoming_stock_visibility.sql`, verified live), for the price-free
+  store-staff visibility split (spec §10). Now 20 tables + 2 views.
+- **v3.1.0 (2026-09-05)** — Added the **Purchase-Trip (M4)** tables — `purchase_trips`,
+  `purchase_invoices`, `purchase_invoice_items`, `trip_expenses` (§3A) — migrated live by
+  `20260905000000_m4_purchase_trips.sql` and verified via PostgREST (all four HTTP 200). RLS
+  gates on `trip.read`/`trip.create`. Count is now 20 tables + 1 view; diagram (mermaid +
+  `supabase/schema.mmd`) updated.
 - **v3.0.0 (2026-09-05)** — Re-verified against the **live Supabase DB** and corrected to
   match it: removed `stock_locations`/`stock_transfers`/`settlement_statements` (never
   migrated — moved to §7); added the live `demo_scenarios` and `qa_test_cases` tables; added
