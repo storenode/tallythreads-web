@@ -12,7 +12,7 @@ directly onto one store, with no organization-level role at all.
 
 ## Steps
 
-1. Sign in as `storenode.hq@gmail.com` (or as `veerareddy.obula@gmail.com`,
+1. Sign in as `tallythreads.hq@gmail.com` (or as `veerareddy.obula@gmail.com`,
    the org owner — either should be able to do this; try the org owner
    first since that's the realistic case a real customer would hit).
 2. Open **Vamsi Textiles – Ameerpet**'s store detail page, find its Members

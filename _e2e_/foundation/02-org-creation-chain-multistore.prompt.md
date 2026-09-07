@@ -4,13 +4,13 @@ You are QA-testing the live TallyThreads app at **https://tallythreads.vercel.ap
 using this browser. Follow the steps exactly; don't assume something worked
 without seeing it confirmed on screen.
 
-**Sign-in:** Use **storenode.hq@gmail.com** (platform admin). If this
+**Sign-in:** Use **tallythreads.hq@gmail.com** (platform admin). If this
 browser isn't already signed into that account, stop and ask the user to
 switch/sign in manually first.
 
 ## Steps
 
-1. Sign in as `storenode.hq@gmail.com`, go to `/admin/organizations`.
+1. Sign in as `tallythreads.hq@gmail.com`, go to `/admin/organizations`.
 2. Create a new organization:
    - Name: **Vamsi Textiles Group**
    - Registration type: **Chain**
@@ -41,7 +41,7 @@ Output one block per failed checkbox:
 FAILURE REPORT
 slug: <short-kebab-case-id>
 area: 02-org-creation-chain-multistore
-account: storenode.hq@gmail.com
+account: tallythreads.hq@gmail.com
 severity: <blocker|major|minor>
 steps_to_reproduce:
   1. ...

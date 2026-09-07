@@ -13,7 +13,7 @@ data to look at (orgs, stores, members) rather than empty screens.
 
 1. Resize the browser window (or use DevTools' device toolbar) to exactly
    **375px wide**.
-2. Sign in as `storenode.hq@gmail.com` and step through, at 375px width:
+2. Sign in as `tallythreads.hq@gmail.com` and step through, at 375px width:
    - `/admin/organizations` — the org list/cards and the "New organization"
      form.
    - An organization's detail/member view, and the invite-member form.

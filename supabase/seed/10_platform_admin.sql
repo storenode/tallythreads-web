@@ -1,7 +1,7 @@
 -- ============================================================================
 -- seed/10_platform_admin.sql — bootstrap the platform admin
 -- ============================================================================
--- The ONLY thing this seed does: make sure storenode.hq@gmail.com can sign in
+-- The ONLY thing this seed does: make sure tallythreads.hq@gmail.com can sign in
 -- and land as platform_admin. Everything else — organizations, stores, members,
 -- franchise links — gets created through the app, because creating it through
 -- the app is the test.
@@ -25,7 +25,7 @@
 do $$
 declare
   -- Change this to whichever Google account should hold platform_admin.
-  _email     text := 'storenode.hq@gmail.com';
+  _email     text := 'tallythreads.hq@gmail.com';
 
   _member_id uuid;
   _role_id   uuid;

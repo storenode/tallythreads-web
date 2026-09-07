@@ -12,9 +12,9 @@ This prompt has two parts: **A)** inviting a member to an *already-existing*
 org (not at creation time), and **B)** confirming the placeholder→real
 activation mechanism works when someone actually signs in.
 
-## Part A — post-creation invites (as storenode.hq@gmail.com)
+## Part A — post-creation invites (as tallythreads.hq@gmail.com)
 
-1. Sign in as `storenode.hq@gmail.com`. Open **Sundari Silks**'s member
+1. Sign in as `tallythreads.hq@gmail.com`. Open **Sundari Silks**'s member
    list and invite: email `obulareddyveera@gmail.com`, role **Manager**.
 2. Open **Vamsi Textiles Group**'s member list and invite: email
    `obulareddyveera@gmail.com`, role **Accountant**.
@@ -25,7 +25,7 @@ activation mechanism works when someone actually signs in.
 ## Part B — activation (sign out, then sign in as each invited owner)
 
 4. Sign out. Sign in fresh as `deepthi.juni@gmail.com`. Complete PIN setup
-   if prompted. Go back to `storenode.hq@gmail.com`'s admin view of Sundari
+   if prompted. Go back to `tallythreads.hq@gmail.com`'s admin view of Sundari
    Silks's member list (you may need to sign back in as the admin) and
    confirm `deepthi.juni@gmail.com` now shows status **Active**, not
    Invited — and that this did NOT create a second, duplicate member row.

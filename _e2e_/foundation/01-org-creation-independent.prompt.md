@@ -6,14 +6,14 @@ stabilized — follow the steps exactly, don't skip anything, and don't assume
 something worked without seeing it confirmed on screen (a toast, a URL
 change, the new row actually listed).
 
-**Sign-in:** Use the Google account **storenode.hq@gmail.com** (platform
+**Sign-in:** Use the Google account **tallythreads.hq@gmail.com** (platform
 admin). If this browser isn't already signed into that account, stop and ask
 the user to switch/sign in manually first — don't attempt to guess a
 password or click through a real Google account picker blind.
 
 ## Steps
 
-1. Sign in as `storenode.hq@gmail.com` and navigate to the Admin
+1. Sign in as `tallythreads.hq@gmail.com` and navigate to the Admin
    Organizations screen (`/admin/organizations`).
 2. Click "New organization". Fill in:
    - Name: **Sundari Silks**
@@ -48,7 +48,7 @@ bundle several into one):
 FAILURE REPORT
 slug: <short-kebab-case-id>
 area: 01-org-creation-independent
-account: storenode.hq@gmail.com
+account: tallythreads.hq@gmail.com
 severity: <blocker|major|minor>
 steps_to_reproduce:
   1. ...

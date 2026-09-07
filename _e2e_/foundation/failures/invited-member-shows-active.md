@@ -1,13 +1,13 @@
 FAILURE REPORT
 slug: invited-member-shows-active
 area: 01-org-creation-independent
-account: storenode.hq@gmail.com
+account: tallythreads.hq@gmail.com
 severity: major (as filed) — downgraded to N/A on resolution
 status: CLOSED — not a bug, confirmed intended behavior
 
 steps_to_reproduce:
 
-1. As storenode.hq@gmail.com, go to /admin/organizations, click "New organization"
+1. As tallythreads.hq@gmail.com, go to /admin/organizations, click "New organization"
 2. Fill in Name "Sundari Silks", Registration type "Independent", check "Demo organization"
 3. Add invite: email deepthi.juni@gmail.com, role Owner, Primary contact checked
 4. Click "Create organization"

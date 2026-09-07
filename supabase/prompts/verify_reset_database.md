@@ -32,7 +32,7 @@ CHECKS
 
 2. Row counts
    Count rows in all 16 tables. Expected:
-   members = 1 (storenode.hq@gmail.com)
+   members = 1 (tallythreads.hq@gmail.com)
    memberships = 1 (platform_admin, platform scope)
    roles > 0 (untouched reference data)
    permissions > 0 (untouched reference data)
@@ -51,7 +51,7 @@ CHECKS
 
 4. The platform_admin grant
    Confirm exactly one live platform_admin membership resolves:
-   - members row for storenode.hq@gmail.com exists, deleted_at is null
+   - members row for tallythreads.hq@gmail.com exists, deleted_at is null
    - before first sign-in it should be a PLACEHOLDER: google_id null,
      is_active false — that is correct, not a bug
    - its memberships row has organization_id null AND store_id null

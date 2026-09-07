@@ -8,7 +8,7 @@ without seeing it confirmed on screen.
 those prompts depend on. Re-running `01`–`07` after this means recreating
 those orgs from scratch, which is the point of this check.
 
-**Sign-in:** Use **storenode.hq@gmail.com** (platform admin). Only a
+**Sign-in:** Use **tallythreads.hq@gmail.com** (platform admin). Only a
 platform admin can hard-delete an organization.
 
 **Known limitation, not a bug:** there is currently no "restore" for a
@@ -20,7 +20,7 @@ for simply not having the feature.
 
 ## Steps
 
-1. Sign in as `storenode.hq@gmail.com`, go to `/admin/organizations`.
+1. Sign in as `tallythreads.hq@gmail.com`, go to `/admin/organizations`.
 2. Pick **Sundari Silks** (from `01`). Click "Delete" → "Disable". Confirm
    it disappears from the default organizations list.
 3. Toggle "Show demo organizations" / any relevant filter if needed and
@@ -65,7 +65,7 @@ Output one block per failed checkbox:
 FAILURE REPORT
 slug: <short-kebab-case-id>
 area: 09-org-soft-hard-delete-recreate
-account: storenode.hq@gmail.com
+account: tallythreads.hq@gmail.com
 severity: <blocker|major|minor>
 steps_to_reproduce:
   1. ...

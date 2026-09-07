@@ -11,7 +11,7 @@ can be hard-deleted and recreated freely during retests.
 
 | Gmail | Role(s) | Org(s) | Store(s) | What this account stresses |
 |---|---|---|---|---|
-| `storenode.hq@gmail.com` | **Platform admin** (already seeded per `constitution.md` §8 — do not invite this one, it already exists) | — | — | Admin console: creating/editing/deleting every org and role below; the Admin area of the login-routing flow |
+| `tallythreads.hq@gmail.com` | **Platform admin** (already seeded per `constitution.md` §8 — do not invite this one, it already exists) | — | — | Admin console: creating/editing/deleting every org and role below; the Admin area of the login-routing flow |
 | `deepthi.juni@gmail.com` | `org_owner` | **Sundari Silks** (`registration_type = independent`) | Sundari Silks – Kukatpally (1 store) | The simplest possible case: one org, one store, one role — auto-redirect straight to `/ops/:storeId/billing` with no picker screens at all |
 | `veerareddy.obula@gmail.com` | `org_owner` | **Vamsi Textiles Group** (`registration_type = chain`) | Vamsi Textiles – Ameerpet, Vamsi Textiles – Dilsukhnagar (2 stores) | One org, multiple stores — the StorePicker screen, and the store→org "in {org}" label on the launch grid |
 | `obulareddyveera@gmail.com` | `org_manager` @ Sundari Silks **and** `org_accountant` @ Vamsi Textiles Group | Sundari Silks, Vamsi Textiles Group | (org-level roles only, no direct store membership) | Multi-org membership with a *different* role in each org — this is exactly the class of bug (OrgSwitcher/AreaSwitcher/LaunchPage race conditions) found and fixed earlier this sprint; re-testing this account is the highest-value check in the whole sprint |
@@ -25,7 +25,7 @@ can be hard-deleted and recreated freely during retests.
 
 ## Notes for whoever runs these prompts
 
-- `storenode.hq@gmail.com` is the account that *creates* all three organizations
+- `tallythreads.hq@gmail.com` is the account that *creates* all three organizations
   and sends all the invites (platform admin does the provisioning per
   `constitution.md` §6 — there's no self-service signup). The other four
   accounts only ever sign in with Google and, on first sign-in, activate the
@@ -60,7 +60,7 @@ built around.
 
 **Before running `06`, do one of the following:**
 
-1. **Preferred — clean it up:** sign in as `storenode.hq@gmail.com`, find
+1. **Preferred — clean it up:** sign in as `tallythreads.hq@gmail.com`, find
    whatever other organization `deepthi.juni@gmail.com` belongs to, and
    remove that membership (revoke it, or hard-delete that org entirely if
    it's disposable leftover test/demo data — check first that it isn't
