@@ -35,7 +35,7 @@ object (no prose, no markdown fences) with EXACTLY this shape:
   "supplier_invoice_no": string | null,
   "invoice_date": string | null,            // ISO "YYYY-MM-DD" if determinable, else null
   "items": [
-    { "description": string, "quantity": number, "unit_cost": number, "line_total": number }
+    { "description": string, "quantity": number, "unit_cost": number, "taxable_value": number, "line_total": number }
   ],
   "subtotal": number | null,
   "tax": number | null,
@@ -44,10 +44,20 @@ object (no prose, no markdown fences) with EXACTLY this shape:
   "notes": string | null                    // anything unclear/unreadable
 }
 
-Rules: all money values are in Indian RUPEES as plain numbers (e.g. 1234.50), NOT paise and
-NOT strings. Use null for any field you cannot read. Do NOT invent a GSTIN or invoice number
-— null if not clearly printed. If the image is not a receipt/invoice, return the shape with
-empty items, confidence "low", and a note. Return the JSON object and nothing else.`;
+Rules:
+- All money values are in Indian RUPEES as plain numbers (e.g. 1234.50), NOT paise, NOT strings.
+- \`unit_cost\` is the PER-UNIT pre-tax price. On Indian GST invoices this is the "Rate"
+  column (the price for ONE piece), NOT the line total and NOT the GST-inclusive amount.
+- \`taxable_value\` is the pre-tax line value (usually Quantity × Rate, the "Taxable Value"
+  column). \`line_total\` is the GST-inclusive line amount ("Total Amount"). \`tax\` /
+  \`subtotal\` / \`grand_total\` are the invoice totals.
+- If \`unit_cost\` isn't printed, leave it null but DO fill \`taxable_value\` — the app derives
+  unit_cost = taxable_value / quantity. Never put a GST-inclusive figure in \`unit_cost\`.
+- EXCLUDE non-goods charge lines (Transport, Freight, Courier, Packing, Loading) from
+  \`items\` — they are charges, not stock.
+- Use null for any field you cannot read. Do NOT invent a GSTIN or invoice number.
+- If the image is not a receipt/invoice, return the shape with empty items, confidence "low",
+  and a note. Return the JSON object and nothing else.`;
 
 interface RoleEmbed {
   name: string;
@@ -180,7 +190,13 @@ async function handle(req: Request): Promise<Response> {
   if (!anthropicRes.ok) {
     const detail = await anthropicRes.text();
     console.error("anthropic error", anthropicRes.status, detail);
-    return json({ error: "Extraction service error", status: anthropicRes.status }, 502);
+    // Surface the Anthropic status + message so the client/owner can see the real cause
+    // (invalid key, unknown model, insufficient credit, rate limit, etc.). This is the
+    // owner's own function — no sensitive data in an API error string.
+    return json(
+      { error: "Extraction service error", status: anthropicRes.status, detail: detail.slice(0, 400) },
+      502,
+    );
   }
 
   const payload = await anthropicRes.json();
@@ -200,12 +216,24 @@ async function handle(req: Request): Promise<Response> {
 
   // Normalise to integer paise; the owner reviews/edits before confirming.
   const rawItems = Array.isArray(raw.items) ? raw.items : [];
-  const items = rawItems.map((it: Record<string, unknown>) => ({
-    description: typeof it?.description === "string" ? it.description : "",
-    quantity: typeof it?.quantity === "number" ? it.quantity : null,
-    unit_cost_paise: toPaise(it?.unit_cost),
-    line_total_paise: toPaise(it?.line_total),
-  }));
+  const items = rawItems.map((it: Record<string, unknown>) => {
+    const quantity = typeof it?.quantity === "number" ? it.quantity : null;
+    const taxablePaise = toPaise(it?.taxable_value);
+    const lineTotalPaise = toPaise(it?.line_total);
+    // Prefer the model's unit_cost; else derive per-unit from the pre-tax taxable value
+    // (falling back to the line total only if taxable is absent) so it's never lost.
+    let unitCostPaise = toPaise(it?.unit_cost);
+    if (unitCostPaise == null && quantity && quantity > 0) {
+      if (taxablePaise != null) unitCostPaise = Math.round(taxablePaise / quantity);
+      else if (lineTotalPaise != null) unitCostPaise = Math.round(lineTotalPaise / quantity);
+    }
+    return {
+      description: typeof it?.description === "string" ? it.description : "",
+      quantity,
+      unit_cost_paise: unitCostPaise,
+      line_total_paise: lineTotalPaise,
+    };
+  });
 
   const invoice = {
     supplier_name: typeof raw.supplier_name === "string" ? raw.supplier_name : null,

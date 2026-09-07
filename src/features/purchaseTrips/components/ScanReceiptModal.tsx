@@ -126,12 +126,23 @@ export function ScanReceiptModal({
           <p className="text-sm text-fg-muted">
             Take a clear photo of the supplier's receipt/invoice.
           </p>
+          <label
+            htmlFor="receipt-file-input"
+            className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border p-6 text-center hover:border-brand"
+          >
+            <span className="text-2xl">📷</span>
+            <span className="font-medium text-fg">
+              {image ? "Choose a different photo" : "Tap to take or upload a receipt photo"}
+            </span>
+            <span className="text-xs text-fg-muted">JPG or PNG · camera opens on mobile</span>
+          </label>
           <input
+            id="receipt-file-input"
             type="file"
             accept="image/*"
             capture="environment"
             onChange={(e) => onFile(e.target.files?.[0])}
-            className="block w-full text-sm"
+            className="sr-only"
           />
           {preview && (
             <img

@@ -35,7 +35,21 @@ export async function extractReceipt(
     "extract-receipt",
     { body: { image_base64: imageBase64, media_type: mediaType } },
   );
-  if (error) throw error;
+  if (error) {
+    // supabase-js throws a generic "non-2xx status code" — dig the function's real
+    // {error, status, detail} out of the response so the owner sees the actual cause.
+    let msg = error.message;
+    const ctx = (error as { context?: unknown }).context;
+    if (ctx instanceof Response) {
+      try {
+        const body = await ctx.json();
+        msg = [body?.error, body?.status, body?.detail].filter(Boolean).join(" · ") || msg;
+      } catch {
+        /* keep generic message */
+      }
+    }
+    throw new Error(msg);
+  }
   if (!data?.invoice) throw new Error("No invoice returned");
   return data.invoice;
 }
