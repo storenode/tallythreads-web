@@ -4,6 +4,7 @@ import { RequireArea } from "@/features/auth/RequireArea";
 import { RequireOrgAccess } from "@/features/auth/RequireOrgAccess";
 import ConsoleShell from "@/layouts/console/ConsoleShell";
 import { getOrgAdminNav } from "./nav";
+import { purchaseTripRoutes } from "../purchaseTrips/router";
 
 // Wrapper so the nav can carry the current :orgId into its link targets.
 function OrgAdminShell() {
@@ -92,36 +93,7 @@ export const storeRoutes: RouteObject[] = [
                         .default,
                     }),
                   },
-                  {
-                    path: "purchase-trips",
-                    lazy: async () => ({
-                      Component: (
-                        await import(
-                          "../purchaseTrips/pages/PurchaseTripsListPage"
-                        )
-                      ).default,
-                    }),
-                  },
-                  {
-                    path: "purchase-trips/new",
-                    lazy: async () => ({
-                      Component: (
-                        await import(
-                          "../purchaseTrips/pages/PurchaseTripCreatePage"
-                        )
-                      ).default,
-                    }),
-                  },
-                  {
-                    path: "purchase-trips/:tripLocalId",
-                    lazy: async () => ({
-                      Component: (
-                        await import(
-                          "../purchaseTrips/pages/PurchaseTripDetailPage"
-                        )
-                      ).default,
-                    }),
-                  },
+                  ...purchaseTripRoutes,
                 ],
               },
             ],
