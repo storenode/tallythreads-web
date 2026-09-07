@@ -1,6 +1,6 @@
 # TallyThreads — Project Constitution
 
-**Version:** 1.12.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-05 · **Status:** Active
+**Version:** 1.13.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-06 · **Status:** Active
 
 This document is the source of truth for how TallyThreads is built. Any human contributor
 or AI coding agent (Claude Code, etc.) working on this repo MUST read this file first and
@@ -404,7 +404,22 @@ This constitution may be amended, but not casually. An amendment requires:
 
 ### Changelog
 
-- **2026-09-05 (latest) — Purchase-Trip (M4) built offline-first, on M2's sync core; v1.12.0.**
+- **2026-09-06 (latest) — First real Claude API integration: receipt→JSON extraction; v1.13.0.**
+  The Claude API moves from "role model seeded / AI unscheduled" to **built**, for a narrow,
+  high-value use: in Purchase-Trip's **active phase**, an owner photographs a supplier receipt
+  and a **server-side Claude (Haiku) vision Edge Function (`extract-receipt`)** turns it into a
+  structured-JSON draft invoice, which the owner **reviews/edits before confirming** (never
+  auto-trusted — §2.V). This is *operational* AI (data extraction), **distinct from the AI
+  Studio module** (marketing content), which stays unscheduled. Adoption terms: the Claude API
+  is a **usage-based cost** already permitted by §2.III, on a **~$5/mo hard cap** (Anthropic
+  Console spend limit), key held **server-side only** as a Supabase secret (`ANTHROPIC_API_KEY`,
+  §1). Distinct account (`tallythreads.hq@gmail.com`) from the founder's personal Claude Pro,
+  per §1's IP separation. The §3 "AI Studio" non-goal is unaffected; what changed is that
+  *operational* Claude use is now in scope where it earns its place. The planning-phase **AI
+  budget estimator** is explicitly NOT this change — it's parked in `roadmap/backlog.md` until
+  after receipt-extraction ships (it then reuses this same key + plumbing). Model default:
+  `claude-haiku-4-5`. Full design: `roadmap/purchase-trips.md` (active phase).
+- **2026-09-05 — Purchase-Trip (M4) built offline-first, on M2's sync core; v1.12.0.**
   Began building **M4 Purchase-Trip** as the first real feature, and — per Option B decided
   this session — built it **offline-first with a Dexie sync core (a slice of M2)** rather than
   online-first, making Purchase-Trip M2's first consumer. §5's sequencing rule is amended
@@ -566,7 +581,7 @@ This constitution may be amended, but not casually. An amendment requires:
   function every Edge Function and the client both call — no scattered role checks.
   Execution is now three sequential phases (Schema → Entitlements/TDD → UI) rather
   than five independent tasks. Both known platform-admin accounts (founder +
-  `storenode.hq@gmail.com`) are seeded by real `members.id` as part of Phase 1's
+  `tallythreads.hq@gmail.com`) are seeded by real `members.id` as part of Phase 1's
   bootstrap step — a one-time, out-of-band SQL insert, never an app-reachable path,
   which is what keeps platform-admin status impossible to self-grant. M1b's hour
   estimate moves from 24h to 32.5h (+8.5h) — real new work (the roles/permissions

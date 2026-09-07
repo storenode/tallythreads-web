@@ -68,5 +68,82 @@ booking-API cost/complexity — and only after the Claude estimate proves insuff
 
 ---
 
+## Purchase-Trip: AI trip-budget estimator (planning phase)
+
+**What:** An "Estimate with AI ✨" button in the *planning* phase — sends the route legs
+(from/to/mode/distance) + dates + party size to a server-side Claude (Haiku) function that
+returns an itemized INR estimate (travel/lodging/food/local transport) to prefill
+`estimated_expenses`. Editable, labeled "AI estimate", never a guarantee.
+
+**Why parked (2026-09-06, founder decision):** needed, but not immediate — the priority is
+completing the Purchase-Trip **active phase** end-to-end first. The active phase's Claude
+use (receipt → JSON, see `purchase-trips.md`) is the higher-value first AI integration; the
+planning estimator comes after.
+
+**Trigger to build:** after the active-phase (receipt scanning) ships and the Claude API is
+already adopted (key + §3/§8 amendment done) — the estimator then reuses the same plumbing.
+
+**Related:** `purchase-trips.md` (planning phase; the receipt→JSON active-phase feature that
+adopts the Claude API first).
+
+---
+
+## Store shelves / placement scheme (Direction + Row + Column)
+
+**What:** A per-store, optional (Settings-time) provision to define shelf/rack locations —
+a flexible `code` string (with a Direction+Row+Column *builder* as the friendly default,
+e.g. `E-03-02`) stored in a `store_shelves` table — so in-store stock placement becomes a
+pick-from-list (one shelf per (store, variant) for a start) instead of free text. Barcode
+scan of an item → shows its shelf.
+
+**Why parked (2026-09-06, founder decision):** discussed as part of the inventory
+(goods-received → godown → distribute → place) flow, which is the **next module after
+Purchase-Trip** (M3/M1c). Not part of the Purchase-Trip end-to-end flow, so deferred with
+that module. Keep it optional/non-blocking at store registration.
+
+**Trigger to build:** when the inventory / stock-distribution module (M3/M1c) starts.
+
+**Related:** the inventory discussion (2026-09-05/06 journal); M3/M1c in `status.md`.
+
+---
+
+## Purchase-Trip: "Incoming Stock" offline support
+
+**What:** The store-staff price-free Incoming Stock view (`/ops/:storeId/incoming`) reads
+directly from the `incoming_stock` Supabase view (online-only). Cache it in Dexie so it also
+works offline like the rest of the app.
+
+**Why parked (2026-09-06):** it's a read-only convenience view for store staff; the whole
+purchase-trip *authoring* flow is already offline-first. Not worth the sync plumbing (the
+view spans org-derived rows, not a simple mirrored table) until offline store-staff use is
+a real need.
+
+**Trigger to build:** store staff report needing the incoming list without connectivity.
+
+**Related:** `purchase-trips.md` §10; `reference/schema.md` (`incoming_stock` view).
+
+---
+
+## Purchase-Trip: active-phase polish (small deferred items)
+
+**What (grouped):**
+- A **viewer** to open a scanned receipt's stored image (`purchase_invoices.receipt_path`)
+  for audit — today the image is stored in the `receipts` bucket but there's no UI to view it.
+- **Edit a scanned invoice's margin recipe** in the detail UI — manual "Add invoice" has the
+  flat/trending picker, but a scanned invoice defaults to flat 20% with no post-hoc edit.
+- **Storage cleanup** — delete the receipt image from the `receipts` bucket when its invoice
+  is soft-deleted (avoid orphan images).
+- **Per-member rate-limit** on `extract-receipt` — the ~$5 Anthropic spend cap + the
+  `trip.create` gate already bound abuse; a per-member/day cap would harden it further.
+
+**Why parked (2026-09-06):** none blocks the end-to-end flow; each is a refinement.
+
+**Trigger to build:** real usage surfaces the need (audit disputes → viewer; margin tweaks →
+edit; storage bloat → cleanup; cost spikes → rate-limit).
+
+**Related:** `purchase-trips.md` §2A; `supabase/functions/extract-receipt`.
+
+---
+
 <!-- Add new deferred items below, newest first, using the same What / Why parked /
      Trigger / Related shape. -->

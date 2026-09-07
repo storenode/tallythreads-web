@@ -24,6 +24,7 @@ const PUSH_ORDER = [
   "purchase_invoices",
   "purchase_invoice_items",
   "trip_expenses",
+  "trip_activities",
 ] as const;
 
 type PushTable = (typeof PUSH_ORDER)[number];
@@ -35,6 +36,7 @@ const DEXIE_TABLE = {
   purchase_invoices: db.purchase_invoices,
   purchase_invoice_items: db.purchase_invoice_items,
   trip_expenses: db.trip_expenses,
+  trip_activities: db.trip_activities,
 } as const;
 
 /** Local-only bookkeeping columns that must never reach the server. */

@@ -450,6 +450,16 @@ verify_jwt = false
 import_map = "./functions/demo-login/deno.json"
 entrypoint = "./functions/demo-login/index.ts"
 
+# extract-receipt turns a receipt photo into a draft invoice via Claude (M4 active phase).
+# verify_jwt = false: authenticated with TallyThreads' own custom JWT (verified manually
+# inside the function via _shared/jwt.ts, then gated to platform_admin / trip.create),
+# not a Supabase-issued JWT — same pattern as the other functions above.
+[functions.extract-receipt]
+enabled = true
+verify_jwt = false
+import_map = "./functions/extract-receipt/deno.json"
+entrypoint = "./functions/extract-receipt/index.ts"
+
 # get-entitlements, admin-list-roles, admin-create-role, admin-patch-role, and
 # admin-delete-role were removed in favor of direct PostgREST calls from the client —
 # PostgREST now trusts our member JWT (legacy JWT secret matches APP_JWT_SECRET, see

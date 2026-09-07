@@ -40,4 +40,7 @@ export interface PurchaseTrip extends SyncMeta {
   expense_estimate_source: "manual" | "ai" | null;
   expected_margin_pct: number | null;
   notes: string | null;
+  // active phase
+  started_at: string | null;
+  completed_at: string | null;
 }

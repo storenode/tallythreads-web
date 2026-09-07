@@ -3,7 +3,7 @@
 **Status:** Living reference. **Verified against the live Supabase database**
 (`gmmeaplomgotqtivevkg`, `public` schema) on 2026-09-05 — the live DB is authoritative;
 this doc is kept to match it, not the other way round.
-**Version:** 3.0.0
+**Version:** 3.3.1
 **Related:** `../constitution.md` (§6 architecture rules, §2.IX store models),
 `roles-and-permissions.md` (role/permission catalog), `franchise-settlement.md`
 (the settlement engine — proposed M1d, see §4).
@@ -15,7 +15,7 @@ this doc is kept to match it, not the other way round.
 
 ## 0. What actually exists
 
-**20 tables + 2 views are live.** Grouped below: Identity & Device, Tenancy/Roles/Access,
+**21 tables + 2 views are live.** Grouped below: Identity & Device, Tenancy/Roles/Access,
 Franchise, Purchase-Trip (M4), Demo/QA. The two views are `store_business_model` (§5) and
 `incoming_stock` (§3A — the price-free store-staff feed). Conventions: UUID PKs (`gen_random_uuid()`), soft delete (`deleted_at`),
 `last_modified_at` for last-write-wins where present, timestamps are `timestamptz`, money
@@ -345,12 +345,15 @@ is platform-admin-only (app soft-deletes via UPDATE). Money in integer paise.
 at render, not stored — jsonb, so the leg shape changes with no migration),
 `planned_budget_paise`, `estimated_expenses_paise`,
 `expense_estimate_source` CHECK
-(`manual`,`ai`), `expected_margin_pct`, `notes`, `last_modified_at`, `deleted_at`.
+(`manual`,`ai`), `expected_margin_pct`, `notes`, **`started_at`**, **`completed_at`** (active
+phase), `last_modified_at`, `deleted_at`.
 
 ### `purchase_invoices`
 `id`, `trip_id` FK, `supplier_name` (free-text; no suppliers master yet), `supplier_gstin`,
 `supplier_invoice_no`, `invoice_date`, `margin_config` jsonb **or** `margin_plugin_id` text
-(one-source check), `notes`, `last_modified_at`, `deleted_at`.
+(one-source check), `notes`, **`source`** CHECK (`manual`,`ai_scan`) default manual,
+**`receipt_path`** (Supabase Storage), **`ai_confidence`** CHECK (`high`,`medium`,`low`),
+**`needs_review`** bool (low/medium scan → owner eyeballs), `last_modified_at`, `deleted_at`.
 
 ### `purchase_invoice_items`
 `id`, `invoice_id` FK, `description` (→ product in M3), `hsn_code`, `quantity` (>0),
@@ -359,6 +362,12 @@ at render, not stored — jsonb, so the leg shape changes with no migration),
 ### `trip_expenses`
 `id`, `trip_id` FK, `category` CHECK (`travel`,`lodging`,`food`,`transport`,`other`),
 `amount_paise` (≥0), `note`, `last_modified_at`, `deleted_at`.
+
+### `trip_activities` (active-phase journey log)
+`id`, `trip_id` FK, `member_id` FK (who logged it), `kind` CHECK
+(`note`,`started`,`completed`,`arrived`,`expense`,`invoice`,`receipt_scan`), `note`,
+`ref_invoice_id` FK (optional link to an invoice/scan), `occurred_at`, `last_modified_at`,
+`deleted_at`. Same RLS shape as the other purchase_* child tables.
 
 ### `incoming_stock` (view — price-free store-staff feed)
 Migration `20260905010000_m4_incoming_stock_visibility.sql`. Exposes ONLY `trip_id`,
@@ -457,6 +466,14 @@ data model and the diagram.
 
 ## 8. Changelog
 
+- **v3.3.1 (2026-09-06)** — Added the private **`receipts` Storage bucket** (org-scoped RLS,
+  migration `20260906020000_receipts_storage.sql`); the scan flow now stores the receipt image
+  and populates `purchase_invoices.receipt_path`.
+- **v3.3.0 (2026-09-06)** — Purchase-Trip **active phase** (migration
+  `20260906010000_m4_active_phase.sql`, live): `purchase_trips.started_at`/`completed_at`;
+  `purchase_invoices` AI-scan fields (`source`, `receipt_path`, `ai_confidence`,
+  `needs_review`); and the new **`trip_activities`** journey-log table (+ RLS). Now 21 tables
+  + 2 views. Backs the receipt→JSON flow (`extract-receipt` Edge Function).
 - **v3.2.0 (2026-09-05)** — Added the **`incoming_stock` view** + `has_incoming_visibility()`
   helper + the **`trip.view_incoming`** permission (migration
   `20260905010000_m4_incoming_stock_visibility.sql`, verified live), for the price-free

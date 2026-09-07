@@ -110,6 +110,8 @@ export default function PurchaseTripCreatePage() {
           manualExpensesPaise != null || legsTravelPaise > 0 ? "manual" : null,
         expected_margin_pct: marginPct,
         notes: v.notes.trim() || null,
+        started_at: null,
+        completed_at: null,
       });
       navigate(`${listTo}/${trip._localId}`);
     } catch (err) {

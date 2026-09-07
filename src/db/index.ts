@@ -8,6 +8,8 @@ import type { PurchaseTrip } from "./purchaseTrips";
 import type { PurchaseInvoice } from "./purchaseInvoices";
 import type { PurchaseInvoiceItem } from "./purchaseInvoiceItems";
 import type { TripExpense } from "./tripExpenses";
+import type { TripActivity } from "./tripActivities";
+import type { PendingReceipt } from "./pendingReceipts";
 
 // Re-export entity types so external code keeps importing from `@/db`.
 export type { SyncMeta } from "./types";
@@ -24,6 +26,8 @@ export type { PurchaseTrip, TripRouteLeg, PurchaseTripStatus } from "./purchaseT
 export type { PurchaseInvoice } from "./purchaseInvoices";
 export type { PurchaseInvoiceItem } from "./purchaseInvoiceItems";
 export type { TripExpense, TripExpenseCategory } from "./tripExpenses";
+export type { TripActivity, TripActivityKind } from "./tripActivities";
+export type { PendingReceipt } from "./pendingReceipts";
 
 export const db = new Dexie("tallythreads") as Dexie & {
   products: EntityTable<Product, "_localId">;
@@ -35,6 +39,8 @@ export const db = new Dexie("tallythreads") as Dexie & {
   purchase_invoices: EntityTable<PurchaseInvoice, "_localId">;
   purchase_invoice_items: EntityTable<PurchaseInvoiceItem, "_localId">;
   trip_expenses: EntityTable<TripExpense, "_localId">;
+  trip_activities: EntityTable<TripActivity, "_localId">;
+  pending_receipts: EntityTable<PendingReceipt, "id">;
 };
 
 // ─── Migration history ───────────────────────────────────────────────
@@ -83,4 +89,15 @@ db.version(6).stores({
   purchase_invoices: "_localId, id, trip_id, _dirty, last_modified_at",
   purchase_invoice_items: "_localId, id, invoice_id, _dirty, last_modified_at",
   trip_expenses: "_localId, id, trip_id, _dirty, last_modified_at",
+});
+
+// v7 (M4 active phase): the journey activity log.
+db.version(7).stores({
+  trip_activities: "_localId, id, trip_id, _dirty, last_modified_at",
+});
+
+// v8 (M4 active phase): receipts captured offline, awaiting extraction on reconnect.
+// Local-only queue (like outbox), auto-increment key.
+db.version(8).stores({
+  pending_receipts: "++id, trip_id, created_at",
 });

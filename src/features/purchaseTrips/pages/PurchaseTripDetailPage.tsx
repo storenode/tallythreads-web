@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
-import type { PurchaseInvoice, TripRouteLeg } from "@/db";
+import type { PurchaseInvoice, TripRouteLeg, PendingReceipt } from "@/db";
 import { RouteLegsTable } from "../components/RouteLegsTable";
 import { CartWalletSummary } from "../components/CartWalletSummary";
+import { ScanReceiptModal } from "../components/ScanReceiptModal";
 import { legsPriceTotalPaise, legsPurchaseTotalPaise, areLegsValid } from "../legs";
-import { updatePurchaseTrip } from "../data";
+import { updatePurchaseTrip, createTripActivity } from "../data";
+import { useMember } from "@/features/auth/useMember";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
@@ -114,6 +116,25 @@ export default function PurchaseTripDetailPage() {
 
   // Route editing: local copy synced when the trip loads; saved on demand (so we don't
   // enqueue an outbox write on every keystroke).
+  const { member } = useMember();
+  const [scanOpen, setScanOpen] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const activities = useLiveQuery(async () => {
+    if (!tripId) return [];
+    return (await db.trip_activities.where("trip_id").equals(tripId).toArray())
+      .filter((a) => !a.deleted_at)
+      .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+  }, [tripId]);
+  // Offline-captured receipts for this trip (draining is handled app-wide by
+  // ReceiptDrainManager; here we just show what's still queued + any last error).
+  const pendingReceipts = useLiveQuery(
+    () =>
+      tripId
+        ? db.pending_receipts.where("trip_id").equals(tripId).toArray()
+        : Promise.resolve([] as PendingReceipt[]),
+    [tripId],
+  );
+
   const [legs, setLegs] = useState<TripRouteLeg[]>([]);
   const [routeDirty, setRouteDirty] = useState(false);
   const [routeError, setRouteError] = useState(false);
@@ -147,6 +168,41 @@ export default function PurchaseTripDetailPage() {
   if (trip === null || !tripId)
     return <p className="text-sm text-fg-muted">Trip not found.</p>;
 
+  const now = () => new Date().toISOString();
+  const logActivity = (kind: Parameters<typeof createTripActivity>[0]["kind"], note: string | null) =>
+    createTripActivity({
+      trip_id: tripId,
+      member_id: member?.id ?? null,
+      kind,
+      note,
+      ref_invoice_id: null,
+      occurred_at: now(),
+    });
+
+  const startTrip = async () => {
+    await updatePurchaseTrip(trip._localId, { status: "active", started_at: now() });
+    await logActivity("started", null);
+  };
+  const completeTrip = async () => {
+    await updatePurchaseTrip(trip._localId, { status: "completed", completed_at: now() });
+    await logActivity("completed", null);
+  };
+  const addNote = async () => {
+    if (!noteText.trim()) return;
+    await logActivity("note", noteText.trim());
+    setNoteText("");
+  };
+
+  const ACTIVITY_LABEL: Record<string, string> = {
+    started: "🚩 Trip started",
+    completed: "✅ Trip completed",
+    arrived: "📍 Arrived",
+    expense: "💸 Expense",
+    invoice: "🧾 Invoice",
+    receipt_scan: "📷 Receipt scanned",
+    note: "📝 Note",
+  };
+
   return (
     <div className="space-y-6">
       <PageHeading
@@ -161,6 +217,29 @@ export default function PurchaseTripDetailPage() {
       >
         {trip.title}
       </PageHeading>
+
+      <div className="flex items-center justify-between rounded-lg border border-border bg-bg-elevated p-3">
+        <div className="text-sm">
+          <span className="text-fg-muted">Status: </span>
+          <span className="font-medium text-fg capitalize">{trip.status}</span>
+          {trip.started_at && (
+            <span className="ml-2 text-xs text-fg-muted">started {trip.started_at.slice(0, 10)}</span>
+          )}
+          {trip.completed_at && (
+            <span className="ml-2 text-xs text-fg-muted">completed {trip.completed_at.slice(0, 10)}</span>
+          )}
+        </div>
+        {trip.status === "planning" && (
+          <Button type="button" onClick={startTrip}>
+            Start trip
+          </Button>
+        )}
+        {trip.status === "active" && (
+          <Button type="button" onClick={completeTrip}>
+            Complete trip
+          </Button>
+        )}
+      </div>
 
       {/* Summary */}
       <Card title="Summary" desc="Landed cost + suggested MRP are computed, not stored.">
@@ -255,12 +334,45 @@ export default function PurchaseTripDetailPage() {
       </Card>
 
       {/* Invoices + items */}
-      <Card title="Supplier invoices">
+      <Card
+        title="Supplier invoices"
+        actions={
+          <Button type="button" onClick={() => setScanOpen(true)}>
+            Scan receipt 📷
+          </Button>
+        }
+      >
         <div className="space-y-5">
+          {pendingReceipts && pendingReceipts.length > 0 && (
+            <div className="rounded-lg border border-border bg-bg-elevated p-3 text-sm text-fg-muted">
+              📴 {pendingReceipts.length} receipt{pendingReceipts.length > 1 ? "s" : ""}{" "}
+              captured offline — will be scanned &amp; synced automatically once you're back
+              online.
+              {pendingReceipts.some((r) => r.last_error) && (
+                <span className="mt-1 block text-red-500">
+                  Last attempt failed:{" "}
+                  {pendingReceipts.find((r) => r.last_error)?.last_error}. It will retry, or
+                  you can add the invoice manually.
+                </span>
+              )}
+            </div>
+          )}
           {invoices.map((inv) => (
             <div key={inv._localId} className="rounded-lg border border-border p-4">
               <div className="mb-3 flex items-center justify-between">
-                <div className="font-medium text-fg">{inv.supplier_name}</div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-fg">{inv.supplier_name}</span>
+                  {inv.source === "ai_scan" && (
+                    <span className="rounded bg-bg-elevated px-1.5 py-0.5 text-xs text-fg-muted">
+                      📷 scanned
+                    </span>
+                  )}
+                  {inv.needs_review && (
+                    <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-600">
+                      ⚠ review
+                    </span>
+                  )}
+                </div>
                 <button
                   className="text-xs text-fg-muted hover:text-red-500"
                   onClick={() => deletePurchaseInvoice(inv._localId)}
@@ -324,6 +436,48 @@ export default function PurchaseTripDetailPage() {
           <AddInvoiceForm tripId={tripId} />
         </div>
       </Card>
+
+      {/* Journey log */}
+      <Card title="Journey log">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-end gap-2">
+            <Input
+              label="Add a note"
+              placeholder="e.g. Reached Surat, meeting supplier at 3pm"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+            />
+            <Button type="button" onClick={addNote} disabled={!noteText.trim()}>
+              Add
+            </Button>
+          </div>
+          {(activities ?? []).length === 0 ? (
+            <p className="text-sm text-fg-muted">No activity yet.</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {(activities ?? []).map((a) => (
+                <li key={a._localId} className="flex items-baseline justify-between gap-3">
+                  <span className="text-fg">
+                    {ACTIVITY_LABEL[a.kind] ?? a.kind}
+                    {a.note ? <span className="text-fg-muted"> — {a.note}</span> : null}
+                  </span>
+                  <span className="shrink-0 text-xs text-fg-muted">
+                    {a.occurred_at.slice(0, 16).replace("T", " ")}
+                    {a._dirty === 1 && " ↑"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Card>
+
+      <ScanReceiptModal
+        tripId={tripId}
+        orgId={orgId}
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+      />
     </div>
   );
 }
@@ -457,6 +611,10 @@ function AddInvoiceForm({ tripId }: { tripId: string }) {
       margin_config,
       margin_plugin_id: null,
       notes: null,
+      source: "manual",
+      receipt_path: null,
+      ai_confidence: null,
+      needs_review: false,
     });
     setSupplier("");
   };

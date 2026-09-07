@@ -82,6 +82,59 @@ planning  ──▶  active  ──▶  completed
 Both the estimate (planning) and the actuals are stored, so a later phase can compare
 "estimated vs actual" (a learning loop — not built now).
 
+## 2A. Active phase — execution, activities, receipt → JSON (decided 2026-09-06)
+
+Once the owner is on the road, the trip runs as a live log. Decisions locked this session:
+
+- **Start / Complete.** "Start trip" sets `status = active` + stamps `started_at`; "Complete
+  trip" sets `status = completed` + stamps `completed_at`. Each also writes a `trip_activities`
+  row (`kind = started` / `completed`).
+- **Journey log — explicit `trip_activities` table** (not derived): `{trip_id, member_id,
+  kind (note|started|completed|arrived|expense|invoice|receipt_scan), note, ref_invoice_id,
+  occurred_at}`. Sync-participating (Dexie + outbox), offline-first like the rest.
+- **Receipt → JSON (the first real Claude use).** At a supplier the owner pays on the spot,
+  photographs the receipt, and the **`extract-receipt` Edge Function** (Claude **Haiku 4.5**
+  vision, server-side key; **fall back to Sonnet only if accuracy is poor** — not built yet)
+  returns a structured-JSON invoice → creates a `purchase_invoices` row with
+  `source = 'ai_scan'`, the receipt image in Storage (`receipt_path`), and `ai_confidence`.
+  Money normalised to integer paise. Feeds landed cost/MRP like any invoice.
+- **Review step — NO blocking approval gate.** Rationale: the purchase is approved *in person*
+  (the owner pays the invoice on the spot), so a scanned invoice is created directly and shown
+  inline — not held behind an "approve" screen. It stays **fully editable**, and a **low/medium
+  `ai_confidence` sets `needs_review = true`** so the owner eyeballs the numbers that feed
+  landed cost (§2.V). High-confidence scans need no action. (Honest note: the money accuracy
+  guard is the confidence flag + always-editable + visible, not a forced check — acceptable
+  because it's the owner's *own* cost figure, not a customer charge.)
+- **Offline = Option A (capture offline, extract on reconnect).** The photo is captured and a
+  `receipt_scan` activity queued locally with the network off; when back online a worker
+  uploads the image to Storage and calls `extract-receipt`, then creates the draft invoice.
+  Manual invoice entry always remains as the fallback.
+
+**Built (2026-09-06):** the `extract-receipt` Edge Function (deployed, `verify_jwt=false`);
+the schema (above); and the **receipt-scan UX** — a "Scan receipt 📷" button on the trip
+detail page → `ScanReceiptModal` (capture + downscale → extract → **editable review →
+Approve / Rescan**), with the **offline path** (Option A): if there's no connection the photo
+is queued in the `pending_receipts` Dexie store with a "will scan & sync when you're back
+online" message, and `drainPendingReceipts()` processes the queue on reconnect (those become
+`needs_review` drafts). Files: `receiptImage.ts`, `receiptQueue.ts`,
+`components/ScanReceiptModal.tsx`, `db/pendingReceipts.ts` (`db.version(8)`).
+
+**Also built (2026-09-06, active phase COMPLETE):**
+- **Storage `receipts/` bucket** (private, migration `20260906020000_receipts_storage.sql`)
+  with org-scoped RLS (path `{orgId}/{tripId}/{uuid}.jpg`; upload=`trip.create`,
+  read=`trip.read`). The scan flow now uploads the image and stores `receipt_path`
+  (`uploadReceipt` in `receiptQueue.ts`); upload failure is non-fatal (extraction still saves).
+- **Start / Complete** buttons on the trip detail page — set `status` + stamp
+  `started_at`/`completed_at`, and log a `trip_activities` row.
+- **Journey log (activity feed)** — a `trip_activities` timeline (started/completed/
+  receipt_scan/note…), newest first, with an "Add note" input. Scanned invoices auto-log a
+  `receipt_scan` activity.
+
+Purchase-Trip is now end-to-end: **plan → start → (scan receipts / add expenses / notes) →
+complete**, offline-first throughout, with landed-cost/MRP live and planned-vs-actual. The
+handoff to the next module (goods-received → godown → distribute → shelf placement, M3/M1c)
+is unchanged and still deferred.
+
 ## 3. Scope
 
 **In scope — Phase 1 (offline-first, pure-logic, no AI):**

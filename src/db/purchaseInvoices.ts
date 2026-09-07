@@ -11,4 +11,9 @@ export interface PurchaseInvoice extends SyncMeta {
   margin_config: Record<string, unknown> | null;
   margin_plugin_id: string | null;
   notes: string | null;
+  // Active-phase / AI-scan provenance (M4).
+  source: "manual" | "ai_scan";
+  receipt_path: string | null; // Supabase Storage object path for a scanned receipt
+  ai_confidence: "high" | "medium" | "low" | null;
+  needs_review: boolean; // low/medium-confidence scan → owner should eyeball
 }

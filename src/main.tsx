@@ -7,6 +7,7 @@ import { router } from "@/router";
 import { registerServiceWorker } from "@/pwa";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { SyncManager } from "@/sync/SyncManager";
+import { ReceiptDrainManager } from "@/features/purchaseTrips/ReceiptDrainManager";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,6 +26,7 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <SyncManager />
+        <ReceiptDrainManager />
         <RouterProvider router={router} />
       </ThemeProvider>
     </QueryClientProvider>
