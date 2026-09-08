@@ -12,7 +12,16 @@ import type { ConsoleNavSection } from "@/layouts/console/nav";
 // Static placeholders — swap `to` targets / add-remove items as routes land.
 // A function, not a static list, because "Organizations" points at the edit page
 // for the current :orgId, only known at render time.
-export function getOrgAdminNav(orgId: string): ConsoleNavSection[] {
+//
+// `perms` gates items to the member's org-level permissions (defense-in-depth on top
+// of the route/RLS checks — see specs/reference/roles-and-permissions.md §5). Purchase
+// Trips is org-level only (`trip.read` → org_owner/org_manager/platform_admin); store
+// staff never reach this console, but hiding the link keeps the nav honest for any
+// future mixed-role org member.
+export function getOrgAdminNav(
+  orgId: string,
+  perms: { canViewTrips?: boolean } = {},
+): ConsoleNavSection[] {
   return [
     {
       items: [
@@ -28,11 +37,15 @@ export function getOrgAdminNav(orgId: string): ConsoleNavSection[] {
           icon: Building2,
         },
         { label: "Stores", to: `/org/${orgId}/stores`, icon: Store },
-        {
-          label: "Purchase Trips",
-          to: `/org/${orgId}/purchase-trips`,
-          icon: Truck,
-        },
+        ...(perms.canViewTrips
+          ? [
+              {
+                label: "Purchase Trips",
+                to: `/org/${orgId}/purchase-trips`,
+                icon: Truck,
+              },
+            ]
+          : []),
       ],
     },
     {

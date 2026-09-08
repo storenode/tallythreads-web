@@ -5,11 +5,20 @@ import { RequireOrgAccess } from "@/features/auth/RequireOrgAccess";
 import ConsoleShell from "@/layouts/console/ConsoleShell";
 import { getOrgAdminNav } from "./nav";
 import { purchaseTripRoutes } from "../purchaseTrips/router";
+import { useMember } from "@/features/auth/useMember";
+import { useEntitlements, hasPermission } from "@/features/auth/entitlements";
 
 // Wrapper so the nav can carry the current :orgId into its link targets.
 function OrgAdminShell() {
   const { orgId } = useParams<{ orgId: string }>();
-  return <ConsoleShell nav={getOrgAdminNav(orgId ?? "")} />;
+  const { member } = useMember();
+  const { data: entitlements } = useEntitlements(member?.id);
+  const canViewTrips = hasPermission(entitlements, "trip.read", {
+    organizationId: orgId,
+  });
+  return (
+    <ConsoleShell nav={getOrgAdminNav(orgId ?? "", { canViewTrips })} />
+  );
 }
 
 export const storeRoutes: RouteObject[] = [
