@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Truck } from "lucide-react";
 import { useOrganizationPurchaseTrips } from "../../organizations/organizations";
 import { formatInr } from "@/lib/money";
@@ -56,10 +57,11 @@ export function PurchaseTripsSection({ orgId }: { orgId: string }) {
           {trips!.map((trip) => {
             const range = dateRange(trip.startDate, trip.endDate);
             return (
-              <li
-                key={trip.id}
-                className="flex items-start justify-between gap-3 rounded-md border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-white/[0.03]"
-              >
+              <li key={trip.id}>
+                <Link
+                  to={`/org/${orgId}/purchase-trips/${trip.id}`}
+                  className="flex items-start justify-between gap-3 rounded-md border border-gray-200 bg-white p-3 transition-colors hover:border-tt-green-500 dark:border-gray-800 dark:bg-white/[0.03] dark:hover:border-tt-green-500"
+                >
                 <div className="min-w-0">
                   <p
                     className="truncate text-[13px] font-medium text-gray-800 dark:text-white/90"
@@ -92,6 +94,7 @@ export function PurchaseTripsSection({ orgId }: { orgId: string }) {
                     </span>
                   )}
                 </div>
+                </Link>
               </li>
             );
           })}

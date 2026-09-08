@@ -67,10 +67,21 @@ export default function PurchaseTripDetailPage() {
     tripLocalId: string;
   }>();
 
-  const trip = useLiveQuery(
-    () => (tripLocalId ? db.purchase_trips.get(tripLocalId) : undefined),
-    [tripLocalId],
-  );
+  // The route param is normally the Dexie `_localId`, but links built from server data
+  // (e.g. the admin demo screen) carry the server `id`. Resolve by either: try the
+  // `_localId` primary key first, then fall back to the indexed `id`. Returns null (not
+  // undefined) when genuinely absent so the guards below can tell "loading" from
+  // "not found".
+  const trip = useLiveQuery(async () => {
+    if (!tripLocalId) return null;
+    const byLocalId = await db.purchase_trips.get(tripLocalId);
+    if (byLocalId) return byLocalId;
+    const byServerId = await db.purchase_trips
+      .where("id")
+      .equals(tripLocalId)
+      .first();
+    return byServerId ?? null;
+  }, [tripLocalId]);
   const tripId = trip?.id;
 
   const expenses = useLiveQuery(async () => {
