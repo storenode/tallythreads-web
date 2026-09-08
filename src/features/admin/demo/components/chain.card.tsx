@@ -23,6 +23,7 @@ import {
   FY_MONTH_OPTIONS,
 } from "./chain.demo";
 import { useIssueDemoLaunchLink } from "./demo.login";
+import { PurchaseTripsSection } from "./PurchaseTripsSection";
 
 // Self-contained: this file does not import from the independent.* demo files. The
 // small presentational helpers below are local copies so Chain can evolve on its own.
@@ -481,6 +482,9 @@ export default function ChainCard({
           <p className="mt-2 text-[13px] text-red-500">{launchError}</p>
         )}
       </div>
+
+      {/* Purchase trips (org-level module) */}
+      <PurchaseTripsSection orgId={organization.id} />
 
       {/* Stores */}
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-white/[0.02]">

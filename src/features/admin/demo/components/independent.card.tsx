@@ -23,6 +23,7 @@ import {
   FY_MONTH_OPTIONS,
 } from "./independent.demo";
 import { useIssueDemoLaunchLink } from "./demo.login";
+import { PurchaseTripsSection } from "./PurchaseTripsSection";
 
 const SANS = "'Plus Jakarta Sans', 'Inter', sans-serif";
 const MONO = "'IBM Plex Mono', ui-monospace, monospace";
@@ -491,6 +492,9 @@ export default function IndependentCard({
           <p className="mt-2 text-[13px] text-red-500">{launchError}</p>
         )}
       </div>
+
+      {/* Purchase trips (org-level module) */}
+      <PurchaseTripsSection orgId={organization.id} />
 
       {/* Stores */}
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-white/[0.02]">

@@ -546,6 +546,54 @@ export function useOrganizationMembers(orgId: string | undefined) {
   });
 }
 
+export interface OrgPurchaseTripRow {
+  id: string;
+  title: string;
+  status: "planning" | "active" | "completed";
+  startDate: string | null;
+  endDate: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  plannedBudgetPaise: number | null;
+}
+
+export async function fetchOrganizationPurchaseTrips(
+  orgId: string,
+): Promise<OrgPurchaseTripRow[]> {
+  const { data, error } = await supabase
+    .from("purchase_trips")
+    .select(
+      "id, title, status, start_date, end_date, started_at, completed_at, planned_budget_paise",
+    )
+    .eq("organization_id", orgId)
+    .is("deleted_at", null)
+    .order("last_modified_at", { ascending: false });
+  if (error) throw error;
+
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    title: (row.title as string) ?? "Untitled trip",
+    status: row.status as OrgPurchaseTripRow["status"],
+    startDate: (row.start_date as string | null) ?? null,
+    endDate: (row.end_date as string | null) ?? null,
+    startedAt: (row.started_at as string | null) ?? null,
+    completedAt: (row.completed_at as string | null) ?? null,
+    plannedBudgetPaise: (row.planned_budget_paise as number | null) ?? null,
+  }));
+}
+
+function orgTripsKey(orgId: string | undefined) {
+  return [...ORGANIZATIONS_KEY, orgId, "purchase-trips"] as const;
+}
+
+export function useOrganizationPurchaseTrips(orgId: string | undefined) {
+  return useQuery({
+    queryKey: orgTripsKey(orgId),
+    queryFn: () => fetchOrganizationPurchaseTrips(orgId!),
+    enabled: !!orgId,
+  });
+}
+
 export function useRevokeOrganizationMember(orgId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
