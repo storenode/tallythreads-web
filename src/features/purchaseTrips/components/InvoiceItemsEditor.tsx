@@ -97,11 +97,17 @@ export function InvoiceItemsEditor({
   items,
   landedByLocalId,
   onRemoveInvoice,
+  arrived = false,
+  onToggleArrived,
 }: {
   invoice: PurchaseInvoice;
   items: PurchaseInvoiceItem[];
   landedByLocalId: Map<string, { landedUnitCostPaise: number }>;
   onRemoveInvoice: () => void;
+  /** Whether this invoice's parcel has arrived at the store. */
+  arrived?: boolean;
+  /** Toggle arrived/in-transit. Omitted (control hidden) before the trip is active. */
+  onToggleArrived?: () => void;
 }) {
   const { control, register, getValues, setValue } = useForm<FormShape>({
     defaultValues: { items: items.map(toRow) },
@@ -280,8 +286,22 @@ export function InvoiceItemsEditor({
               ⚠ review
             </span>
           )}
+          {arrived && (
+            <span className="rounded bg-tt-green-500/15 px-1.5 py-0.5 text-xs text-tt-green-600">
+              ✅ arrived
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-4">
+          {onToggleArrived && (
+            <button
+              type="button"
+              className="text-xs font-medium text-fg-muted hover:text-tt-green-600"
+              onClick={onToggleArrived}
+            >
+              {arrived ? "Mark not arrived" : "Mark arrived"}
+            </button>
+          )}
           <button
             type="button"
             className="text-xs font-medium text-brand hover:underline"

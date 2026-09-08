@@ -11,6 +11,7 @@ interface IncomingRow {
   status: string;
   trip_title: string;
   expected_by: string | null;
+  arrived_at: string | null;
   item_id: string;
   description: string;
   quantity: number;
@@ -20,7 +21,12 @@ interface TripGroup {
   trip_id: string;
   trip_title: string;
   expected_by: string | null;
-  items: { item_id: string; description: string; quantity: number }[];
+  items: {
+    item_id: string;
+    description: string;
+    quantity: number;
+    arrived_at: string | null;
+  }[];
 }
 
 export default function IncomingStockPage() {
@@ -46,7 +52,12 @@ export default function IncomingStockPage() {
         };
         byTrip.set(r.trip_id, g);
       }
-      g.items.push({ item_id: r.item_id, description: r.description, quantity: r.quantity });
+      g.items.push({
+        item_id: r.item_id,
+        description: r.description,
+        quantity: r.quantity,
+        arrived_at: r.arrived_at,
+      });
     }
     return [...byTrip.values()];
   }, [data]);
@@ -77,9 +88,20 @@ export default function IncomingStockPage() {
             >
               <ul className="divide-y divide-border text-sm">
                 {t.items.map((it) => (
-                  <li key={it.item_id} className="flex justify-between py-1.5">
+                  <li key={it.item_id} className="flex items-center justify-between gap-3 py-1.5">
                     <span className="text-fg">{it.description}</span>
-                    <span className="text-fg-muted">Qty {it.quantity}</span>
+                    <span className="flex items-center gap-2">
+                      {it.arrived_at ? (
+                        <span className="rounded bg-tt-green-500/15 px-1.5 py-0.5 text-xs text-tt-green-600">
+                          ✅ Arrived
+                        </span>
+                      ) : (
+                        <span className="rounded bg-bg-elevated px-1.5 py-0.5 text-xs text-fg-muted">
+                          🚚 In transit
+                        </span>
+                      )}
+                      <span className="text-fg-muted">Qty {it.quantity}</span>
+                    </span>
                   </li>
                 ))}
               </ul>

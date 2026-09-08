@@ -23,7 +23,11 @@ export interface TripRouteLeg {
   planned_purchase_paise: number | null;
 }
 
-export type PurchaseTripStatus = "planning" | "active" | "completed";
+export type PurchaseTripStatus =
+  | "planning"
+  | "active"
+  | "completed"
+  | "cancelled";
 
 export interface PurchaseTrip extends SyncMeta {
   id?: string;

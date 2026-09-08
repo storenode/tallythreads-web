@@ -7,7 +7,8 @@ export type TripActivityKind =
   | "arrived"
   | "expense"
   | "invoice"
-  | "receipt_scan";
+  | "receipt_scan"
+  | "cancelled";
 
 /** One entry in a trip's journey log (active phase). */
 export interface TripActivity extends SyncMeta {

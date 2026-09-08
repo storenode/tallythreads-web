@@ -171,7 +171,7 @@ erDiagram
         uuid organization_id FK "sourcing org"
         uuid created_by FK
         text title
-        text status "CHECK planning|active|completed"
+        text status "CHECK planning|active|completed|cancelled"
         jsonb route "planning legs"
         bigint planned_budget_paise
         bigint estimated_expenses_paise
@@ -337,7 +337,7 @@ is platform-admin-only (app soft-deletes via UPDATE). Money in integer paise.
 
 ### `purchase_trips`
 `id`, `organization_id` FK (sourcing org), `created_by` FK → members, `title`,
-`status` CHECK (`planning`,`active`,`completed`), `start_date`, `end_date`, `route` jsonb
+`status` CHECK (`planning`,`active`,`completed`,`cancelled`), `start_date`, `end_date`, `route` jsonb
 (multi-leg planning table:
 `[{from,to,boarding,drop_point,distance_km,mode,price_paise,planned_purchase_paise}]`;
 `planned_purchase_paise` = the "cart" spend planned at that location;
@@ -353,7 +353,9 @@ phase), `last_modified_at`, `deleted_at`.
 `supplier_invoice_no`, `invoice_date`, `margin_config` jsonb **or** `margin_plugin_id` text
 (one-source check), `notes`, **`source`** CHECK (`manual`,`ai_scan`) default manual,
 **`receipt_path`** (Supabase Storage), **`ai_confidence`** CHECK (`high`,`medium`,`low`),
-**`needs_review`** bool (low/medium scan → owner eyeballs), `last_modified_at`, `deleted_at`.
+**`needs_review`** bool (low/medium scan → owner eyeballs), **`arrived_at`** (null = parcel in
+transit; set = arrived at store — the per-invoice arrival that feeds M3 inventory),
+`last_modified_at`, `deleted_at`.
 
 ### `purchase_invoice_items`
 `id`, `invoice_id` FK, `description` (→ product in M3), `hsn_code`, `quantity` (>0),
@@ -365,14 +367,16 @@ phase), `last_modified_at`, `deleted_at`.
 
 ### `trip_activities` (active-phase journey log)
 `id`, `trip_id` FK, `member_id` FK (who logged it), `kind` CHECK
-(`note`,`started`,`completed`,`arrived`,`expense`,`invoice`,`receipt_scan`), `note`,
+(`note`,`started`,`completed`,`arrived`,`expense`,`invoice`,`receipt_scan`,`cancelled`), `note`,
 `ref_invoice_id` FK (optional link to an invoice/scan), `occurred_at`, `last_modified_at`,
 `deleted_at`. Same RLS shape as the other purchase_* child tables.
 
 ### `incoming_stock` (view — price-free store-staff feed)
-Migration `20260905010000_m4_incoming_stock_visibility.sql`. Exposes ONLY `trip_id`,
+Migration `20260905010000_m4_incoming_stock_visibility.sql` (arrival column added in
+`20260908000000_m4_cancel_and_arrival.sql`). Exposes ONLY `trip_id`,
 `organization_id`, `status`, `trip_title`, `expected_by`, `item_id`, `description`,
-`quantity` — **no cost / landed / MRP / margin / budget / expense column exists in it**, so
+`quantity`, `arrived_at` (per-invoice arrival, so store staff see arrived vs in-transit)
+— **no cost / landed / MRP / margin / budget / expense column exists in it**, so
 nothing financial can leak to store staff. `security_invoker = false` (reads the base
 tables past their `trip.read` RLS); per-row access is gated by the
 `has_incoming_visibility(org)` helper. Granted to `authenticated`; the new

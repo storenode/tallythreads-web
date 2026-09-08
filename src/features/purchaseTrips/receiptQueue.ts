@@ -117,6 +117,7 @@ export async function saveExtractedInvoice(
     receipt_path: opts.receiptPath ?? null,
     ai_confidence: inv.confidence,
     needs_review: opts.needsReview,
+    arrived_at: null,
   });
 
   for (const item of inv.items) {

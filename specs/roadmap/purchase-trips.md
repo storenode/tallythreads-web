@@ -67,20 +67,37 @@ from day one and is the first real consumer of the **sync core** (M2).
 ## 2. Trip lifecycle
 
 ```
-planning  ──▶  active  ──▶  completed
+planning  ──▶  active  ──▶  completed ──clone──▶ (new planning trip)
 (route,        (recording      (landed cost + MRP finalized;
  budget,        real invoices   later: stock distributed to
  estimate,      & expenses)     stores via M1c, sold via M5)
- forecast)
+ forecast)          │
+   └────cancel──────┴──▶ cancelled ──clone──▶ (new planning trip)
 ```
 
 - **planning:** dates + route + planned budget + estimated expenses + forecast. Editable
   offline; the AI estimate (Phase 2) runs when online.
 - **active:** real supplier invoices, line items, and actual trip expenses are entered.
 - **completed:** landed cost + suggested MRP are finalized for the trip.
+- **cancelled:** the trip was called off (from planning or active). Terminal.
 
 Both the estimate (planning) and the actuals are stored, so a later phase can compare
 "estimated vs actual" (a learning loop — not built now).
+
+**Terminal + recovery (2026-09-08).** `completed` and `cancelled` are terminal — trips do
+**not** reopen/revert. To redo a finished/cancelled trip (e.g. an invoice was forgotten),
+the owner uses **Clone trip**, which creates a fresh `planning` trip copying the **plan +
+route only** (title + " (copy)", route, budgets, margin, notes) — **not** invoices / items /
+expenses, so goods are never double-counted across two trips. Transition timestamps are set
+in one place (`src/features/purchaseTrips/lifecycle.ts` `nextStatusPatch`), so a (re)start
+always clears a stale `completed_at`.
+
+**Parcel arrival is per-invoice (2026-09-08).** A trip has many supplier invoices from
+different manufacturers; each is parcelled to the store and arrives separately. Arrival is a
+nullable **`purchase_invoices.arrived_at`** (toggleable "Mark arrived" per invoice, logged as
+an `arrived` activity with `ref_invoice_id`), surfaced arrived-vs-in-transit to store staff in
+the price-free `incoming_stock` view. An arrived invoice is the **input to the M3/M1c inventory
+module** — this records + shows arrival; it does not yet create stock records.
 
 ## 2A. Active phase — execution, activities, receipt → JSON (decided 2026-09-06)
 

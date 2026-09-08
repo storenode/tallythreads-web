@@ -16,4 +16,7 @@ export interface PurchaseInvoice extends SyncMeta {
   receipt_path: string | null; // Supabase Storage object path for a scanned receipt
   ai_confidence: "high" | "medium" | "low" | null;
   needs_review: boolean; // low/medium-confidence scan → owner should eyeball
+  // When this invoice's parcel physically arrived at the store (null = in transit).
+  // An arrived invoice is the input to the future inventory module (M3/M1c).
+  arrived_at: string | null;
 }

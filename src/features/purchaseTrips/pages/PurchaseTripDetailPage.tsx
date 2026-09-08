@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import type { PurchaseInvoice, TripRouteLeg, PendingReceipt } from "@/db";
@@ -12,7 +12,13 @@ import {
   legsPurchaseTotalPaise,
   areLegsValid,
 } from "../legs";
-import { updatePurchaseTrip, createTripActivity } from "../data";
+import {
+  updatePurchaseTrip,
+  createTripActivity,
+  clonePurchaseTrip,
+  updatePurchaseInvoice,
+} from "../data";
+import { nextStatusPatch, TERMINAL_STATUSES } from "../lifecycle";
 import { useMember } from "@/features/auth/useMember";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -160,6 +166,7 @@ export default function PurchaseTripDetailPage() {
   // Route editing: local copy synced when the trip loads; saved on demand (so we don't
   // enqueue an outbox write on every keystroke).
   const { member } = useMember();
+  const navigate = useNavigate();
   const [scanOpen, setScanOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("summary");
@@ -220,29 +227,52 @@ export default function PurchaseTripDetailPage() {
   const logActivity = (
     kind: Parameters<typeof createTripActivity>[0]["kind"],
     note: string | null,
+    refInvoiceId: string | null = null,
   ) =>
     createTripActivity({
       trip_id: tripId,
       member_id: member?.id ?? null,
       kind,
       note,
-      ref_invoice_id: null,
+      ref_invoice_id: refInvoiceId,
       occurred_at: now(),
     });
 
   const startTrip = async () => {
-    await updatePurchaseTrip(trip._localId, {
-      status: "active",
-      started_at: now(),
-    });
+    await updatePurchaseTrip(trip._localId, nextStatusPatch("active", now));
     await logActivity("started", null);
   };
   const completeTrip = async () => {
-    await updatePurchaseTrip(trip._localId, {
-      status: "completed",
-      completed_at: now(),
-    });
+    await updatePurchaseTrip(trip._localId, nextStatusPatch("completed", now));
     await logActivity("completed", null);
+  };
+  const cancelTrip = async () => {
+    if (
+      !window.confirm(
+        "Cancel this trip? It can't be reopened — you'd clone it to start over.",
+      )
+    )
+      return;
+    await updatePurchaseTrip(trip._localId, nextStatusPatch("cancelled", now));
+    await logActivity("cancelled", null);
+  };
+  const cloneTrip = async () => {
+    if (!member?.id) return;
+    const nt = await clonePurchaseTrip(trip, member.id);
+    navigate(`/org/${orgId}/purchase-trips/${nt._localId}`);
+  };
+  // Toggle a supplier invoice's parcel between arrived / in-transit. An arrived invoice
+  // is the input to the future inventory module; the activity keeps an audit trail.
+  const toggleArrived = async (inv: PurchaseInvoice) => {
+    const arriving = !inv.arrived_at;
+    await updatePurchaseInvoice(inv._localId, {
+      arrived_at: arriving ? now() : null,
+    });
+    await logActivity(
+      "arrived",
+      `Parcel ${arriving ? "arrived" : "marked not arrived"}: ${inv.supplier_name}`,
+      inv.id ?? null,
+    );
   };
   const addNote = async () => {
     if (!noteText.trim()) return;
@@ -253,6 +283,7 @@ export default function PurchaseTripDetailPage() {
   const ACTIVITY_LABEL: Record<string, string> = {
     started: "🚩 Trip started",
     completed: "✅ Trip completed",
+    cancelled: "🚫 Trip cancelled",
     arrived: "📍 Arrived",
     expense: "💸 Expense",
     invoice: "🧾 Invoice",
@@ -277,17 +308,32 @@ export default function PurchaseTripDetailPage() {
 
       <Card
         title={`Status: ${trip.status}`}
-        desc={`${trip.started_at ? `started ${trip.started_at.slice(0, 10)}` : ""} ${trip.completed_at ? `completed ${trip.completed_at.slice(0, 10)}` : ""}`}
+        desc={
+          trip.status === "cancelled"
+            ? "Cancelled — clone it to start over."
+            : `${trip.started_at ? `started ${trip.started_at.slice(0, 10)}` : ""} ${trip.completed_at ? `completed ${trip.completed_at.slice(0, 10)}` : ""}`
+        }
         actions={
-          trip.status === "planning" ? (
-            <Button type="button" onClick={startTrip}>
-              Start trip
+          TERMINAL_STATUSES.has(trip.status) ? (
+            <Button type="button" onClick={cloneTrip}>
+              Clone trip
             </Button>
-          ) : trip.status === "active" ? (
-            <Button type="button" onClick={completeTrip}>
-              Complete trip
-            </Button>
-          ) : null
+          ) : (
+            <div className="flex items-center gap-2">
+              {trip.status === "planning" ? (
+                <Button type="button" onClick={startTrip}>
+                  Start trip
+                </Button>
+              ) : (
+                <Button type="button" onClick={completeTrip}>
+                  Complete trip
+                </Button>
+              )}
+              <Button type="button" variant="ghost" onClick={cancelTrip}>
+                Cancel trip
+              </Button>
+            </div>
+          )
         }
       >
         <Tabs
@@ -421,7 +467,17 @@ export default function PurchaseTripDetailPage() {
       {activeSection === "invoices" && (
         <section>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-            <h2 className="text-base font-medium text-fg">Supplier invoices</h2>
+            <div>
+              <h2 className="text-base font-medium text-fg">
+                Supplier invoices
+              </h2>
+              {invoices.length > 0 && (
+                <p className="mt-1 text-sm text-fg-muted">
+                  Parcels arrived:{" "}
+                  {invoices.filter((i) => i.arrived_at).length} / {invoices.length}
+                </p>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <Button
                 type="button"
@@ -457,6 +513,12 @@ export default function PurchaseTripDetailPage() {
                 items={items.filter((it) => it.invoice_id === inv.id)}
                 landedByLocalId={landedByLocalId}
                 onRemoveInvoice={() => deletePurchaseInvoice(inv._localId)}
+                arrived={!!inv.arrived_at}
+                onToggleArrived={
+                  trip.status === "active" || trip.status === "completed"
+                    ? () => toggleArrived(inv)
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -681,6 +743,7 @@ function AddInvoiceForm({
         receipt_path: null,
         ai_confidence: null,
         needs_review: false,
+        arrived_at: null,
       });
       setSupplier("");
       onAdded?.();
