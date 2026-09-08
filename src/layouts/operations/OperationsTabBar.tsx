@@ -12,7 +12,7 @@ export function OperationsTabBar() {
   const nav = getOperationsNav(storeId ?? "");
 
   return (
-    <nav className="sticky bottom-0 z-20 flex shrink-0 border-t border-border bg-surface/95 backdrop-blur">
+    <nav className="sticky bottom-0 z-20 flex shrink-0 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       {nav.map((item) => (
         <NavLink
           key={item.to}

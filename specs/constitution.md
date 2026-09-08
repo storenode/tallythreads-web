@@ -1,6 +1,6 @@
 # TallyThreads — Project Constitution
 
-**Version:** 1.13.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-06 · **Status:** Active
+**Version:** 1.14.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-08 · **Status:** Active
 
 This document is the source of truth for how TallyThreads is built. Any human contributor
 or AI coding agent (Claude Code, etc.) working on this repo MUST read this file first and
@@ -380,6 +380,40 @@ customer (Bandrip), not a hypothetical.
   invite/acceptance, not by the act of signing in. Platform-level access (§1) is a
   separate flag again, independent of any store join. (Full mechanics: `M1-auth-*` specs.)
 
+### UI & Responsive Rules (mobile-first PWA — applies to every screen, every time)
+
+TallyThreads is a **PWA that must feel like a native Android/iOS app when installed to the
+home screen** — not a shrunk-down desktop web page. These rules are binding on all new and
+changed UI; do not deviate per-screen without amending this section.
+
+- **The global type/spacing scale lives in `src/index.css`, not in components.** A single
+  `@media (max-width: 640px)` rule down-scales the root `font-size` (currently `87.5%`) so
+  every rem-based Tailwind utility — text, padding, gaps, control heights — tightens
+  proportionally on phones. **Do not** fight this with per-component `text-xs`/`text-sm`
+  overrides "to make mobile smaller"; adjust the global scale if the whole app reads wrong.
+- **Breakpoints are pinned to real pixels** (`--breakpoint-sm … --breakpoint-2xl` in the
+  `@theme` block). Never assume a rem breakpoint. `sm:` = ≥640px and means "tablet/desktop".
+- **Design mobile-first:** author the phone layout as the base classes, add `sm:`/`lg:`
+  only to *widen* for bigger screens. Grids stack (`grid-cols-1 sm:grid-cols-2`), never
+  the reverse.
+- **Form controls render at 16px actual on phones** — `text-[16px] sm:text-sm` on every
+  `<input>`/`<select>`/`<textarea>` (the shared `Input`/`SingleSelect`/`Textarea`
+  primitives already do this; match it in any bare control). Anything below 16px makes
+  iOS zoom the viewport on focus, which breaks the native feel. Prefer the shared
+  primitives over raw elements.
+- **Respect the safe area.** `index.html` ships `viewport-fit=cover`. Any sticky/fixed
+  chrome must consume `env(safe-area-inset-*)`: bottom nav → `pb-[env(safe-area-inset-bottom)]`,
+  sticky headers → `pt-[env(safe-area-inset-top)]` (+ `min-h-*`, not fixed `h-*`), full-bleed
+  shells → left/right insets. Never let content sit under the notch or home indicator.
+- **Tap targets ≥ 44px.** After the mobile down-scale, `h-11` controls land ~41px — treat
+  that as the floor; don't go smaller for primary actions.
+- **Wide tables never force the page to scroll horizontally.** Wrap in
+  `overflow-x-auto`; for data-dense tables pin the identifying first column (TanStack
+  column pinning) or fall back to a stacked card list on `< sm`.
+- **Touch feel:** rely on the global `overscroll-behavior-y: none`,
+  `-webkit-tap-highlight-color: transparent`, and font-smoothing already set on
+  `html`/`body` in `index.css` — don't re-declare per component, and don't remove them.
+
 ---
 
 ## 7. Definition of Done (per module)
@@ -389,7 +423,9 @@ A module is not "done" until:
 1. Unit tests pass for any money-touching logic (§2.V)
 2. It works correctly with the network disabled (offline-first is not optional per-module)
 3. It has been manually tested at 375px viewport width (billing counters use small
-   Android tablets/phones)
+   Android tablets/phones) **and follows §6's UI & Responsive Rules** — mobile-first
+   layout, 16px form controls, safe-area insets on any sticky chrome, no horizontal
+   page scroll. Where feasible, spot-check it installed to the home screen.
 4. Sync round-trip verified: create offline → reconnect → confirm data on Supabase side
 
 ---
@@ -404,7 +440,19 @@ This constitution may be amended, but not casually. An amendment requires:
 
 ### Changelog
 
-- **2026-09-06 (latest) — First real Claude API integration: receipt→JSON extraction; v1.13.0.**
+- **2026-09-08 (latest) — Binding UI & Responsive Rules for the mobile-first PWA; v1.14.0.**
+  Evidence: on a phone (and installed to the home screen) the app read as a shrunk-down
+  desktop page — text and spacing too large, form fields triggering iOS focus-zoom, the
+  Operations bottom tab bar sitting under the home indicator. Fix landed as a single global
+  lever in `src/index.css` (a `@media (max-width: 640px)` root `font-size: 87.5%`
+  down-scale, px-pinned breakpoints in `@theme`, `-webkit-text-size-adjust`, font-smoothing)
+  plus safe-area insets on the shells/headers/tab bar and `text-[16px] sm:text-sm` on the
+  shared form primitives. §6 gains a **"UI & Responsive Rules"** subsection making the
+  mobile-first approach binding on every screen (global scale over per-component overrides,
+  16px controls, safe-area on sticky chrome, ≥44px tap targets, no horizontal page scroll,
+  wide-table pinning/card fallback). §7's Definition of Done item 3 now references it. No
+  scope, roadmap, or money-logic change.
+- **2026-09-06 — First real Claude API integration: receipt→JSON extraction; v1.13.0.**
   The Claude API moves from "role model seeded / AI unscheduled" to **built**, for a narrow,
   high-value use: in Purchase-Trip's **active phase**, an owner photographs a supplier receipt
   and a **server-side Claude (Haiku) vision Edge Function (`extract-receipt`)** turns it into a

@@ -17,6 +17,16 @@
   --font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
   --font-script: "Dancing Script", cursive;
 
+  /* Pin breakpoints to real pixels. The mobile root-font down-scale below shrinks
+     the rem unit; without this, Tailwind's default rem-based breakpoints would
+     shift too and flip layouts to desktop early. These keep the scale purely a
+     sizing lever. */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
   /* semantic tokens — components read these, never the raw brand/gray scale directly */
   --color-bg: var(--tt-bg);
   --color-surface: var(--tt-surface);
@@ -129,9 +139,28 @@ body,
   height: 100%;
 }
 
+html {
+  -webkit-text-size-adjust: 100%; /* stop iOS from inflating text on rotate/zoom */
+  text-size-adjust: 100%;
+}
+
+/* Native-app feel on phones: shrink the rem unit ~12% so every rem-based utility
+   (text, padding, gaps, control heights) tightens proportionally — form fields keep
+   a 16px value text (iOS focus-zoom guard), so the surrounding chrome has to come
+   down to stay in proportion. Breakpoints are pinned to px in @theme, so only sizing
+   changes, not layout. Desktop (>=640px) is unchanged. */
+@media (max-width: 640px) {
+  :root {
+    font-size: 87.5%;
+  }
+}
+
 body {
   overscroll-behavior-y: none; /* no pull-to-refresh mid-invoice */
   -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased; /* lighter, more native text rendering */
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   background: var(--color-bg);
   color: var(--color-fg);
 }

@@ -24,7 +24,7 @@ export default function ConsoleShell({ nav, headerExtra }: ConsoleShellProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="flex min-h-dvh bg-bg text-fg">
+    <div className="flex min-h-dvh bg-bg pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-fg">
       <ConsoleSidebar
         nav={nav}
         mobileOpen={mobileOpen}

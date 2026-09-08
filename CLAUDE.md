@@ -21,6 +21,9 @@ The full context lives in [`specs/`](specs/README.md). Read in this order:
   to match it (re-verify with `supabase db dump --linked --schema public`).
 - **Test the money logic** (GST, landed cost, franchise settlement) — constitution §2.V.
 - **Offline-first**: every write path goes through Dexie first (constitution §2.I).
+- **Mobile-first PWA**: every screen follows the UI & Responsive Rules (constitution §6) —
+  global type scale in `src/index.css` (not per-component overrides), 16px form controls,
+  `env(safe-area-inset-*)` on sticky chrome, no horizontal page scroll.
 - End each working session with a dated entry in `specs/journal/YYYY-MM.md`.
 
 ## Commands

@@ -1,7 +1,8 @@
 import { forwardRef, useId, type ReactNode, type TextareaHTMLAttributes } from "react";
 
+// text-[16px] on mobile (not text-sm) so iOS doesn't zoom the viewport on focus.
 const BASE_CLASSES =
-  "w-full rounded-lg border border-border bg-transparent px-4 py-2.5 text-sm text-fg " +
+  "w-full rounded-lg border border-border bg-transparent px-4 py-2.5 text-[16px] text-fg sm:text-sm " +
   "placeholder:text-fg-muted focus:border-brand focus:outline-hidden focus:ring-3 focus:ring-brand/10 " +
   "disabled:cursor-not-allowed disabled:border-border/60 disabled:placeholder:text-fg-muted/60";
 

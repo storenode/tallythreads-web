@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
+import { runSync } from "@/sync/syncEngine";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PageHeading } from "@/components/ui/PageHeading";
@@ -15,6 +17,14 @@ const STATUS_LABEL: Record<string, string> = {
 export default function PurchaseTripsListPage() {
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
+
+  // Client-side navigation into this page doesn't otherwise trigger a pull (the
+  // app-level SyncManager only syncs on mount / reconnect / a 45s interval), so a
+  // trip created on another device wouldn't show until the next tick or a full
+  // refresh. runSync() is a no-op when offline or already running.
+  useEffect(() => {
+    void runSync();
+  }, []);
 
   const trips = useLiveQuery(async () => {
     if (!orgId) return [];

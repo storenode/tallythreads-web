@@ -45,8 +45,10 @@ function SuccessIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+// text-[16px] on mobile (not text-sm) so iOS doesn't zoom the viewport on focus;
+// >=640px drops back to the 14px scale.
 const BASE_CLASSES =
-  "h-11 w-full rounded-lg border border-border bg-transparent px-4 py-2.5 text-sm text-fg " +
+  "h-11 w-full rounded-lg border border-border bg-transparent px-4 py-2.5 text-[16px] text-fg sm:text-sm " +
   "placeholder:text-fg-muted focus:outline-hidden focus:ring-3 " +
   "disabled:cursor-not-allowed disabled:border-border/60 disabled:placeholder:text-fg-muted/60";
 

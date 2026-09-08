@@ -21,9 +21,10 @@ function ChevronIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+// text-[16px] on mobile (not text-sm) so iOS doesn't zoom the viewport on focus.
 const BASE_CLASSES =
   "h-11 w-full appearance-none rounded-lg border border-border bg-transparent bg-none px-4 py-2.5 " +
-  "pr-11 text-sm focus:border-brand focus:ring-brand/10 focus:ring-3 focus:outline-hidden " +
+  "pr-11 text-[16px] sm:text-sm focus:border-brand focus:ring-brand/10 focus:ring-3 focus:outline-hidden " +
   "disabled:cursor-not-allowed disabled:border-border/60 disabled:text-fg-muted/60";
 
 export interface SingleSelectOption {

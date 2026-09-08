@@ -9,7 +9,7 @@ import { OperationsTabBar } from "./OperationsTabBar";
  */
 export default function OperationsShell() {
   return (
-    <div className="flex min-h-dvh flex-col bg-bg text-fg">
+    <div className="flex min-h-dvh flex-col bg-bg pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-fg">
       <OperationsHeader />
       <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
         <Outlet />
