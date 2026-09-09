@@ -27,6 +27,13 @@ truncate table
   public.franchise_groups,
   public.demo_scenarios,
   public.qa_test_cases,
+  -- Purchase Trips (M4). Children first for clarity; `cascade` would reach them
+  -- anyway via their FKs to purchase_trips → organizations/members.
+  public.trip_activities,
+  public.trip_expenses,
+  public.purchase_invoice_items,
+  public.purchase_invoices,
+  public.purchase_trips,
   public.stores,
   public.organizations,
   public.members
@@ -34,14 +41,18 @@ restart identity cascade;
 
 commit;
 
+-- Note: incoming_stock is a VIEW over the purchase_* tables (nothing to truncate),
+-- and pending_receipts is a client-only Dexie store (never on the server).
+
 -- Not live schema yet (M1c/M3) — uncomment when those migrations land:
 -- truncate table public.stock_transfers, public.stock_locations,
 --                public.settlement_statements restart identity cascade;
 
--- Storage: org logos are orphaned by the truncate above. The row delete below
--- does not reliably purge the backing file — prefer the Storage UI or the JS
--- client for a real cleanup.
+-- Storage: org logos AND scanned trip receipts are orphaned by the truncate above.
+-- The row deletes below do not reliably purge the backing files — prefer the Storage
+-- UI or the JS client for a real cleanup.
 -- delete from storage.objects where bucket_id = 'org-logos';
+-- delete from storage.objects where bucket_id = 'receipts';
 
 -- auth.users is NOT touched. public.members is the real identity store; your
 -- Google identity survives and re-activates the seeded placeholder on next
