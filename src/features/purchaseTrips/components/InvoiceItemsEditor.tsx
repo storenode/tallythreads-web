@@ -99,6 +99,7 @@ export function InvoiceItemsEditor({
   onRemoveInvoice,
   arrived = false,
   onToggleArrived,
+  readOnly = false,
 }: {
   invoice: PurchaseInvoice;
   items: PurchaseInvoiceItem[];
@@ -108,6 +109,8 @@ export function InvoiceItemsEditor({
   arrived?: boolean;
   /** Toggle arrived/in-transit. Omitted (control hidden) before the trip is active. */
   onToggleArrived?: () => void;
+  /** Terminal trip → items/actions are display-only. */
+  readOnly?: boolean;
 }) {
   const { control, register, getValues, setValue } = useForm<FormShape>({
     defaultValues: { items: items.map(toRow) },
@@ -182,6 +185,7 @@ export function InvoiceItemsEditor({
         cell: ({ row }) => (
           <Input
             placeholder="Cotton saree"
+            disabled={readOnly}
             {...register(`items.${row.original.index}.description`)}
             onBlur={() => void persistRow(row.original.index)}
           />
@@ -194,6 +198,7 @@ export function InvoiceItemsEditor({
           <Input
             type="number"
             className="w-16"
+            disabled={readOnly}
             {...register(`items.${row.original.index}.quantity`)}
             onBlur={() => void persistRow(row.original.index)}
           />
@@ -208,6 +213,7 @@ export function InvoiceItemsEditor({
             inputMode="decimal"
             suffix="₹"
             className="w-28"
+            disabled={readOnly}
             {...register(`items.${row.original.index}.unitCostRupees`)}
             onBlur={() => void persistRow(row.original.index)}
           />
@@ -221,6 +227,7 @@ export function InvoiceItemsEditor({
           return (
             <input
               type="checkbox"
+              disabled={readOnly}
               checked={derivedFor(i).isTrending}
               onChange={(e) => {
                 setValue(`items.${i}.is_trending`, e.target.checked);
@@ -243,21 +250,22 @@ export function InvoiceItemsEditor({
       {
         id: "remove",
         header: "",
-        cell: ({ row }) => (
-          <button
-            type="button"
-            className="text-xs text-fg-muted hover:text-red-500"
-            onClick={() => void removeRow(row.original.index)}
-          >
-            ✕
-          </button>
-        ),
+        cell: ({ row }) =>
+          readOnly ? null : (
+            <button
+              type="button"
+              className="text-xs text-fg-muted hover:text-red-500"
+              onClick={() => void removeRow(row.original.index)}
+            >
+              ✕
+            </button>
+          ),
       },
     ];
     // register / persistRow / removeRow are recreated each render; rebuilding the column
     // defs alongside them keeps the cell closures pointing at fresh form state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [register, rows, fields, landedByLocalId, invoice]);
+  }, [register, rows, fields, landedByLocalId, invoice, readOnly]);
 
   const data = useMemo<RowMeta[]>(
     () => fields.map((_, index) => ({ index })),
@@ -302,28 +310,32 @@ export function InvoiceItemsEditor({
               {arrived ? "Mark not arrived" : "Mark arrived"}
             </button>
           )}
-          <button
-            type="button"
-            className="text-xs font-medium text-brand hover:underline"
-            onClick={() =>
-              append({
-                localId: "",
-                description: "",
-                quantity: "1",
-                unitCostRupees: "",
-                is_trending: false,
-              })
-            }
-          >
-            + Add item
-          </button>
-          <button
-            type="button"
-            className="text-xs text-fg-muted hover:text-red-500"
-            onClick={onRemoveInvoice}
-          >
-            Remove invoice
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              className="text-xs font-medium text-brand hover:underline"
+              onClick={() =>
+                append({
+                  localId: "",
+                  description: "",
+                  quantity: "1",
+                  unitCostRupees: "",
+                  is_trending: false,
+                })
+              }
+            >
+              + Add item
+            </button>
+          )}
+          {!readOnly && (
+            <button
+              type="button"
+              className="text-xs text-fg-muted hover:text-red-500"
+              onClick={onRemoveInvoice}
+            >
+              Remove invoice
+            </button>
+          )}
         </div>
       </div>
 
@@ -338,18 +350,21 @@ export function InvoiceItemsEditor({
                 <span className="text-xs font-medium text-fg-muted">
                   Item {i + 1}
                 </span>
-                <button
-                  type="button"
-                  className="text-xs text-fg-muted hover:text-red-500"
-                  onClick={() => void removeRow(i)}
-                >
-                  Remove
-                </button>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="text-xs text-fg-muted hover:text-red-500"
+                    onClick={() => void removeRow(i)}
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
 
               <Input
                 label="Model"
                 placeholder="Cotton saree"
+                disabled={readOnly}
                 {...register(`items.${i}.description`)}
                 onBlur={() => void persistRow(i)}
               />
@@ -359,6 +374,7 @@ export function InvoiceItemsEditor({
                   label="Qty"
                   type="number"
                   inputMode="numeric"
+                  disabled={readOnly}
                   {...register(`items.${i}.quantity`)}
                   onBlur={() => void persistRow(i)}
                 />
@@ -367,6 +383,7 @@ export function InvoiceItemsEditor({
                   type="number"
                   inputMode="decimal"
                   suffix="₹"
+                  disabled={readOnly}
                   {...register(`items.${i}.unitCostRupees`)}
                   onBlur={() => void persistRow(i)}
                 />
@@ -375,6 +392,7 @@ export function InvoiceItemsEditor({
               <label className="mt-3 flex items-center gap-2 text-sm text-fg">
                 <input
                   type="checkbox"
+                  disabled={readOnly}
                   checked={d.isTrending}
                   onChange={(e) => {
                     setValue(`items.${i}.is_trending`, e.target.checked);

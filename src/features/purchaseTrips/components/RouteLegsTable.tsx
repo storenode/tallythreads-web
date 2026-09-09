@@ -11,6 +11,8 @@ interface Props {
   onChange: (legs: TripRouteLeg[]) => void;
   /** When true, show inline "Required" errors on incomplete fields (after a save attempt). */
   showErrors?: boolean;
+  /** When true, the legs are display-only (terminal trip): inputs disabled, no add/remove. */
+  readOnly?: boolean;
 }
 
 /**
@@ -18,7 +20,12 @@ interface Props {
  * generated free Google Maps "Verify on map" link (from/to/mode) the owner clicks to
  * eyeball their entry — no API key, no data captured back.
  */
-export function RouteLegsTable({ value, onChange, showErrors = false }: Props) {
+export function RouteLegsTable({
+  value,
+  onChange,
+  showErrors = false,
+  readOnly = false,
+}: Props) {
   const update = (i: number, patch: Partial<TripRouteLeg>) =>
     onChange(value.map((leg, idx) => (idx === i ? { ...leg, ...patch } : leg)));
   const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
@@ -38,36 +45,42 @@ export function RouteLegsTable({ value, onChange, showErrors = false }: Props) {
           <div key={i} className="rounded-lg border border-border p-3">
             <div className="mb-1 flex items-center justify-between">
               <span className="text-xs font-medium text-fg-muted">Leg {i + 1}</span>
-              <button
-                type="button"
-                className="text-xs text-fg-muted hover:text-red-500"
-                onClick={() => remove(i)}
-              >
-                Remove
-              </button>
+              {!readOnly && (
+                <button
+                  type="button"
+                  className="text-xs text-fg-muted hover:text-red-500"
+                  onClick={() => remove(i)}
+                >
+                  Remove
+                </button>
+              )}
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input
                 label="From"
                 placeholder="Kadapa"
+                disabled={readOnly}
                 value={leg.from}
                 onChange={(e) => update(i, { from: e.target.value })}
               />
               <Input
                 label="To"
                 placeholder="Surat"
+                disabled={readOnly}
                 value={leg.to}
                 onChange={(e) => update(i, { to: e.target.value })}
               />
               <Input
                 label="Boarding point"
                 placeholder="RTC bus stand"
+                disabled={readOnly}
                 value={leg.boarding}
                 onChange={(e) => update(i, { boarding: e.target.value })}
               />
               <Input
                 label="Drop point"
                 placeholder="Textile market gate 2"
+                disabled={readOnly}
                 value={leg.drop_point}
                 onChange={(e) => update(i, { drop_point: e.target.value })}
               />
@@ -76,6 +89,7 @@ export function RouteLegsTable({ value, onChange, showErrors = false }: Props) {
                 type="number"
                 inputMode="decimal"
                 placeholder="e.g. 920"
+                disabled={readOnly}
                 hint="Open Verify on map to read the distance."
                 error={
                   showErrors && (leg.distance_km == null || leg.distance_km < 0)
@@ -95,6 +109,7 @@ export function RouteLegsTable({ value, onChange, showErrors = false }: Props) {
                 label="Mode"
                 options={LEG_MODE_OPTIONS}
                 value={leg.mode}
+                disabled={readOnly}
                 onChange={(e) => update(i, { mode: e.target.value as TripLegMode })}
                 placeholder={null}
               />
@@ -103,6 +118,7 @@ export function RouteLegsTable({ value, onChange, showErrors = false }: Props) {
                 type="number"
                 inputMode="decimal"
                 suffix="₹"
+                disabled={readOnly}
                 value={paiseToRupeeInput(leg.price_paise)}
                 onChange={(e) =>
                   update(i, { price_paise: rupeesToPaise(e.target.value) })
@@ -113,6 +129,7 @@ export function RouteLegsTable({ value, onChange, showErrors = false }: Props) {
                 type="number"
                 inputMode="decimal"
                 suffix="₹"
+                disabled={readOnly}
                 hint="How much you plan to buy at this place."
                 value={paiseToRupeeInput(leg.planned_purchase_paise)}
                 onChange={(e) =>
@@ -140,9 +157,11 @@ export function RouteLegsTable({ value, onChange, showErrors = false }: Props) {
         );
       })}
 
-      <Button type="button" variant="ghost" onClick={add}>
-        + Add leg
-      </Button>
+      {!readOnly && (
+        <Button type="button" variant="ghost" onClick={add}>
+          + Add leg
+        </Button>
+      )}
     </div>
   );
 }

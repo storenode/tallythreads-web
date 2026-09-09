@@ -280,6 +280,11 @@ export default function PurchaseTripDetailPage() {
     setNoteText("");
   };
 
+  // Terminal trips (completed / cancelled) are a read-only record — only Clone acts on
+  // them. Recording actuals (invoices, items, expenses, arrival) happens only while active.
+  const readOnly = TERMINAL_STATUSES.has(trip.status);
+  const canRecord = trip.status === "active";
+
   const ACTIVITY_LABEL: Record<string, string> = {
     started: "🚩 Trip started",
     completed: "✅ Trip completed",
@@ -380,14 +385,16 @@ export default function PurchaseTripDetailPage() {
                     budgetPaise={trip.planned_budget_paise}
                     expensesPaise={plannedExpenses}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={saveRoute}
-                    disabled={!routeDirty}
-                  >
-                    {routeDirty ? "Save route" : "Saved"}
-                  </Button>
+                  {!readOnly && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={saveRoute}
+                      disabled={!routeDirty}
+                    >
+                      {routeDirty ? "Save route" : "Saved"}
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="mt-5">
@@ -398,6 +405,7 @@ export default function PurchaseTripDetailPage() {
                   setRouteDirty(true);
                 }}
                 showErrors={routeError}
+                readOnly={readOnly}
               />
               {routeError && (
                 <p className="mt-3 text-sm text-red-500">
@@ -455,10 +463,13 @@ export default function PurchaseTripDetailPage() {
                 left={`${e.category}${e.note ? ` — ${e.note}` : ""}`}
                 right={formatInr(e.amount_paise)}
                 dirty={e._dirty === 1}
-                onDelete={() => deleteTripExpense(e._localId)}
+                onDelete={readOnly ? undefined : () => deleteTripExpense(e._localId)}
               />
             ))}
-            <AddExpenseForm tripId={tripId} />
+            {(expenses ?? []).length === 0 && readOnly && (
+              <p className="text-sm text-fg-muted">No expenses recorded.</p>
+            )}
+            {!readOnly && <AddExpenseForm tripId={tripId} />}
           </div>
         </section>
       )}
@@ -478,18 +489,20 @@ export default function PurchaseTripDetailPage() {
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setManualOpen(true)}
-              >
-                Manual invoice
-              </Button>
-            <Button type="button" onClick={() => setScanOpen(true)}>
-              Scan receipt 📷
-            </Button>
-            </div>
+            {!readOnly && (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setManualOpen(true)}
+                >
+                  Manual invoice
+                </Button>
+                <Button type="button" onClick={() => setScanOpen(true)}>
+                  Scan receipt 📷
+                </Button>
+              </div>
+            )}
           </div>
           <div className="mt-5 space-y-5">
             {pendingReceipts && pendingReceipts.length > 0 && (
@@ -513,11 +526,10 @@ export default function PurchaseTripDetailPage() {
                 items={items.filter((it) => it.invoice_id === inv.id)}
                 landedByLocalId={landedByLocalId}
                 onRemoveInvoice={() => deletePurchaseInvoice(inv._localId)}
+                readOnly={readOnly}
                 arrived={!!inv.arrived_at}
                 onToggleArrived={
-                  trip.status === "active" || trip.status === "completed"
-                    ? () => toggleArrived(inv)
-                    : undefined
+                  canRecord ? () => toggleArrived(inv) : undefined
                 }
               />
             ))}
@@ -532,21 +544,23 @@ export default function PurchaseTripDetailPage() {
             <h2 className="text-base font-medium text-fg">Journey log</h2>
           </div>
           <div className="mt-5 space-y-4">
-            <div className="flex flex-wrap items-end gap-2">
-              <Input
-                label="Add a note"
-                placeholder="e.g. Reached Surat, meeting supplier at 3pm"
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-              />
-              <Button
-                type="button"
-                onClick={addNote}
-                disabled={!noteText.trim()}
-              >
-                Add
-              </Button>
-            </div>
+            {!readOnly && (
+              <div className="flex flex-wrap items-end gap-2">
+                <Input
+                  label="Add a note"
+                  placeholder="e.g. Reached Surat, meeting supplier at 3pm"
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                />
+                <Button
+                  type="button"
+                  onClick={addNote}
+                  disabled={!noteText.trim()}
+                >
+                  Add
+                </Button>
+              </div>
+            )}
             {(activities ?? []).length === 0 ? (
               <p className="text-sm text-fg-muted">No activity yet.</p>
             ) : (
@@ -635,7 +649,7 @@ function Row({
   left: string;
   right: string;
   dirty: boolean;
-  onDelete: () => void;
+  onDelete?: () => void;
 }) {
   return (
     <div className="flex items-center justify-between border-b border-border pb-2 text-sm">
@@ -645,12 +659,14 @@ function Row({
       </span>
       <span className="flex items-center gap-3">
         <span className="text-fg">{right}</span>
-        <button
-          className="text-xs text-fg-muted hover:text-red-500"
-          onClick={onDelete}
-        >
-          ✕
-        </button>
+        {onDelete && (
+          <button
+            className="text-xs text-fg-muted hover:text-red-500"
+            onClick={onDelete}
+          >
+            ✕
+          </button>
+        )}
       </span>
     </div>
   );
