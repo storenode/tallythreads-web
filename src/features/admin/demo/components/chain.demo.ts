@@ -12,6 +12,7 @@ import {
   inviteStoreMember,
   type CreateStoreInput,
 } from "@/features/stores/storesAdmin";
+import { seedDemoPurchaseTrips } from "./purchaseTrips.demo";
 
 // NOTE: This file is intentionally self-contained — it does not import from the
 // independent.* demo files. The small types/helpers/option lists below are copied so
@@ -322,7 +323,7 @@ export function useCreateChainDemo() {
 
       await updateOrganization(org.id, buildOrgPatch(input.org));
 
-      await inviteOrganizationMember(org.id, {
+      const owner = await inviteOrganizationMember(org.id, {
         ...memberProfile(input.owner),
         email: input.owner.email.trim(),
         role_name: "org_owner",
@@ -337,6 +338,8 @@ export function useCreateChainDemo() {
           role_name: "store_sales_staff",
         });
       }
+
+      await seedDemoPurchaseTrips(org.id, owner.member_id, input.org.name.trim());
 
       return org;
     },

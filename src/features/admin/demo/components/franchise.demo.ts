@@ -16,6 +16,7 @@ import {
   createFranchiseGroup,
   linkStoreToFranchise,
 } from "../../franchises/franchiseGroups";
+import { seedDemoPurchaseTrips } from "./purchaseTrips.demo";
 
 // Self-contained: this file does not import from the independent.* or chain.* demo
 // files. Small types/helpers below are local copies. It DOES reuse the real franchise
@@ -410,7 +411,7 @@ export function useCreateFranchiseDemo() {
 
       const group = await createFranchiseGroup(org.id, input.groupName);
 
-      await inviteOrganizationMember(org.id, {
+      const owner = await inviteOrganizationMember(org.id, {
         ...memberProfile(input.owner),
         email: input.owner.email.trim(),
         role_name: "org_owner",
@@ -431,6 +432,8 @@ export function useCreateFranchiseDemo() {
           role_name: "store_sales_staff",
         });
       }
+
+      await seedDemoPurchaseTrips(org.id, owner.member_id, input.org.name.trim());
 
       return org;
     },

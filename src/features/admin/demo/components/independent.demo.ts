@@ -12,6 +12,7 @@ import {
   inviteStoreMember,
   type CreateStoreInput,
 } from "@/features/stores/storesAdmin";
+import { seedDemoPurchaseTrips } from "./purchaseTrips.demo";
 
 /**
  * A single editable draft for the "Vasavi Cloth Store" independent demo. Every
@@ -249,7 +250,7 @@ export function useCreateIndependentDemo() {
 
       const store = await createStore(org.id, input.store);
 
-      await inviteOrganizationMember(org.id, {
+      const owner = await inviteOrganizationMember(org.id, {
         ...memberProfile(input.owner),
         email: input.owner.email.trim(),
         role_name: "org_owner",
@@ -261,6 +262,8 @@ export function useCreateIndependentDemo() {
         email: input.salesStaff.email.trim(),
         role_name: "store_sales_staff",
       });
+
+      await seedDemoPurchaseTrips(org.id, owner.member_id, input.org.name.trim());
 
       return org;
     },
