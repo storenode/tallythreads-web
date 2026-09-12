@@ -13,12 +13,15 @@ import {
  */
 export function ReceivingStepper({ status }: { status: ReceivingStatus }) {
   const currentIndex = RECEIVING_STAGES.indexOf(status);
+  // The last stage (ready_for_inventory) is terminal: reaching it means the whole pipeline is
+  // complete, so its step shows as done (✓) rather than an in-progress "current" step.
+  const isTerminal = currentIndex === RECEIVING_STAGES.length - 1;
 
   return (
     <ol className="flex items-center">
       {RECEIVING_STAGES.map((stage, i) => {
-        const done = i < currentIndex;
-        const current = i === currentIndex;
+        const done = i < currentIndex || (i === currentIndex && isTerminal);
+        const current = i === currentIndex && !isTerminal;
         const circle = done
           ? "border-tt-green-500 bg-tt-green-500 text-white"
           : current
