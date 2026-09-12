@@ -118,6 +118,9 @@ export async function saveExtractedInvoice(
     ai_confidence: inv.confidence,
     needs_review: opts.needsReview,
     arrived_at: null,
+    receiving_status: "pending",
+    verified_at: null,
+    approved_at: null,
   });
 
   for (const item of inv.items) {
@@ -129,6 +132,8 @@ export async function saveExtractedInvoice(
       quantity: item.quantity && item.quantity > 0 ? Math.round(item.quantity) : 1,
       unit_cost_paise: item.unit_cost_paise ?? 0,
       is_trending: false,
+      received_quantity: null,
+      receiving_note: null,
     });
   }
 

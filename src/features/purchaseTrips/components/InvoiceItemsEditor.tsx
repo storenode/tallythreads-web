@@ -20,6 +20,7 @@ import {
 } from "../data";
 import { suggestedMrpPaise, type MarginRecipe } from "@/lib/purchaseMargin";
 import { formatInr, paiseToRupeeInput, rupeesToPaise } from "@/lib/money";
+import { RECEIVING_BADGE, RECEIVING_ICON, RECEIVING_LABEL } from "../receiving";
 
 interface ItemRow {
   localId: string; // "" until first saved
@@ -97,18 +98,12 @@ export function InvoiceItemsEditor({
   items,
   landedByLocalId,
   onRemoveInvoice,
-  arrived = false,
-  onToggleArrived,
   readOnly = false,
 }: {
   invoice: PurchaseInvoice;
   items: PurchaseInvoiceItem[];
   landedByLocalId: Map<string, { landedUnitCostPaise: number }>;
   onRemoveInvoice: () => void;
-  /** Whether this invoice's parcel has arrived at the store. */
-  arrived?: boolean;
-  /** Toggle arrived/in-transit. Omitted (control hidden) before the trip is active. */
-  onToggleArrived?: () => void;
   /** Terminal trip → items/actions are display-only. */
   readOnly?: boolean;
 }) {
@@ -152,6 +147,8 @@ export function InvoiceItemsEditor({
         quantity: qty,
         unit_cost_paise: unitPaise,
         is_trending: row.is_trending,
+        received_quantity: null,
+        receiving_note: null,
       });
       setValue(`items.${index}.localId`, created._localId);
     }
@@ -294,22 +291,16 @@ export function InvoiceItemsEditor({
               ⚠ review
             </span>
           )}
-          {arrived && (
-            <span className="rounded bg-tt-green-500/15 px-1.5 py-0.5 text-xs text-tt-green-600">
-              ✅ arrived
+          {invoice.receiving_status !== "pending" && (
+            <span
+              className={`rounded px-1.5 py-0.5 text-xs ${RECEIVING_BADGE[invoice.receiving_status]}`}
+            >
+              {RECEIVING_ICON[invoice.receiving_status]}{" "}
+              {RECEIVING_LABEL[invoice.receiving_status]}
             </span>
           )}
         </div>
         <div className="flex items-center gap-4">
-          {onToggleArrived && (
-            <button
-              type="button"
-              className="text-xs font-medium text-fg-muted hover:text-tt-green-600"
-              onClick={onToggleArrived}
-            >
-              {arrived ? "Mark not arrived" : "Mark arrived"}
-            </button>
-          )}
           {!readOnly && (
             <button
               type="button"

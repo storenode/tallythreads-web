@@ -353,13 +353,19 @@ phase), `last_modified_at`, `deleted_at`.
 `supplier_invoice_no`, `invoice_date`, `margin_config` jsonb **or** `margin_plugin_id` text
 (one-source check), `notes`, **`source`** CHECK (`manual`,`ai_scan`) default manual,
 **`receipt_path`** (Supabase Storage), **`ai_confidence`** CHECK (`high`,`medium`,`low`),
-**`needs_review`** bool (low/medium scan → owner eyeballs), **`arrived_at`** (null = parcel in
-transit; set = arrived at store — the per-invoice arrival that feeds M3 inventory),
-`last_modified_at`, `deleted_at`.
+**`needs_review`** bool (low/medium scan → owner eyeballs), **`arrived_at`** (received-at
+timestamp; null = not yet received), **`receiving_status`** CHECK
+(`pending`,`in_transit`,`received`,`verified`,`ready_for_inventory`) default `pending` — the
+per-invoice receiving pipeline (the Deliveries module, `../roadmap/deliveries.md`);
+`ready_for_inventory` hands off to M3 inventory — **`verified_at`**, **`approved_at`**
+(the ready-for-inventory time), `last_modified_at`, `deleted_at`.
 
 ### `purchase_invoice_items`
 `id`, `invoice_id` FK, `description` (→ product in M3), `hsn_code`, `quantity` (>0),
-`unit_cost_paise` (≥0), `is_trending` bool, `last_modified_at`, `deleted_at`.
+`unit_cost_paise` (≥0), `is_trending` bool, **`received_quantity`** (int ≥0 or null — the
+line-level goods check on the Deliveries invoice detail; null = unchecked, may differ from
+`quantity` = shortage/excess; all items must be set to move an invoice `received`→`verified`),
+**`receiving_note`** (per-item comment), `last_modified_at`, `deleted_at`.
 
 ### `trip_expenses`
 `id`, `trip_id` FK, `category` CHECK (`travel`,`lodging`,`food`,`transport`,`other`),
@@ -375,8 +381,9 @@ transit; set = arrived at store — the per-invoice arrival that feeds M3 invent
 Migration `20260905010000_m4_incoming_stock_visibility.sql` (arrival column added in
 `20260908000000_m4_cancel_and_arrival.sql`). Exposes ONLY `trip_id`,
 `organization_id`, `status`, `trip_title`, `expected_by`, `item_id`, `description`,
-`quantity`, `arrived_at` (per-invoice arrival, so store staff see arrived vs in-transit)
-— **no cost / landed / MRP / margin / budget / expense column exists in it**, so
+`quantity`, `arrived_at`, `receiving_status` (per-invoice receiving stage, so store staff see
+in-transit / received / verified / approved) — **no cost / landed / MRP / margin / budget /
+expense column exists in it**, so
 nothing financial can leak to store staff. `security_invoker = false` (reads the base
 tables past their `trip.read` RLS); per-row access is gated by the
 `has_incoming_visibility(org)` helper. Granted to `authenticated`; the new

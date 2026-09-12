@@ -16,7 +16,17 @@ export interface PurchaseInvoice extends SyncMeta {
   receipt_path: string | null; // Supabase Storage object path for a scanned receipt
   ai_confidence: "high" | "medium" | "low" | null;
   needs_review: boolean; // low/medium-confidence scan → owner should eyeball
-  // When this invoice's parcel physically arrived at the store (null = in transit).
-  // An arrived invoice is the input to the future inventory module (M3/M1c).
+  // When this invoice's parcel physically arrived at the store (null = not yet received).
+  // Doubles as the received-at timestamp for the receiving pipeline below.
   arrived_at: string | null;
+  // Receiving pipeline (the Deliveries module): in_transit → received → verified → approved.
+  // `approved` hands off to the future inventory module (M3), which creates the actual stock.
+  receiving_status:
+    | "pending"
+    | "in_transit"
+    | "received"
+    | "verified"
+    | "ready_for_inventory";
+  verified_at: string | null;
+  approved_at: string | null;
 }

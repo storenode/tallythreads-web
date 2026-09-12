@@ -16,7 +16,6 @@ import {
   updatePurchaseTrip,
   createTripActivity,
   clonePurchaseTrip,
-  updatePurchaseInvoice,
 } from "../data";
 import { nextStatusPatch, TERMINAL_STATUSES } from "../lifecycle";
 import { useMember } from "@/features/auth/useMember";
@@ -261,19 +260,6 @@ export default function PurchaseTripDetailPage() {
     const nt = await clonePurchaseTrip(trip, member.id);
     navigate(`/org/${orgId}/purchase-trips/${nt._localId}`);
   };
-  // Toggle a supplier invoice's parcel between arrived / in-transit. An arrived invoice
-  // is the input to the future inventory module; the activity keeps an audit trail.
-  const toggleArrived = async (inv: PurchaseInvoice) => {
-    const arriving = !inv.arrived_at;
-    await updatePurchaseInvoice(inv._localId, {
-      arrived_at: arriving ? now() : null,
-    });
-    await logActivity(
-      "arrived",
-      `Parcel ${arriving ? "arrived" : "marked not arrived"}: ${inv.supplier_name}`,
-      inv.id ?? null,
-    );
-  };
   const addNote = async () => {
     if (!noteText.trim()) return;
     await logActivity("note", noteText.trim());
@@ -281,9 +267,9 @@ export default function PurchaseTripDetailPage() {
   };
 
   // Terminal trips (completed / cancelled) are a read-only record — only Clone acts on
-  // them. Recording actuals (invoices, items, expenses, arrival) happens only while active.
+  // them. Recording actuals (invoices, items, expenses) happens only while active. Parcel
+  // receiving is handled separately, on the Deliveries page (after the trip completes).
   const readOnly = TERMINAL_STATUSES.has(trip.status);
-  const canRecord = trip.status === "active";
 
   const ACTIVITY_LABEL: Record<string, string> = {
     started: "🚩 Trip started",
@@ -484,8 +470,15 @@ export default function PurchaseTripDetailPage() {
               </h2>
               {invoices.length > 0 && (
                 <p className="mt-1 text-sm text-fg-muted">
-                  Parcels arrived:{" "}
-                  {invoices.filter((i) => i.arrived_at).length} / {invoices.length}
+                  Received:{" "}
+                  {
+                    invoices.filter(
+                      (i) =>
+                        i.receiving_status !== "pending" &&
+                        i.receiving_status !== "in_transit",
+                    ).length
+                  }{" "}
+                  / {invoices.length} · manage on Deliveries
                 </p>
               )}
             </div>
@@ -527,10 +520,6 @@ export default function PurchaseTripDetailPage() {
                 landedByLocalId={landedByLocalId}
                 onRemoveInvoice={() => deletePurchaseInvoice(inv._localId)}
                 readOnly={readOnly}
-                arrived={!!inv.arrived_at}
-                onToggleArrived={
-                  canRecord ? () => toggleArrived(inv) : undefined
-                }
               />
             ))}
           </div>
@@ -760,6 +749,9 @@ function AddInvoiceForm({
         ai_confidence: null,
         needs_review: false,
         arrived_at: null,
+        receiving_status: "pending",
+        verified_at: null,
+        approved_at: null,
       });
       setSupplier("");
       onAdded?.();

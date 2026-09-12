@@ -6,6 +6,7 @@ import {
   ScrollText,
   Settings,
   Truck,
+  PackageCheck,
 } from "lucide-react";
 import type { ConsoleNavSection } from "@/layouts/console/nav";
 
@@ -43,6 +44,11 @@ export function getOrgAdminNav(
                 label: "Purchase Trips",
                 to: `/org/${orgId}/purchase-trips`,
                 icon: Truck,
+              },
+              {
+                label: "Deliveries",
+                to: `/org/${orgId}/deliveries`,
+                icon: PackageCheck,
               },
             ]
           : []),

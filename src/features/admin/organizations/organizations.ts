@@ -140,12 +140,53 @@ export interface HardDeleteSummary {
 export async function hardDeleteOrganization(
   id: string,
 ): Promise<HardDeleteSummary> {
+  // Step 1: Find org-scoped memberships to identify members
+  const { data: memberships, error: membershipsError } = await supabase
+    .from("memberships")
+    .select("member_id")
+    .eq("organization_id", id)
+    .is("deleted_at", null);
+
+  if (membershipsError) {
+    console.warn(
+      `Warning: Could not identify organization members: ${membershipsError.message}`,
+    );
+  }
+
+  // Step 2: Identify and delete orphaned placeholder members
+  if (memberships && memberships.length > 0) {
+    const memberIds = [...new Set(memberships.map((m) => m.member_id))];
+
+    for (const memberId of memberIds) {
+      // Check if this member has only this org's membership
+      const { count, error: countError } = await supabase
+        .from("memberships")
+        .select("id", { count: "exact" })
+        .eq("member_id", memberId)
+        .is("deleted_at", null);
+
+      if (!countError && count === 1) {
+        // Only one membership (the org-scoped one we're about to delete via RPC)
+        // Delete the placeholder member
+        try {
+          await supabase.from("members").delete().eq("id", memberId);
+        } catch (e) {
+          // Ignore — placeholder member cleanup is best-effort
+          console.warn(
+            `Warning: Could not clean orphaned member ${memberId}: ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+      }
+    }
+  }
+
+  // Step 3: Call hard_delete_organization() RPC
   const { data, error } = await supabase.rpc("hard_delete_organization", {
     org_id: id,
   });
   if (error) throw error;
 
-  // Best-effort cleanup: the organizations row (and its logo_url) is already
+  // Step 4: Best-effort cleanup: the organizations row (and its logo_url) is already
   // gone by the time we get here, so a failure below just leaves an orphaned
   // file in storage — not a broken app state, so it isn't worth failing the
   // whole delete over.

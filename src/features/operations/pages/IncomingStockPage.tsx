@@ -3,6 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { Card } from "@/components/ui/Card";
 import { PageHeading } from "@/components/ui/PageHeading";
+import {
+  RECEIVING_BADGE,
+  RECEIVING_ICON,
+  RECEIVING_LABEL,
+  type ReceivingStatus,
+} from "@/features/purchaseTrips/receiving";
 
 // Price-free feed for store staff (server view `incoming_stock`). Deliberately carries
 // NO cost / MRP / margin / budget — see specs/roadmap/purchase-trips.md §10.
@@ -11,7 +17,7 @@ interface IncomingRow {
   status: string;
   trip_title: string;
   expected_by: string | null;
-  arrived_at: string | null;
+  receiving_status: ReceivingStatus;
   item_id: string;
   description: string;
   quantity: number;
@@ -25,7 +31,7 @@ interface TripGroup {
     item_id: string;
     description: string;
     quantity: number;
-    arrived_at: string | null;
+    receiving_status: ReceivingStatus;
   }[];
 }
 
@@ -56,7 +62,7 @@ export default function IncomingStockPage() {
         item_id: r.item_id,
         description: r.description,
         quantity: r.quantity,
-        arrived_at: r.arrived_at,
+        receiving_status: r.receiving_status,
       });
     }
     return [...byTrip.values()];
@@ -91,15 +97,12 @@ export default function IncomingStockPage() {
                   <li key={it.item_id} className="flex items-center justify-between gap-3 py-1.5">
                     <span className="text-fg">{it.description}</span>
                     <span className="flex items-center gap-2">
-                      {it.arrived_at ? (
-                        <span className="rounded bg-tt-green-500/15 px-1.5 py-0.5 text-xs text-tt-green-600">
-                          ✅ Arrived
-                        </span>
-                      ) : (
-                        <span className="rounded bg-bg-elevated px-1.5 py-0.5 text-xs text-fg-muted">
-                          🚚 In transit
-                        </span>
-                      )}
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-xs ${RECEIVING_BADGE[it.receiving_status]}`}
+                      >
+                        {RECEIVING_ICON[it.receiving_status]}{" "}
+                        {RECEIVING_LABEL[it.receiving_status]}
+                      </span>
                       <span className="text-fg-muted">Qty {it.quantity}</span>
                     </span>
                   </li>

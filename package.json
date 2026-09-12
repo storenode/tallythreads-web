@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
+    "dev:kill": "lsof -ti :5173 | xargs kill",
     "supabase:login": "supabase login",
     "supabase:db:push": "supabase db push",
     "supabase:fn:deploy": "supabase functions deploy",

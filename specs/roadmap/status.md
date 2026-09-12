@@ -55,7 +55,7 @@ Operations are billing/inventory/reports, not a Purchase-Trip.
 | **M1d** | **Franchise settlement engine** (`lib/franchiseSettlement.ts`) — hybrid recipe/plugin, money-critical, unit-tested | **Speced, not built.** Design + Nellore golden test in `../reference/franchise-settlement.md` v2.0.0 §4. No M2 dependency (pure logic) — buildable now |
 | **M2** | Offline sync engine (Dexie ⇄ Supabase) | Not started — gates M3/M4/M5 |
 | **M3** | Inventory, variant matrix, barcode | Permission keys seeded; no tables |
-| **M4** | Purchase-Trip module (landed cost) — the core differentiator | Permission keys seeded; no tables |
+| **M4** | Purchase-Trip module (landed cost) — the core differentiator | **Built** (offline-first, live). Plan → start → invoices/items/expenses → complete/cancel/clone; landed-cost + MRP; per-invoice receiving pipeline via the **Deliveries** page (`in_transit→received→verified→approved`, `deliveries.md`) — `approved` hands off to M3. See `purchase-trips.md` + `deliveries.md` |
 | **M5** | Billing/POS, GST calc, printing | Permission keys seeded; no tables |
 | **M6** | GST reports, GSTR export | Not started |
 | **M7** | Settings, onboarding (incl. store GSTIN/address) | Not started |

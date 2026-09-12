@@ -19,4 +19,16 @@ export const purchaseTripRoutes: RouteObject[] = [
       Component: (await import("./pages/PurchaseTripDetailPage")).default,
     }),
   },
+  {
+    path: "deliveries",
+    lazy: async () => ({
+      Component: (await import("./pages/DeliveriesPage")).default,
+    }),
+  },
+  {
+    path: "deliveries/:invoiceLocalId",
+    lazy: async () => ({
+      Component: (await import("./pages/DeliveryDetailPage")).default,
+    }),
+  },
 ];

@@ -1,22 +1,35 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import { runSync } from "@/sync/syncEngine";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
 import { PageHeading } from "@/components/ui/PageHeading";
+import { Tabs } from "@/components/ui/tabs/Tabs";
 import { formatInr } from "@/lib/money";
 
 const STATUS_LABEL: Record<string, string> = {
   planning: "Planning",
   active: "Active",
   completed: "Completed",
+  cancelled: "Cancelled",
 };
+
+const STATUS_TABS = [
+  { id: "all", label: "All" },
+  { id: "planning", label: "Planning" },
+  { id: "active", label: "Active" },
+  { id: "completed", label: "Completed" },
+  { id: "cancelled", label: "Cancelled" },
+];
 
 export default function PurchaseTripsListPage() {
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
+  const [status, setStatus] = useState<string>("all");
+  const [q, setQ] = useState("");
 
   // Client-side navigation into this page doesn't otherwise trigger a pull (the
   // app-level SyncManager only syncs on mount / reconnect / a 45s interval), so a
@@ -36,6 +49,15 @@ export default function PurchaseTripsListPage() {
       .filter((t) => !t.deleted_at)
       .sort((a, b) => b.last_modified_at.localeCompare(a.last_modified_at));
   }, [orgId]);
+
+  const visible = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return (trips ?? []).filter((t) => {
+      if (status !== "all" && t.status !== status) return false;
+      if (needle && !t.title.toLowerCase().includes(needle)) return false;
+      return true;
+    });
+  }, [trips, status, q]);
 
   if (!orgId) return null;
 
@@ -57,8 +79,25 @@ export default function PurchaseTripsListPage() {
           </p>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {trips.map((t) => (
+        <>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Tabs items={STATUS_TABS} activeId={status} onChange={setStatus} />
+            <div className="sm:w-64">
+              <Input
+                placeholder="Search by title"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {visible.length === 0 ? (
+            <Card>
+              <p className="text-sm text-fg-muted">No trips match this filter.</p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {visible.map((t) => (
             <Link
               key={t._localId}
               to={t._localId}
@@ -89,8 +128,10 @@ export default function PurchaseTripsListPage() {
                 </div>
               </div>
             </Link>
-          ))}
-        </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

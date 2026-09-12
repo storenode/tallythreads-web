@@ -92,12 +92,15 @@ expenses, so goods are never double-counted across two trips. Transition timesta
 in one place (`src/features/purchaseTrips/lifecycle.ts` `nextStatusPatch`), so a (re)start
 always clears a stale `completed_at`.
 
-**Parcel arrival is per-invoice (2026-09-08).** A trip has many supplier invoices from
-different manufacturers; each is parcelled to the store and arrives separately. Arrival is a
-nullable **`purchase_invoices.arrived_at`** (toggleable "Mark arrived" per invoice, logged as
-an `arrived` activity with `ref_invoice_id`), surfaced arrived-vs-in-transit to store staff in
-the price-free `incoming_stock` view. An arrived invoice is the **input to the M3/M1c inventory
-module** — this records + shows arrival; it does not yet create stock records.
+**Parcel receiving is per-invoice → the Deliveries module (2026-09-09).** A trip has many
+supplier invoices from different manufacturers; each is parcelled to the store and arrives
+separately, **after** the trip completes. Receiving is therefore its own workspace, not part
+of the trip detail — see **`deliveries.md`**. Each invoice carries `receiving_status`
+(`in_transit → received → verified → approved`); the dedicated **Deliveries** page
+(`/org/:orgId/deliveries`) lists completed-trip invoices at invoice level and advances them,
+logging activities on the parent trip. The trip detail's old per-invoice "Mark arrived" toggle
+was **removed** — the Invoices tab now shows a read-only stage badge only. `approved` is the
+hand-off to the **M3/M1c inventory module** (which will create the actual stock).
 
 ## 2A. Active phase — execution, activities, receipt → JSON (decided 2026-09-06)
 
