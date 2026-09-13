@@ -25,6 +25,10 @@ const PUSH_ORDER = [
   "purchase_invoice_items",
   "trip_expenses",
   "trip_activities",
+  // Store-scoped placement tree. Depends only on `stores` (created online via the admin
+  // flow) and on itself via parent_id — a parent row is queued before its child, so
+  // queued_at ordering within the table already pushes parents first.
+  "stock_locations",
 ] as const;
 
 type PushTable = (typeof PUSH_ORDER)[number];
@@ -37,6 +41,7 @@ const DEXIE_TABLE = {
   purchase_invoice_items: db.purchase_invoice_items,
   trip_expenses: db.trip_expenses,
   trip_activities: db.trip_activities,
+  stock_locations: db.stock_locations,
 } as const;
 
 /** Local-only bookkeeping columns that must never reach the server. */

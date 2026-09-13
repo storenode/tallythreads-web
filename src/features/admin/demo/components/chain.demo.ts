@@ -13,6 +13,11 @@ import {
   type CreateStoreInput,
 } from "@/features/stores/storesAdmin";
 import { seedDemoPurchaseTrips } from "./purchaseTrips.demo";
+import {
+  createStorePlacements,
+  demoPlacementFor,
+  type DemoPlacementNode,
+} from "./demoPlacement";
 
 // NOTE: This file is intentionally self-contained — it does not import from the
 // independent.* demo files. The small types/helpers/option lists below are copied so
@@ -62,6 +67,8 @@ export interface MemberDraft {
 export interface ChainStoreDraft {
   store: CreateStoreInput;
   salesStaff: MemberDraft;
+  /** Prefilled placement tree, editable in the form; created on submit. Treat as present. */
+  placement?: DemoPlacementNode[];
 }
 
 export interface ChainDemoInput {
@@ -178,6 +185,12 @@ export const CHAIN_DEMO_DEFAULTS: ChainDemoInput = {
   ],
 };
 
+// Prefill each default store's placement by its index (Proddatur=multi-floor, Kadapa=flat
+// racks, New Branch=empty), reusing the shared templates.
+CHAIN_DEMO_DEFAULTS.stores.forEach((s, i) => {
+  s.placement = demoPlacementFor("chain", i);
+});
+
 /** A fresh, prefilled store row for the "Add store" button (no empty boxes). */
 export function newChainStore(): ChainStoreDraft {
   return {
@@ -211,6 +224,7 @@ export function newChainStore(): ChainStoreDraft {
       state: "Andhra Pradesh",
       pincode: "516360",
     },
+    placement: [],
   };
 }
 
@@ -337,6 +351,8 @@ export function useCreateChainDemo() {
           email: s.salesStaff.email.trim(),
           role_name: "store_sales_staff",
         });
+        // Placement uses the app's real write-through (Dexie + outbox) once the store exists.
+        await createStorePlacements(store.id, s.placement ?? []);
       }
 
       await seedDemoPurchaseTrips(org.id, owner.member_id, input.org.name.trim());

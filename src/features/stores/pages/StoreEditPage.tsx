@@ -15,6 +15,7 @@ import { useMember } from "@/features/auth/useMember";
 import { useEntitlements, hasPermission } from "@/features/auth/entitlements";
 import { roleDisplayName } from "@/features/admin/roles/roles";
 import { StoreDetailsFields } from "../StoreDetailsFields";
+import { StockPlacementCard } from "@/features/inventory/placement/StockPlacementCard";
 import {
   useArchiveStore,
   useHardDeleteStore,
@@ -194,6 +195,11 @@ export default function StoreEditPage() {
   // permanently alike — all three are delete-shaped actions now, unlike store.edit
   // (name/address/contact/hours), which org_manager keeps.
   const canDelete = hasPermission(entitlements, "store.delete", {
+    organizationId: orgId,
+  });
+  // Placement design (create/edit/delete) is owner/manager-only, via the same store.edit
+  // capability that governs this page's store edits — see specs/roadmap/stock-placement.md.
+  const canDesignPlacement = hasPermission(entitlements, "store.edit", {
     organizationId: orgId,
   });
 
@@ -402,6 +408,8 @@ export default function StoreEditPage() {
           </div>
         </form>
       </FormProvider>
+
+      <StockPlacementCard storeId={storeId} canDesign={canDesignPlacement} />
 
       <StoreMembersCard orgId={orgId} storeId={storeId} />
 

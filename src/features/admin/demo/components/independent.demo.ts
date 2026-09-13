@@ -13,6 +13,11 @@ import {
   type CreateStoreInput,
 } from "@/features/stores/storesAdmin";
 import { seedDemoPurchaseTrips } from "./purchaseTrips.demo";
+import {
+  createStorePlacements,
+  demoPlacementFor,
+  type DemoPlacementNode,
+} from "./demoPlacement";
 
 /**
  * A single editable draft for the "Vasavi Cloth Store" independent demo. Every
@@ -63,6 +68,8 @@ export interface IndependentDemoInput {
   store: CreateStoreInput;
   owner: MemberDraft;
   salesStaff: MemberDraft;
+  /** Prefilled placement tree, editable in the form; created on submit. Treat as present. */
+  placement?: DemoPlacementNode[];
 }
 
 // Mock GSTIN: AP state code (37) + the PAN + entity/check chars, so the field isn't
@@ -135,6 +142,9 @@ export const INDEPENDENT_DEMO_DEFAULTS: IndependentDemoInput = {
     pincode: "516360",
   },
 };
+
+// Prefill the single store's placement (traditional sections + rack grids).
+INDEPENDENT_DEMO_DEFAULTS.placement = demoPlacementFor("independent", 0);
 
 // Option lists for the select fields. Kept local (small, and OrganizationForm's are
 // not exported) rather than reaching into the page component.
@@ -262,6 +272,8 @@ export function useCreateIndependentDemo() {
         email: input.salesStaff.email.trim(),
         role_name: "store_sales_staff",
       });
+      // Placement uses the app's real write-through (Dexie + outbox) once the store exists.
+      await createStorePlacements(store.id, input.placement ?? []);
 
       await seedDemoPurchaseTrips(org.id, owner.member_id, input.org.name.trim());
 

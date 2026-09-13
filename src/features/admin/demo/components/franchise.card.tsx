@@ -29,6 +29,7 @@ import {
 } from "./franchise.demo";
 import { useIssueDemoLaunchLink } from "./demo.login";
 import { PurchaseTripsSection } from "./PurchaseTripsSection";
+import { StorePlacementLine } from "./StorePlacementLine";
 
 // Self-contained: does not import from independent.* / chain.* demo files. Reuses the
 // real franchise data layer (franchiseGroups.ts) for group + agreement display.
@@ -254,6 +255,7 @@ function StoreBlock({
         <Field label="GSTIN" value={detail?.gstin} />
         <Field label="Phone" value={detail?.phone_number} />
       </dl>
+      <StorePlacementLine storeId={store.id} />
       <div className="mt-3">
         <p
           className="mb-1.5 text-[11px] tracking-wide text-gray-400 uppercase dark:text-gray-500"

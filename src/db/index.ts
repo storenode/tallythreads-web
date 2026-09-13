@@ -10,6 +10,7 @@ import type { PurchaseInvoiceItem } from "./purchaseInvoiceItems";
 import type { TripExpense } from "./tripExpenses";
 import type { TripActivity } from "./tripActivities";
 import type { PendingReceipt } from "./pendingReceipts";
+import type { StockLocation } from "./stockLocations";
 
 // Re-export entity types so external code keeps importing from `@/db`.
 export type { SyncMeta } from "./types";
@@ -28,6 +29,7 @@ export type { PurchaseInvoiceItem } from "./purchaseInvoiceItems";
 export type { TripExpense, TripExpenseCategory } from "./tripExpenses";
 export type { TripActivity, TripActivityKind } from "./tripActivities";
 export type { PendingReceipt } from "./pendingReceipts";
+export type { StockLocation, PlacementType, RackDirection } from "./stockLocations";
 
 export const db = new Dexie("tallythreads") as Dexie & {
   products: EntityTable<Product, "_localId">;
@@ -41,6 +43,7 @@ export const db = new Dexie("tallythreads") as Dexie & {
   trip_expenses: EntityTable<TripExpense, "_localId">;
   trip_activities: EntityTable<TripActivity, "_localId">;
   pending_receipts: EntityTable<PendingReceipt, "id">;
+  stock_locations: EntityTable<StockLocation, "_localId">;
 };
 
 // ─── Migration history ───────────────────────────────────────────────
@@ -100,4 +103,11 @@ db.version(7).stores({
 // Local-only queue (like outbox), auto-increment key.
 db.version(8).stores({
   pending_receipts: "++id, trip_id, created_at",
+});
+
+// v9 (M3 — Stock Placement): the store-scoped location tree (floors/sections/zones/racks).
+// Sync-participating like the other _localId-keyed tables; parent_id indexed for tree walks.
+db.version(9).stores({
+  stock_locations:
+    "_localId, id, store_id, parent_id, _dirty, last_modified_at",
 });

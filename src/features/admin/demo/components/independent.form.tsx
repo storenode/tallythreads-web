@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Store, User, Building2 } from "lucide-react";
+import { Store, User, Building2, Boxes } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
@@ -14,6 +14,8 @@ import {
   type MemberDraft,
   type IndependentDemoInput,
 } from "./independent.demo";
+import { DemoPlacementEditor } from "./DemoPlacementEditor";
+import type { DemoPlacementNode } from "./demoPlacement";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -46,6 +48,9 @@ export function CreateIndependentForm() {
   const [salesStaff, setSalesStaff] = useState<MemberDraft>(
     INDEPENDENT_DEMO_DEFAULTS.salesStaff,
   );
+  const [placement, setPlacement] = useState<DemoPlacementNode[]>(
+    INDEPENDENT_DEMO_DEFAULTS.placement ?? [],
+  );
 
   const createDemo = useCreateIndependentDemo();
 
@@ -71,7 +76,13 @@ export function CreateIndependentForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    const input: IndependentDemoInput = { org, store, owner, salesStaff };
+    const input: IndependentDemoInput = {
+      org,
+      store,
+      owner,
+      salesStaff,
+      placement,
+    };
     await createDemo.mutateAsync(input).catch(() => {
       /* error surfaced via createDemo.error below */
     });
@@ -319,6 +330,10 @@ export function CreateIndependentForm() {
 
       <Section icon={<User size={16} />} title="Sales staff · store_sales_staff">
         {memberFields(salesStaff, setSalesStaff)}
+      </Section>
+
+      <Section icon={<Boxes size={16} />} title="Stock placement">
+        <DemoPlacementEditor value={placement} onChange={setPlacement} />
       </Section>
 
       {createDemo.isError && (

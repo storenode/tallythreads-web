@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Store, User, Building2, Network, Plus, Trash2 } from "lucide-react";
+import { Store, User, Building2, Network, Plus, Trash2, Boxes } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { SingleSelect } from "@/components/ui/SingleSelect";
 import type { CreateStoreInput } from "@/features/stores/storesAdmin";
+import { DemoPlacementEditor } from "./DemoPlacementEditor";
+import type { DemoPlacementNode } from "./demoPlacement";
 import {
   FRANCHISE_DEMO_DEFAULTS,
   LEGAL_ENTITY_OPTIONS,
@@ -202,6 +204,11 @@ export function CreateFranchiseForm() {
       list.map((s, i) => (i === index ? { ...s, [key]: value } : s)),
     );
 
+  const setPlacement = (index: number, nodes: DemoPlacementNode[]) =>
+    setStores((list) =>
+      list.map((s, i) => (i === index ? { ...s, placement: nodes } : s)),
+    );
+
   const addStore = () => setStores((list) => [...list, newFranchiseStore()]);
   const removeStore = (index: number) =>
     setStores((list) => list.filter((_, i) => i !== index));
@@ -361,6 +368,15 @@ export function CreateFranchiseForm() {
             <MemberFields
               member={s.salesStaff}
               onChange={(key, value) => setStaffField(index, key, value)}
+            />
+          </Section>
+          <Section
+            icon={<Boxes size={16} />}
+            title={`Store ${index + 1} stock placement`}
+          >
+            <DemoPlacementEditor
+              value={s.placement ?? []}
+              onChange={(nodes) => setPlacement(index, nodes)}
             />
           </Section>
         </div>

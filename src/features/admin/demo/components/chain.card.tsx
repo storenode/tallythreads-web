@@ -24,6 +24,7 @@ import {
 } from "./chain.demo";
 import { useIssueDemoLaunchLink } from "./demo.login";
 import { PurchaseTripsSection } from "./PurchaseTripsSection";
+import { StorePlacementLine } from "./StorePlacementLine";
 
 // Self-contained: this file does not import from the independent.* demo files. The
 // small presentational helpers below are local copies so Chain can evolve on its own.
@@ -230,6 +231,7 @@ function StoreBlock({
         <Field label="GSTIN" value={detail?.gstin} />
         <Field label="Phone" value={detail?.phone_number} />
       </dl>
+      <StorePlacementLine storeId={store.id} />
       <div className="mt-3">
         <p
           className="mb-1.5 text-[11px] tracking-wide text-gray-400 uppercase dark:text-gray-500"

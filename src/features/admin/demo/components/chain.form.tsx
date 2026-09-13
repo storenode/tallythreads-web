@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Store, User, Building2, Plus, Trash2 } from "lucide-react";
+import { Store, User, Building2, Plus, Trash2, Boxes } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
@@ -17,6 +17,8 @@ import {
   type ChainStoreDraft,
   type ChainDemoInput,
 } from "./chain.demo";
+import { DemoPlacementEditor } from "./DemoPlacementEditor";
+import type { DemoPlacementNode } from "./demoPlacement";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -194,6 +196,11 @@ export function CreateChainForm() {
       ),
     );
 
+  const setPlacement = (index: number, nodes: DemoPlacementNode[]) =>
+    setStores((list) =>
+      list.map((s, i) => (i === index ? { ...s, placement: nodes } : s)),
+    );
+
   const addStore = () => setStores((list) => [...list, newChainStore()]);
   const removeStore = (index: number) =>
     setStores((list) => list.filter((_, i) => i !== index));
@@ -326,6 +333,15 @@ export function CreateChainForm() {
             <MemberFields
               member={s.salesStaff}
               onChange={(key, value) => setStaffField(index, key, value)}
+            />
+          </Section>
+          <Section
+            icon={<Boxes size={16} />}
+            title={`Store ${index + 1} stock placement`}
+          >
+            <DemoPlacementEditor
+              value={s.placement ?? []}
+              onChange={(nodes) => setPlacement(index, nodes)}
             />
           </Section>
         </div>
