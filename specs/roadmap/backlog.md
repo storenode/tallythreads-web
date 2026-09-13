@@ -6,6 +6,70 @@ trigger building it. Pull an item out of here into a real spec/phase when its tr
 
 ---
 
+## Sync: outbox retry backoff + dead-letter surfacing
+
+**What:** The push engine (`syncEngine.ts` → `pushEntry`) keeps a failed outbox entry and just
+increments `attempts`; every sync cycle retries it forever with no delay and no ceiling. Add
+(a) an **exponential backoff** so a repeatedly-failing entry is retried less often instead of
+on every 45s cycle, and (b) a **dead-letter / surfaced-error** path so an entry that has failed
+past a threshold is flagged (not silently retried), with the error visible to the user (e.g. via
+the existing `SyncStatus.lastError` / a sync UI) so a genuinely stuck write can't hide.
+
+**Use case / why it matters:** a write that the server will *never* accept — an RLS denial after
+a role change, a validation error, a permanently orphaned FK — currently loops silently every
+cycle: it never drains, never errors loudly, and quietly wastes a request each time. The owner
+has no signal that a parcel status or invoice edit never actually reached the server. Backoff
+also stops a batch of doomed entries from hammering the endpoint on a flaky connection.
+
+**Why parked (2026-09-12, verified working without it):** end-to-end offline sync is functioning
+— offline writes queue, reconnect drains, confirmed round-trip to Supabase. Retry-forever is
+harmless at the current single-founder / demo scale (entries do eventually succeed once the
+parent/network recovers), so this is hardening, not a fix.
+
+**Priority: Medium** — higher than the pure-convenience items below (it touches money/stock
+correctness visibility and real-user trust), but not blocking, since sync works today and the
+failure mode only bites at multi-user scale or on permanent server rejections. Build before
+onboarding real concurrent staff (M5/multi-device), ahead of the "Incoming Stock offline" and
+active-phase-polish items.
+
+**Trigger to build:** first real multi-user / multi-device usage, OR the first observed
+permanently-stuck outbox entry in the wild, OR any sync UI work that would show `lastError`.
+
+**Related:** `src/sync/syncEngine.ts` (`pushEntry`, `drainOutbox`), `src/sync/useSync.ts`
+(45s interval + reconnect triggers), `SyncStatus.lastError`; constitution §2.I.
+
+---
+
+## Sync: org-scoped pull (watermark filter by organization)
+
+**What:** `pullTable` in `syncEngine.ts` fetches **every** changed row since the watermark
+(`select * … gt last_modified_at`) across all orgs the member can see; RLS still enforces
+access, but the client pulls and merges rows it may not need. Scope the pull query to the
+active organization (and/or the trips the member actually works) so each cycle transfers only
+relevant rows.
+
+**Use case / why it matters:** a member who belongs to several organizations (or the platform
+admin, who can see many) downloads and merges the full changed-row set on every 45s cycle —
+wasteful bandwidth and Dexie writes on mobile/patchy connections, and it grows with the number
+of orgs and total row churn. Org-scoping keeps sync cost proportional to what the user is
+actually looking at.
+
+**Why parked (2026-09-12):** correct and cheap at current scale — one founder, one active org,
+small row counts. It's an efficiency/scalability concern, not a correctness bug (RLS already
+prevents leaking other orgs' data into the UI).
+
+**Priority: Low** — no user-visible impact today; purely a performance optimization that only
+matters once there are many orgs or high row volume. Sits alongside the other "parked until real
+need" efficiency items.
+
+**Trigger to build:** members routinely span multiple orgs, sync payloads grow noticeably, or
+mobile users report slow/expensive syncing.
+
+**Related:** `src/sync/syncEngine.ts` (`pullTable`, `watermarks.ts`); constitution §2.I;
+`reference/roles-and-permissions.md` (multi-org membership).
+
+---
+
 ## Purchase-Trip: break-even / ROI forecast
 
 **What:** In the trip *planning* phase, forecast the owner's return on investment — from a
