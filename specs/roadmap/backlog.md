@@ -319,7 +319,7 @@ cost/complexity — and only after the Claude estimate proves insufficient.
 ## Store shelves / placement scheme (Direction + Row + Column) — SUPERSEDED
 
 **Now an active spec:** pulled out of the backlog and broadened into **Floors + Sections + Zones +
-Racks** placement — see [`stock-placement.md`](stock-placement.md) (Final v0.4.0, 2026-09-13). The
+Racks** placement — see [`stock-placement.md`](stock-placement.md) (Built v1.0.0, 2026-09-13). The
 rest of this entry is kept only for history.
 
 **What (original):** A per-store, optional (Settings-time) provision to define shelf/rack

@@ -23,6 +23,11 @@ erDiagram
     purchase_trips ||--o{ purchase_invoices : ""
     purchase_invoices ||--o{ purchase_invoice_items : ""
     purchase_trips ||--o{ trip_expenses : ""
+    purchase_trips ||--o{ trip_activities : "journey log"
+    purchase_invoices ||--o{ trip_activities : "ref_invoice"
+    members ||--o{ trip_activities : "logged_by"
+    stores ||--o{ stock_locations : "placements"
+    stock_locations ||--o{ stock_locations : "parent_id (tree)"
 
     members {
         uuid id PK
@@ -169,4 +174,27 @@ erDiagram
         uuid trip_id FK
         text category "CHECK travel|lodging|food|transport|other"
         bigint amount_paise
+    }
+    trip_activities {
+        uuid id PK
+        uuid trip_id FK
+        uuid member_id FK "who logged it"
+        text kind "CHECK note|started|completed|arrived|expense|invoice|receipt_scan|cancelled"
+        text note
+        uuid ref_invoice_id FK "nullable"
+        timestamptz occurred_at
+    }
+    stock_locations {
+        uuid id PK
+        uuid store_id FK
+        uuid parent_id FK "self-ref; null = top level"
+        text placement_type "CHECK floor|section|zone|rack"
+        text code "unique per (store,parent), case-insensitive"
+        text label "nullable"
+        text direction "CHECK 8-dir; rack only"
+        text rack_row "rack only"
+        text rack_col "rack only"
+        text color "CHECK palette token; nullable"
+        jsonb layout "reserved for planogram; nullable"
+        int sort_order
     }

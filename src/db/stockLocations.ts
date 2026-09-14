@@ -16,6 +16,18 @@ export type RackDirection =
   | "SE"
   | "SW";
 
+/** Constrained palette for colour-coding a location — a token (not hex), theme-aware, and
+ * mappable to buyable colored shelf labels. Colour is an aid, always shown with the code. */
+export type PlacementColor =
+  | "red"
+  | "amber"
+  | "green"
+  | "teal"
+  | "blue"
+  | "violet"
+  | "pink"
+  | "slate";
+
 export interface StockLocation extends SyncMeta {
   id?: string;
   store_id: string;
@@ -32,5 +44,7 @@ export interface StockLocation extends SyncMeta {
   rack_col: string | null;
   /** Reserved for a future visual planogram (shape/x/y/w/h); unused at launch. */
   layout: Record<string, unknown> | null;
+  /** Optional palette colour for quick visual identification (null = neutral/none). */
+  color: PlacementColor | null;
   sort_order: number;
 }

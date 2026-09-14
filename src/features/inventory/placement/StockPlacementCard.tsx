@@ -1,7 +1,12 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
-import type { PlacementType, RackDirection, StockLocation } from "@/db";
+import type {
+  PlacementColor,
+  PlacementType,
+  RackDirection,
+  StockLocation,
+} from "@/db";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -12,6 +17,8 @@ import {
   deleteStockLocationCascade,
   updateStockLocation,
 } from "./data";
+import { swatchClasses } from "./colors";
+import { ColorPicker } from "./ColorPicker";
 import {
   buildTree,
   describeDescendants,
@@ -184,6 +191,13 @@ function PlacementTreeRow({
         <span className="text-sm" aria-hidden>
           {meta.icon}
         </span>
+        {!editing && (
+          <span
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${swatchClasses(node.color)}`}
+            title={node.color ?? "no colour"}
+            aria-hidden
+          />
+        )}
         <div className="min-w-0 flex-1">
           {editing ? (
             <LocationForm
@@ -333,6 +347,10 @@ function LocationForm({
   const [rowTo, setRowTo] = useState("1");
   const [colTo, setColTo] = useState("1");
 
+  const [color, setColor] = useState<PlacementColor | null>(
+    editRow?.color ?? null,
+  );
+
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -374,6 +392,7 @@ function LocationForm({
             rack_row: String(r).padStart(2, "0"),
             rack_col: String(c).padStart(2, "0"),
             layout: null,
+            color,
             sort_order: base + i++,
           });
         }
@@ -399,6 +418,7 @@ function LocationForm({
         await updateStockLocation(editRow!._localId, {
           code,
           label: label.trim() || null,
+          color,
           ...(editRow!.placement_type === "rack"
             ? { direction, rack_row: row, rack_col: col }
             : {}),
@@ -414,6 +434,7 @@ function LocationForm({
           rack_row: isRack ? String(row).padStart(2, "0") : null,
           rack_col: isRack ? String(col).padStart(2, "0") : null,
           layout: null,
+          color,
           sort_order: base,
         });
       }
@@ -536,6 +557,8 @@ function LocationForm({
             onChange={(e) => setLabel(e.target.value)}
           />
         )}
+
+        <ColorPicker value={color} onChange={setColor} />
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 

@@ -15,15 +15,17 @@ this doc is kept to match it, not the other way round.
 
 ## 0. What actually exists
 
-**21 tables + 2 views are live.** Grouped below: Identity & Device, Tenancy/Roles/Access,
-Franchise, Purchase-Trip (M4), Demo/QA. The two views are `store_business_model` (§5) and
-`incoming_stock` (§3A — the price-free store-staff feed). Conventions: UUID PKs (`gen_random_uuid()`), soft delete (`deleted_at`),
+**22 tables + 2 views are live.** Grouped below: Identity & Device, Tenancy/Roles/Access,
+Franchise, Purchase-Trip (M4), **Stock Placement (M3 — `stock_locations`, §3B)**, Demo/QA. The
+two views are `store_business_model` (§5) and `incoming_stock` (§3A — the price-free
+store-staff feed). Conventions: UUID PKs (`gen_random_uuid()`), soft delete (`deleted_at`),
 `last_modified_at` for last-write-wins where present, timestamps are `timestamptz`, money
 (when it arrives) in integer paise.
 
-**Speced but NOT yet migrated** (do not assume these exist): `stock_locations`,
-`stock_transfers`, `settlement_statements`, and a `settlement_rules.plugin_id` column —
-all belong to M1c/M1d, see §7.
+**Speced but NOT yet migrated** (do not assume these exist): `stock_transfers`,
+`settlement_statements`, and a `settlement_rules.plugin_id` column — all belong to M1c/M1d,
+see §7. (The rest of M3 — products / variant matrix / barcode — is also not built yet;
+`stock_locations` is the first M3 table, see §3B.)
 
 ```mermaid
 erDiagram
@@ -392,6 +394,33 @@ what `has_incoming_visibility` checks for store staff. See `roles-and-permission
 
 ---
 
+## 3B. Stock Placement (M3) — the first Inventory table
+
+Full spec: [`roadmap/stock-placement.md`](../roadmap/stock-placement.md). Where stock physically
+sits in a store — the target Inventory intake will place SKUs into. First M3 table (the rest of
+M3 — products / variants / barcode — is not built).
+
+### `stock_locations` — one store-scoped location tree
+`id`, `store_id` FK, **`parent_id`** FK → `stock_locations.id` (self-reference; null = top
+level), `placement_type` CHECK (`floor`,`section`,`zone`,`rack`) — floor/section are containers,
+zone/rack are leaf placements; every level optional (a flat boutique or a multi-floor showroom,
+same table). `code` (the identifier; **unique per (store_id, parent_id), case-insensitive**,
+among non-deleted), `label`. Rack-only builder inputs: `direction` CHECK (8 compass points),
+`rack_row`, `rack_col` — `code` is generated `{dir}-{row}-{col}` (e.g. `E-03-02`) but editable.
+`color` CHECK (`red`,`amber`,`green`,`teal`,`blue`,`violet`,`pink`,`slate`) — optional palette
+token for quick visual ID (aid only; the code is always shown). `layout` jsonb — **reserved**
+for a future visual planogram, unused. `sort_order`, `last_modified_at`, `deleted_at`.
+
+Offline-first (mirrored in Dexie v9, synced via the outbox like the `purchase_*` tables). First
+**store-scoped** module table; RLS uses the store-scoped helper `has_store_permission()`
+(seeded 2026-08-31 for exactly this): **design** (insert/update/delete) gated on **`store.edit`**
+(org_owner/org_manager — the create/edit-store ability), **read** gated on **`inventory.read`**
+(also store sales/temp staff, so intake can pick a location). Soft-delete only; hard DELETE is
+platform-admin-only for symmetry. Cascade-deletes with its store (FK `on delete cascade`), and
+`hard_delete_organization` also purges it explicitly.
+
+---
+
 ## 4. Demo & QA (admin-only tooling)
 
 ### `demo_scenarios` — investor/demo narratives attached to a demo org.
@@ -455,8 +484,9 @@ decision later on whether `registration_type` should be relaxed to informational
 
 ## 7. Not yet in schema (forward pointers)
 
-- **`stock_locations` / `stock_transfers`** — central stock distribution (M1c). Designed in
-  `franchise-settlement.md` / constitution §6; not migrated.
+- **`stock_transfers`** — central stock distribution (godown → store, M1c). Designed in
+  `franchise-settlement.md` / constitution §6; not migrated. (`stock_locations` is now **live** —
+  see §3B.)
 - **`settlement_statements`** — computed monthly settlements (M1d). Not migrated.
 - **`settlement_rules.plugin_id`** + one-source check — the hybrid engine (M1d). Not migrated.
 - **`shifts` / `petty_expenses`** — Shift & Store Operations Log (M10). Designed in
@@ -477,6 +507,13 @@ data model and the diagram.
 
 ## 8. Changelog
 
+- **v3.4.0 (2026-09-13)** — **Stock Placement (M3), live** — new **`stock_locations`** table
+  (§3B), the first M3/Inventory table and the first store-scoped table: a self-referencing
+  Floor › Section › Rack/Zone tree, offline-first, RLS via `has_store_permission()` (design =
+  `store.edit`, read = `inventory.read`). Migrations `20260913141236_stock_locations.sql`,
+  `20260913191215_hard_delete_organization_stock_locations.sql` (purge on org delete), and
+  `20260914002325_stock_locations_color.sql` (optional palette `color`). Diagram (`schema.mmd`)
+  also gained the previously-missing `trip_activities`.
 - **v3.3.1 (2026-09-06)** — Added the private **`receipts` Storage bucket** (org-scoped RLS,
   migration `20260906020000_receipts_storage.sql`); the scan flow now stores the receipt image
   and populates `purchase_invoices.receipt_path`.

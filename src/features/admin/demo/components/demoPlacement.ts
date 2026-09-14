@@ -1,4 +1,4 @@
-import type { PlacementType, RackDirection } from "@/db";
+import type { PlacementColor, PlacementType, RackDirection } from "@/db";
 import { createStockLocation } from "@/features/inventory/placement/data";
 import { pad2 } from "@/features/inventory/placement/placement";
 
@@ -14,6 +14,7 @@ export interface DemoPlacementNode {
   type: PlacementType;
   code: string;
   label?: string;
+  color?: PlacementColor;
   // rack only:
   direction?: RackDirection;
   row?: number;
@@ -28,6 +29,7 @@ function rackGrid(
   direction: RackDirection,
   rows: number,
   cols: number,
+  color?: PlacementColor,
 ): DemoPlacementNode[] {
   const out: DemoPlacementNode[] = [];
   for (let r = 1; r <= rows; r++)
@@ -35,6 +37,7 @@ function rackGrid(
       out.push({
         type: "rack",
         code: `${direction}-${pad2(r)}-${pad2(c)}`,
+        color,
         direction,
         row: r,
         col: c,
@@ -44,12 +47,16 @@ function rackGrid(
 
 /** Traditional folded-stock shop: product-type sections with rack grids + a display zone. */
 const sectionsWithRacks = (): DemoPlacementNode[] => [
-  { type: "section", code: "Sarees", children: rackGrid("E", 2, 4) },
-  { type: "section", code: "Dress Material", children: rackGrid("W", 1, 3) },
+  { type: "section", code: "Sarees", color: "red", children: rackGrid("E", 2, 4, "red") },
+  { type: "section", code: "Dress Material", color: "blue", children: rackGrid("W", 1, 3, "blue") },
   {
     type: "section",
     code: "Readymade",
-    children: [{ type: "zone", code: "Readymade display" }, ...rackGrid("N", 1, 2)],
+    color: "green",
+    children: [
+      { type: "zone", code: "Readymade display", color: "green" },
+      ...rackGrid("N", 1, 2, "green"),
+    ],
   },
 ];
 
@@ -58,24 +65,31 @@ const multiFloor = (): DemoPlacementNode[] => [
   {
     type: "floor",
     code: "Ground",
+    color: "slate",
     children: [
-      { type: "section", code: "Men's", children: rackGrid("E", 1, 3) },
+      { type: "section", code: "Men's", color: "blue", children: rackGrid("E", 1, 3, "blue") },
       {
         type: "section",
         code: "Women's",
-        children: [{ type: "zone", code: "Saree display" }, ...rackGrid("W", 1, 2)],
+        color: "pink",
+        children: [
+          { type: "zone", code: "Saree display", color: "pink" },
+          ...rackGrid("W", 1, 2, "pink"),
+        ],
       },
     ],
   },
   {
     type: "floor",
     code: "First",
+    color: "slate",
     children: [
-      { type: "section", code: "Kids", children: rackGrid("N", 1, 2) },
+      { type: "section", code: "Kids", color: "amber", children: rackGrid("N", 1, 2, "amber") },
       {
         type: "section",
         code: "Home Furnishing",
-        children: [{ type: "zone", code: "Curtains wall" }],
+        color: "teal",
+        children: [{ type: "zone", code: "Curtains wall", color: "teal" }],
       },
     ],
   },
@@ -83,8 +97,8 @@ const multiFloor = (): DemoPlacementNode[] => [
 
 /** Simpler branch: a flat set of racks at top level plus a front display zone. */
 const flatRacks = (): DemoPlacementNode[] => [
-  ...rackGrid("E", 1, 4),
-  { type: "zone", code: "Front display" },
+  ...rackGrid("E", 1, 4, "blue"),
+  { type: "zone", code: "Front display", color: "green" },
 ];
 
 // ── Bandrip streetwear boutique (the franchise demo) ────────────────
@@ -93,12 +107,12 @@ const flatRacks = (): DemoPlacementNode[] => [
 // plus a small back-store rack section. Bandrip runs the SAME brand-standard layout in every
 // branch, so this one template is applied to every franchise store (see demoPlacementFor).
 const bandripStandard = (): DemoPlacementNode[] => [
-  { type: "zone", code: "New drops", label: "New arrivals · entrance display" },
-  { type: "zone", code: "The bandits", label: "Caps, sunglasses & bandanas wall" },
-  { type: "zone", code: "Jackets & hoodies rail" },
-  { type: "zone", code: "Oversized tees rack" },
-  { type: "zone", code: "Bottoms rack", label: "Cargos, wide-leg & jeans" },
-  { type: "section", code: "Stockroom", children: rackGrid("N", 1, 3) },
+  { type: "zone", code: "New drops", label: "New arrivals · entrance display", color: "amber" },
+  { type: "zone", code: "The bandits", label: "Caps, sunglasses & bandanas wall", color: "violet" },
+  { type: "zone", code: "Jackets & hoodies rail", color: "blue" },
+  { type: "zone", code: "Oversized tees rack", color: "teal" },
+  { type: "zone", code: "Bottoms rack", label: "Cargos, wide-leg & jeans", color: "slate" },
+  { type: "section", code: "Stockroom", color: "green", children: rackGrid("N", 1, 3, "green") },
 ];
 
 export type DemoOrgType = "independent" | "chain" | "franchise";
@@ -149,6 +163,7 @@ export async function createStorePlacements(
         rack_row: isRack && n.row != null ? pad2(n.row) : null,
         rack_col: isRack && n.col != null ? pad2(n.col) : null,
         layout: null,
+        color: n.color ?? null,
         sort_order: i++,
       });
       if (n.children?.length) await createLevel(n.children, created.id ?? null);
@@ -157,53 +172,3 @@ export async function createStorePlacements(
   await createLevel(nodes, null);
 }
 
-// ─── Summary (for the demo store cards) ──────────────────────────────
-
-/** Count nodes by type across the whole tree. */
-function countByType(nodes: DemoPlacementNode[]): Record<PlacementType, number> {
-  const acc: Record<PlacementType, number> = {
-    floor: 0,
-    section: 0,
-    zone: 0,
-    rack: 0,
-  };
-  const walk = (list: DemoPlacementNode[]) => {
-    for (const n of list) {
-      acc[n.type] += 1;
-      if (n.children?.length) walk(n.children);
-    }
-  };
-  walk(nodes);
-  return acc;
-}
-
-function formatCounts(c: Record<PlacementType, number>): string {
-  const parts: string[] = [];
-  const add = (n: number, one: string, many: string) => {
-    if (n > 0) parts.push(`${n} ${n === 1 ? one : many}`);
-  };
-  add(c.floor, "floor", "floors");
-  add(c.section, "section", "sections");
-  add(c.rack, "rack", "racks");
-  add(c.zone, "zone", "zones");
-  return parts.length ? parts.join(" · ") : "none";
-}
-
-/** One-line summary of a placement tree, e.g. "2 sections · 3 racks · 1 zone" or "none". */
-export function summarizePlacement(nodes: DemoPlacementNode[]): string {
-  return formatCounts(countByType(nodes));
-}
-
-/** One-line summary from flat stock_locations rows (for the demo store cards). */
-export function summarizeRows(
-  rows: readonly { placement_type: PlacementType }[],
-): string {
-  const c: Record<PlacementType, number> = {
-    floor: 0,
-    section: 0,
-    zone: 0,
-    rack: 0,
-  };
-  for (const r of rows) c[r.placement_type] += 1;
-  return formatCounts(c);
-}

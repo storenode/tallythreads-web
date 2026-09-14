@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
-import type { PlacementType, RackDirection } from "@/db";
+import type { PlacementColor, PlacementType, RackDirection } from "@/db";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { SingleSelect } from "@/components/ui/SingleSelect";
@@ -9,6 +9,8 @@ import {
   RACK_DIRECTIONS,
   rackCode,
 } from "@/features/inventory/placement/placement";
+import { LocationChip } from "@/features/inventory/placement/LocationChip";
+import { ColorPicker } from "@/features/inventory/placement/ColorPicker";
 import type { DemoPlacementNode } from "./demoPlacement";
 
 /**
@@ -65,9 +67,7 @@ function TreeRow({
         <span className="text-xs" aria-hidden>
           {meta.icon}
         </span>
-        <span className="text-[13px] font-medium text-gray-800 dark:text-white/90">
-          {node.code}
-        </span>
+        <LocationChip code={node.code} color={node.color ?? null} />
         <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-white/10 dark:text-gray-400">
           {meta.label}
         </span>
@@ -108,6 +108,7 @@ function AddRow({
   const [direction, setDirection] = useState<RackDirection>("E");
   const [row, setRow] = useState("1");
   const [col, setCol] = useState("1");
+  const [color, setColor] = useState<PlacementColor | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const isRack = type === "rack";
@@ -123,10 +124,18 @@ function AddRow({
       setError(`“${code}” already exists here.`);
       return;
     }
+    const colorProp = color ? { color } : {};
     onAdd(
       isRack
-        ? { type: "rack", code, direction, row: Number(row) || 1, col: Number(col) || 1 }
-        : { type, code },
+        ? {
+            type: "rack",
+            code,
+            direction,
+            row: Number(row) || 1,
+            col: Number(col) || 1,
+            ...colorProp,
+          }
+        : { type, code, ...colorProp },
     );
     setName("");
   };
@@ -189,6 +198,9 @@ function AddRow({
         <Button type="button" variant="ghost" size="sm" onClick={add}>
           Add
         </Button>
+      </div>
+      <div className="mt-2">
+        <ColorPicker value={color} onChange={setColor} label="Colour" />
       </div>
       {error && <p className="mt-1 text-[12px] text-red-500">{error}</p>}
     </div>

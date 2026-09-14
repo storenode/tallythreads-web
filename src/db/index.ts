@@ -29,7 +29,12 @@ export type { PurchaseInvoiceItem } from "./purchaseInvoiceItems";
 export type { TripExpense, TripExpenseCategory } from "./tripExpenses";
 export type { TripActivity, TripActivityKind } from "./tripActivities";
 export type { PendingReceipt } from "./pendingReceipts";
-export type { StockLocation, PlacementType, RackDirection } from "./stockLocations";
+export type {
+  StockLocation,
+  PlacementType,
+  RackDirection,
+  PlacementColor,
+} from "./stockLocations";
 
 export const db = new Dexie("tallythreads") as Dexie & {
   products: EntityTable<Product, "_localId">;

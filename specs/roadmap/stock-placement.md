@@ -1,8 +1,8 @@
 # Stock Placement (Floors, Sections, Zones & Racks) — store-level location system
 
-**Version:** 0.4.0 · **Status:** **Final** — decisions locked + reviewed for the Indian
-small/medium/big-store market (2026-09-13); ready to code on the founder's go-ahead
-(constitution §9). · **Module:** Inventory (M3) prerequisite
+**Version:** 1.0.0 · **Status:** **Built & live** (2026-09-13) — offline-first `stock_locations`
+tree + store-edit card + optional palette colours + demo seeding. Migrations
+`20260913141236` / `20260913191215` / `20260914002325`. · **Module:** Inventory (M3), first table
 
 The store-level system that names **where** stock physically sits — so a SKU, when it enters
 inventory, can be placed on a known location, and staff can find it again. This is the first
@@ -77,6 +77,8 @@ stock_locations
   rack_col       text  NULL                      -- '01'..'99'
   layout         jsonb NULL                      -- RESERVED for a future visual planogram
                                                  --   (shape/x/y/w/h). UNUSED at launch, no UI. See below.
+  color          text  NULL CHECK (color IN ('red','amber','green','teal','blue','violet','pink','slate'))
+                                                 -- optional palette colour (aid; code always shown)
   sort_order     int   NOT NULL DEFAULT 0        -- manual ordering among siblings
   last_modified_at, deleted_at                   -- + _localId/_dirty in Dexie
 ```
@@ -128,6 +130,19 @@ hierarchy and **reserve** a nullable `layout jsonb` to hold future geometry
 (`{shape, x, y, w, h}`) per location. It stays **null and unused now**, so when the visual
 floor-map is built later it's a **no-migration** addition. This is the deliberate middle path:
 *open the door, don't build the room yet.*
+
+### Location colours (built)
+
+Each location may carry an optional **`color`** — a **constrained palette token** (`red, amber,
+green, teal, blue, violet, pink, slate`), **not** hex, so it stays legible in light/dark and maps
+to buyable colored shelf labels. **Colour is an aid, never the identifier** — the code is always
+shown alongside (colourblind staff; B/W thermal labels can't print colour, so the physical
+colored *sticker* carries it there). A reusable **`LocationChip`** (code + colour) is the token
+reused across the placement tree, the demo store card, and (future) the inventory picker/labels;
+a swatch **`ColorPicker`** sets it in the store-edit card and the demo editor. Colour was
+deliberately given its **own column** (not the reserved `layout` jsonb) since it's a first-class
+displayed attribute now. Demo templates pre-assign brand colours. Migration
+`20260914002325_stock_locations_color.sql`.
 
 ## Screens
 
