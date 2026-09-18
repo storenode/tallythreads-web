@@ -25,8 +25,12 @@ const PUSH_ORDER = [
   "purchase_invoice_items",
   "trip_expenses",
   "trip_activities",
-  // Store-scoped placement tree. Depends only on `stores` (created online via the admin
-  // flow) and on itself via parent_id — a parent row is queued before its child, so
+  // Warehouses / stock rooms (org-owned storage). A warehouse must exist before its
+  // store-attachments and before any stock_location it owns, so it precedes both.
+  "warehouses",
+  "warehouse_stores",
+  // Placement tree. May be owned by a store (created online via admin) OR a warehouse
+  // (above), and nests via parent_id — a parent row is queued before its child, so
   // queued_at ordering within the table already pushes parents first.
   "stock_locations",
 ] as const;
@@ -41,6 +45,8 @@ const DEXIE_TABLE = {
   purchase_invoice_items: db.purchase_invoice_items,
   trip_expenses: db.trip_expenses,
   trip_activities: db.trip_activities,
+  warehouses: db.warehouses,
+  warehouse_stores: db.warehouse_stores,
   stock_locations: db.stock_locations,
 } as const;
 

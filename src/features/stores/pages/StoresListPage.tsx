@@ -4,6 +4,8 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { useArchivedStoresByOrg, useStoresByOrg } from "../stores";
+import { WarehousesGrid } from "@/features/warehouses/WarehousesGrid";
+import { WarehouseMap } from "@/features/warehouses/WarehouseMap";
 
 export default function StoresListPage() {
   const { orgId } = useParams<{ orgId: string }>();
@@ -21,9 +23,18 @@ export default function StoresListPage() {
     <div className="space-y-6">
       <PageHeading
         action={
-          <Button size="sm" onClick={() => navigate(`/org/${orgId}/stores/new`)}>
-            New store
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => navigate(`/org/${orgId}/stock-rooms/new`)}
+            >
+              New stock room
+            </Button>
+            <Button size="sm" onClick={() => navigate(`/org/${orgId}/stores/new`)}>
+              New store
+            </Button>
+          </div>
         }
       >
         Stores
@@ -74,6 +85,14 @@ export default function StoresListPage() {
           ))}
         </div>
       )}
+
+      {orgId && (
+        <div className="border-t border-border pt-6">
+          <WarehousesGrid orgId={orgId} />
+        </div>
+      )}
+
+      {orgId && <WarehouseMap orgId={orgId} />}
 
       <div className="border-t border-border pt-6">
         <button

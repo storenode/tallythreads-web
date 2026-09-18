@@ -11,6 +11,8 @@ import type { TripExpense } from "./tripExpenses";
 import type { TripActivity } from "./tripActivities";
 import type { PendingReceipt } from "./pendingReceipts";
 import type { StockLocation } from "./stockLocations";
+import type { Warehouse } from "./warehouses";
+import type { WarehouseStore } from "./warehouseStores";
 
 // Re-export entity types so external code keeps importing from `@/db`.
 export type { SyncMeta } from "./types";
@@ -35,6 +37,8 @@ export type {
   RackDirection,
   PlacementColor,
 } from "./stockLocations";
+export type { Warehouse, WarehouseType } from "./warehouses";
+export type { WarehouseStore } from "./warehouseStores";
 
 export const db = new Dexie("tallythreads") as Dexie & {
   products: EntityTable<Product, "_localId">;
@@ -49,6 +53,8 @@ export const db = new Dexie("tallythreads") as Dexie & {
   trip_activities: EntityTable<TripActivity, "_localId">;
   pending_receipts: EntityTable<PendingReceipt, "id">;
   stock_locations: EntityTable<StockLocation, "_localId">;
+  warehouses: EntityTable<Warehouse, "_localId">;
+  warehouse_stores: EntityTable<WarehouseStore, "_localId">;
 };
 
 // ─── Migration history ───────────────────────────────────────────────
@@ -115,4 +121,17 @@ db.version(8).stores({
 db.version(9).stores({
   stock_locations:
     "_localId, id, store_id, parent_id, _dirty, last_modified_at",
+});
+
+// v10 (Warehouses / stock rooms — M3 prerequisite): org-owned storage spaces and their
+// many-to-many store attachments. stock_locations gains a warehouse_id index (it may now be
+// owned by a warehouse instead of a store — see specs/roadmap/warehouses.md). Redefining the
+// stock_locations store string only adds the new index; existing rows are untouched.
+db.version(10).stores({
+  warehouses:
+    "_localId, id, organization_id, _dirty, last_modified_at",
+  warehouse_stores:
+    "_localId, id, warehouse_id, store_id, _dirty, last_modified_at",
+  stock_locations:
+    "_localId, id, store_id, warehouse_id, parent_id, _dirty, last_modified_at",
 });

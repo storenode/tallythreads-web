@@ -16,6 +16,7 @@ import {
   createStockLocation,
   deleteStockLocationCascade,
   updateStockLocation,
+  type PlacementOwner,
 } from "./data";
 import { swatchClasses } from "./colors";
 import { ColorPicker } from "./ColorPicker";
@@ -37,18 +38,27 @@ import {
  * See specs/roadmap/stock-placement.md.
  */
 export function StockPlacementCard({
-  storeId,
+  owner,
   canDesign,
+  title = "Stock Placement",
+  desc = "Where stock sits in this store — floors, sections, racks, and zones. Optional.",
 }: {
-  storeId: string;
+  owner: PlacementOwner;
   canDesign: boolean;
+  title?: string;
+  desc?: string;
 }) {
   const rows = useLiveQuery(
-    async () =>
-      (await db.stock_locations.where("store_id").equals(storeId).toArray()).filter(
-        (r) => !r.deleted_at,
-      ),
-    [storeId],
+    async () => {
+      const owned = owner.store_id
+        ? await db.stock_locations.where("store_id").equals(owner.store_id).toArray()
+        : await db.stock_locations
+            .where("warehouse_id")
+            .equals(owner.warehouse_id as string)
+            .toArray();
+      return owned.filter((r) => !r.deleted_at);
+    },
+    [owner.store_id, owner.warehouse_id],
   );
 
   const tree = useMemo(() => buildTree(rows ?? []), [rows]);
@@ -74,13 +84,10 @@ export function StockPlacementCard({
     setDeleteTarget(null);
   };
 
-  const desc =
-    "Where stock sits in this store — floors, sections, racks, and zones. Optional.";
-
   return (
     <>
       <Card
-        title="Stock Placement"
+        title={title}
         desc={desc}
         actions={
           canDesign && addUnder === undefined && editId === undefined ? (
@@ -102,7 +109,7 @@ export function StockPlacementCard({
             {/* Top-level add form */}
             {canDesign && addUnder === null && (
               <LocationForm
-                storeId={storeId}
+                owner={owner}
                 parentId={null}
                 siblings={siblingsOf(null)}
                 onDone={closeForms}
@@ -123,7 +130,7 @@ export function StockPlacementCard({
                   canDesign={canDesign}
                   addUnder={addUnder}
                   editId={editId}
-                  storeId={storeId}
+                  owner={owner}
                   siblingsOf={siblingsOf}
                   onAddUnder={(pid) => {
                     setEditId(undefined);
@@ -159,7 +166,7 @@ function PlacementTreeRow({
   canDesign,
   addUnder,
   editId,
-  storeId,
+  owner,
   siblingsOf,
   onAddUnder,
   onEdit,
@@ -171,7 +178,7 @@ function PlacementTreeRow({
   canDesign: boolean;
   addUnder: string | null | undefined;
   editId: string | undefined;
-  storeId: string;
+  owner: PlacementOwner;
   siblingsOf: (parentId: string | null) => StockLocation[];
   onAddUnder: (parentServerId: string) => void;
   onEdit: (localId: string) => void;
@@ -201,7 +208,7 @@ function PlacementTreeRow({
         <div className="min-w-0 flex-1">
           {editing ? (
             <LocationForm
-              storeId={storeId}
+              owner={owner}
               parentId={node.parent_id}
               siblings={siblingsOf(node.parent_id).filter(
                 (r) => r._localId !== node._localId,
@@ -263,7 +270,7 @@ function PlacementTreeRow({
       {canDesign && addUnder === node.id && node.id && (
         <div style={{ marginLeft: (depth + 1) * 16 }} className="mt-2">
           <LocationForm
-            storeId={storeId}
+            owner={owner}
             parentId={node.id}
             parentType={node.placement_type}
             siblings={siblingsOf(node.id)}
@@ -282,7 +289,7 @@ function PlacementTreeRow({
               canDesign={canDesign}
               addUnder={addUnder}
               editId={editId}
-              storeId={storeId}
+              owner={owner}
               siblingsOf={siblingsOf}
               onAddUnder={onAddUnder}
               onEdit={onEdit}
@@ -307,14 +314,14 @@ function allowedTypes(parentType: PlacementType | null): PlacementType[] {
 }
 
 function LocationForm({
-  storeId,
+  owner,
   parentId,
   parentType = null,
   siblings,
   editRow,
   onDone,
 }: {
-  storeId: string;
+  owner: PlacementOwner;
   parentId: string | null;
   parentType?: PlacementType | null;
   siblings: StockLocation[];
@@ -383,7 +390,7 @@ function LocationForm({
       for (let r = r0; r <= r1; r++) {
         for (let c = c0; c <= c1; c++) {
           await createStockLocation({
-            store_id: storeId,
+            ...owner,
             parent_id: parentId,
             placement_type: "rack",
             code: rackCode(direction, r, c),
@@ -425,7 +432,7 @@ function LocationForm({
         });
       } else {
         await createStockLocation({
-          store_id: storeId,
+          ...owner,
           parent_id: parentId,
           placement_type: type,
           code,

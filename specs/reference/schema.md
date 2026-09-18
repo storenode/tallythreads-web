@@ -3,7 +3,7 @@
 **Status:** Living reference. **Verified against the live Supabase database**
 (`gmmeaplomgotqtivevkg`, `public` schema) on 2026-09-05 — the live DB is authoritative;
 this doc is kept to match it, not the other way round.
-**Version:** 3.3.1
+**Version:** 3.5.0
 **Related:** `../constitution.md` (§6 architecture rules, §2.IX store models),
 `roles-and-permissions.md` (role/permission catalog), `franchise-settlement.md`
 (the settlement engine — proposed M1d, see §4).
@@ -400,24 +400,53 @@ Full spec: [`roadmap/stock-placement.md`](../roadmap/stock-placement.md). Where 
 sits in a store — the target Inventory intake will place SKUs into. First M3 table (the rest of
 M3 — products / variants / barcode — is not built).
 
-### `stock_locations` — one store-scoped location tree
-`id`, `store_id` FK, **`parent_id`** FK → `stock_locations.id` (self-reference; null = top
-level), `placement_type` CHECK (`floor`,`section`,`zone`,`rack`) — floor/section are containers,
-zone/rack are leaf placements; every level optional (a flat boutique or a multi-floor showroom,
-same table). `code` (the identifier; **unique per (store_id, parent_id), case-insensitive**,
-among non-deleted), `label`. Rack-only builder inputs: `direction` CHECK (8 compass points),
-`rack_row`, `rack_col` — `code` is generated `{dir}-{row}-{col}` (e.g. `E-03-02`) but editable.
-`color` CHECK (`red`,`amber`,`green`,`teal`,`blue`,`violet`,`pink`,`slate`) — optional palette
-token for quick visual ID (aid only; the code is always shown). `layout` jsonb — **reserved**
-for a future visual planogram, unused. `sort_order`, `last_modified_at`, `deleted_at`.
+### `stock_locations` — one location tree, owned by a store **or** a warehouse
+`id`, **`store_id`** FK (nullable) **or `warehouse_id`** FK (nullable) — **exactly one is set**
+(CHECK `stock_locations_one_owner`, added 2026-09-18 for Warehouses); **`parent_id`** FK →
+`stock_locations.id` (self-reference; null = top level), `placement_type` CHECK
+(`floor`,`section`,`zone`,`rack`) — floor/section are containers, zone/rack are leaf placements;
+every level optional (a flat boutique, a multi-floor showroom, or a godown — same table). `code`
+(the identifier; **unique per (owner, parent_id), case-insensitive**, among non-deleted — owner =
+`coalesce(store_id, warehouse_id)`), `label`. Rack-only builder inputs: `direction` CHECK (8
+compass points), `rack_row`, `rack_col` — `code` is generated `{dir}-{row}-{col}` (e.g. `E-03-02`)
+but editable. `color` CHECK (`red`,`amber`,`green`,`teal`,`blue`,`violet`,`pink`,`slate`) —
+optional palette token for quick visual ID (aid only; the code is always shown). `layout` jsonb —
+**reserved** for a future visual planogram, unused. `sort_order`, `last_modified_at`, `deleted_at`.
 
-Offline-first (mirrored in Dexie v9, synced via the outbox like the `purchase_*` tables). First
-**store-scoped** module table; RLS uses the store-scoped helper `has_store_permission()`
-(seeded 2026-08-31 for exactly this): **design** (insert/update/delete) gated on **`store.edit`**
-(org_owner/org_manager — the create/edit-store ability), **read** gated on **`inventory.read`**
-(also store sales/temp staff, so intake can pick a location). Soft-delete only; hard DELETE is
-platform-admin-only for symmetry. Cascade-deletes with its store (FK `on delete cascade`), and
-`hard_delete_organization` also purges it explicitly.
+Offline-first (mirrored in Dexie, synced via the outbox like the `purchase_*` tables). **Dual-scope
+RLS** (2026-09-18): a **store-owned** row uses the store-scoped helper `has_store_permission()` —
+**design** (insert/update/delete) gated on **`store.edit`** (org_owner/org_manager), **read** on
+**`inventory.read`** (also store sales/temp staff). A **warehouse-owned** row uses the org-scoped
+`has_org_permission()` against the warehouse's org for **`store.edit`** (design), and reads on
+**`inventory.read`** at that org **or** for any member holding `inventory.read` on a store attached
+to the warehouse via `warehouse_stores` (so store staff can pick godown locations their store draws
+from). Soft-delete only; hard DELETE is platform-admin-only. Cascade-deletes with its owner (FK
+`on delete cascade`), and `hard_delete_organization` purges both store- and warehouse-owned rows.
+
+## 3C. Warehouses / Stock rooms (M3 prerequisite) — org-owned storage spaces
+
+Full spec: [`roadmap/warehouses.md`](../roadmap/warehouses.md). A **warehouse** (UI: "Stock Room")
+is a storage space — backyard / understairs / stockroom / godown — that holds stock **outside** a
+store's selling floor. It is **not** a retail outlet (own table, not a `stores` flag), so it never
+touches the `store_business_model` view. Built before Inventory intake so a received SKU can be
+placed into a warehouse from day one. Live 2026-09-18 (migrations `20260918100000_warehouses`,
+`20260918100100_stock_locations_warehouse_owner`, `20260918100200_hard_delete_organization_warehouses`).
+
+### `warehouses` — the storage space
+`id`, `organization_id` FK (org-owned), `name`, `warehouse_type` CHECK
+(`backyard`,`stockroom`,`godown`,`other`) — a label/aid, not behaviour; `note`, `sort_order`,
+`last_modified_at`, `deleted_at`. Internal placement (shelves/zones/racks) reuses `stock_locations`
+via `warehouse_id` (§3B). Org-scoped RLS (`has_org_permission`): design = `store.edit`
+(org_owner/org_manager), read = org members with `inventory.read`/`store.edit`; hard DELETE
+platform-admin-only. Offline-first (Dexie + outbox).
+
+### `warehouse_stores` — many-to-many attach (warehouse ↔ stores)
+`id`, `warehouse_id` FK, `store_id` FK, `last_modified_at`, `deleted_at`. **Unique
+`(warehouse_id, store_id)` among non-deleted.** A central godown links many stores; a store's own
+backyard links exactly one; an unattached org warehouse links none. Drives which warehouse
+locations a store sees in the intake picker. RLS: read = warehouse-org owner/manager **or** a
+member with `inventory.read` on the linked store; design (attach/detach) = `store.edit` at the
+warehouse's org; hard DELETE platform-admin-only.
 
 ---
 
@@ -478,15 +507,17 @@ decision later on whether `registration_type` should be relaxed to informational
 **RPCs (write paths, all permission-gated):** `provision_organization_with_contacts`,
 `invite_organization_member`, `invite_store_member`, `update_member_profile`,
 `accept_pending_invitations`, `archive_store`, `restore_store`, `hard_delete_store`,
-`hard_delete_organization`.
+`hard_delete_organization` (extended 2026-09-18 to purge warehouses + warehouse_stores +
+warehouse-owned stock_locations).
 
 ---
 
 ## 7. Not yet in schema (forward pointers)
 
-- **`stock_transfers`** — central stock distribution (godown → store, M1c). Designed in
-  `franchise-settlement.md` / constitution §6; not migrated. (`stock_locations` is now **live** —
-  see §3B.)
+- **`stock_transfers`** — central stock **movement** (godown → store / store → store, M1c).
+  Designed in `franchise-settlement.md` / constitution §6; not migrated. (`stock_locations` and
+  now **`warehouses`/`warehouse_stores`** are live — see §3B/§3C; the transfer flow that *moves*
+  stock between them is the remaining piece, deferred to the transfer/intake spec.)
 - **`settlement_statements`** — computed monthly settlements (M1d). Not migrated.
 - **`settlement_rules.plugin_id`** + one-source check — the hybrid engine (M1d). Not migrated.
 - **`shifts` / `petty_expenses`** — Shift & Store Operations Log (M10). Designed in
@@ -507,6 +538,16 @@ data model and the diagram.
 
 ## 8. Changelog
 
+- **v3.5.0 (2026-09-18)** — **Warehouses / stock rooms (M3 prerequisite), live.** New
+  **`warehouses`** (org-owned storage space: backyard/stockroom/godown/other) and
+  **`warehouse_stores`** (many-to-many warehouse↔store attach) tables (§3C), plus **`stock_locations`
+  relaxed** to belong to a store **or** a warehouse (`store_id` xor `warehouse_id`, CHECK
+  `stock_locations_one_owner`; sibling-`code` uniqueness widened to per-owner; **dual-scope RLS** —
+  store-owned rows store-scoped, warehouse-owned rows org-scoped with a `warehouse_stores` read
+  path for attached-store staff). `hard_delete_organization` extended to purge all three surfaces.
+  Migrations `20260918100000` / `20260918100100` / `20260918100200`. Design + phased plan:
+  `../roadmap/warehouses.md` v1.0.0. Not a retail store — the `store_business_model` view is
+  untouched. Next: Dexie mirror + sync (Phase 2), then screens + mapping view + demo (Phase 3).
 - **v3.4.0 (2026-09-13)** — **Stock Placement (M3), live** — new **`stock_locations`** table
   (§3B), the first M3/Inventory table and the first store-scoped table: a self-referencing
   Floor › Section › Rack/Zone tree, offline-first, RLS via `has_store_permission()` (design =

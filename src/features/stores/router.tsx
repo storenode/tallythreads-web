@@ -79,6 +79,24 @@ export const storeRoutes: RouteObject[] = [
                     }),
                   },
                   {
+                    // Warehouses / stock rooms (org-owned storage) — see
+                    // specs/roadmap/warehouses.md.
+                    path: "stock-rooms/new",
+                    lazy: async () => ({
+                      Component: (
+                        await import("@/features/warehouses/pages/WarehouseCreatePage")
+                      ).default,
+                    }),
+                  },
+                  {
+                    path: "stock-rooms/:warehouseId/edit",
+                    lazy: async () => ({
+                      Component: (
+                        await import("@/features/warehouses/pages/WarehouseEditPage")
+                      ).default,
+                    }),
+                  },
+                  {
                     // Org self-service profile edit — reuses the admin edit
                     // form, minus the archive flow, gated by RequireArea "org"
                     // + RequireOrgAccess instead of "admin".

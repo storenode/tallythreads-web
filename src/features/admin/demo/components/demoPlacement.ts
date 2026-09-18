@@ -155,6 +155,7 @@ export async function createStorePlacements(
       const isRack = n.type === "rack";
       const created = await createStockLocation({
         store_id: storeId,
+        warehouse_id: null,
         parent_id: parentId,
         placement_type: n.type,
         code: n.code,

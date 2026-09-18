@@ -10,6 +10,12 @@ import {
 
 const TABLE = "stock_locations";
 
+/** Who owns a placement tree: a store's selling floor, or a warehouse/stock room. Exactly one
+ * id is set; the other is null (mirrors the DB one-owner CHECK). See warehouses.md. */
+export type PlacementOwner =
+  | { store_id: string; warehouse_id: null }
+  | { store_id: null; warehouse_id: string };
+
 export function createStockLocation(
   data: Omit<StockLocation, keyof SyncMeta>,
 ) {
@@ -32,9 +38,11 @@ export async function deleteStockLocationCascade(localId: string): Promise<void>
   const root = await db.stock_locations.get(localId);
   if (!root) return;
 
-  const siblings = (
-    await db.stock_locations.where("store_id").equals(root.store_id).toArray()
-  ).filter((r) => !r.deleted_at);
+  // Siblings share the same owner (store OR warehouse) as the root.
+  const owned = root.store_id
+    ? await db.stock_locations.where("store_id").equals(root.store_id).toArray()
+    : await db.stock_locations.where("warehouse_id").equals(root.warehouse_id!).toArray();
+  const siblings = owned.filter((r) => !r.deleted_at);
 
   const childrenByParent = new Map<string, StockLocation[]>();
   for (const r of siblings) {

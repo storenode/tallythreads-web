@@ -16,6 +16,7 @@ import { useEntitlements, hasPermission } from "@/features/auth/entitlements";
 import { roleDisplayName } from "@/features/admin/roles/roles";
 import { StoreDetailsFields } from "../StoreDetailsFields";
 import { StockPlacementCard } from "@/features/inventory/placement/StockPlacementCard";
+import { StoreStockRoomsCard } from "@/features/warehouses/StoreStockRoomsCard";
 import {
   useArchiveStore,
   useHardDeleteStore,
@@ -409,7 +410,16 @@ export default function StoreEditPage() {
         </form>
       </FormProvider>
 
-      <StockPlacementCard storeId={storeId} canDesign={canDesignPlacement} />
+      <StockPlacementCard
+        owner={{ store_id: storeId, warehouse_id: null }}
+        canDesign={canDesignPlacement}
+      />
+
+      <StoreStockRoomsCard
+        orgId={orgId}
+        storeId={storeId}
+        canDesign={canDesignPlacement}
+      />
 
       <StoreMembersCard orgId={orgId} storeId={storeId} />
 

@@ -24,6 +24,7 @@ import {
 } from "./independent.demo";
 import { useIssueDemoLaunchLink } from "./demo.login";
 import { PurchaseTripsSection } from "./PurchaseTripsSection";
+import { StockRoomsSection } from "./StockRoomsSection";
 import { StorePlacementLine } from "./StorePlacementLine";
 
 const SANS = "'Plus Jakarta Sans', 'Inter', sans-serif";
@@ -497,6 +498,11 @@ export default function IndependentCard({
 
       {/* Purchase trips (org-level module) */}
       <PurchaseTripsSection orgId={organization.id} />
+      <StockRoomsSection
+        orgId={organization.id}
+        orgType="independent"
+        stores={stores ?? []}
+      />
 
       {/* Stores */}
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-white/[0.02]">

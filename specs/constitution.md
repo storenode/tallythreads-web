@@ -1,6 +1,6 @@
 # TallyThreads — Project Constitution
 
-**Version:** 1.14.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-08 · **Status:** Active
+**Version:** 1.15.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-18 · **Status:** Active
 
 This document is the source of truth for how TallyThreads is built. Any human contributor
 or AI coding agent (Claude Code, etc.) working on this repo MUST read this file first and
@@ -289,7 +289,7 @@ founder direction alone, not a real AI Studio customer request yet.
 | M0 | Project foundation, PWA config, CI | 8 |
 | M1 | Identity, tenancy, franchise linkage & settlement engine, RLS — five sub-phases (M1a–M1e) fully speced in `M1-task-plan.md`. Covers: Google Sign-in + device-gated PIN (`M1-auth-google.md`, `M1a-identity-auth.md` — M1a Tasks 1–2 implemented, see §8); organizations/stores/roles/permissions/memberships/store_invitations/access_grants/channels, now with a platform/organization/store role model and a TDD-built entitlements function (`M1b-core-tenancy.md` v2.0.0); `stock_locations`/`stock_transfers` and `franchise_groups`/`franchise_memberships` plus the settlement rule engine (`M1-franchise-model.md`) — **franchise linkage now under active build, see §8's 2026-08-27 entry**; full column reference in `M1-schema-reference.md`; RLS across all of it, including the `stock_transfers` org/franchise-link validation (§8) | 115 |
 | M2 | **Offline sync engine** (Dexie ⇄ Supabase push/pull) | 62 |
-| M3 | Inventory, variant matrix, barcode | 36 |
+| M3 | Inventory, variant matrix, barcode. **Prerequisites (built first): Stock Placement** (`stock_locations` location tree, live) **→ Warehouses / stock rooms** (`warehouses`/`warehouse_stores`, org-owned storage spaces reusing the placement tree — speced `roadmap/warehouses.md`, build before intake) | 36 |
 | M4 | **Purchase-Trip module** (landed cost engine) | 52 |
 | M5 | Billing/POS, GST calc, printing | 58 |
 | M6 | GST reports, GSTR export | 24 |
@@ -374,6 +374,17 @@ customer (Bandrip), not a hypothetical.
   different one (franchise, where the same transfer also implies a monthly settlement —
   see §2.V's franchise settlement calculation). The transfer mechanism doesn't change;
   only whether a payment obligation is attached to it does.
+- **Warehouses / stock rooms (`warehouses`, `warehouse_stores`):** the godown/warehouse
+  above is a first-class **storage space** — a backyard, understairs nook, stockroom, or full
+  godown — that belongs to an **organization** and attaches to **one or more stores**
+  (many-to-many). It is *not* a flagged retail store (a warehouse has no billing/POS/business-
+  model identity), so it gets its own table rather than a `stores` flag. It **reuses the one
+  Stock Placement tree** — `stock_locations` is relaxed so a location belongs to a store **or**
+  a warehouse (`store_id` xor `warehouse_id`), never a second placement system. This realises
+  the org-level warehouse node this section reserved. Built as an **M3 prerequisite before
+  Inventory intake** so a received SKU can be placed into a warehouse from day one; the stock
+  *movement* between them (`stock_transfers`) stays deferred to the transfer/intake spec. Full
+  design: `roadmap/warehouses.md`.
 - **Identity vs. store access are separate concerns:** a person's login identity
   (`members`, or equivalent) is never itself scoped to a store or a platform role. What
   stores a person can act in, and with what role, is a separate join, created via
@@ -440,7 +451,29 @@ This constitution may be amended, but not casually. An amendment requires:
 
 ### Changelog
 
-- **2026-09-08 (latest) — Binding UI & Responsive Rules for the mobile-first PWA; v1.14.0.**
+- **2026-09-18 (latest) — Warehouses / stock rooms as first-class storage spaces; v1.15.0.**
+  Evidence: working through inventory distribution for the three models (individual / chain /
+  franchise), the founder identified a real, universal need — because of place and per-sq-ft
+  cost, shops stash stock outside the selling floor (backyard, understairs, stockroom, godown),
+  and inventory must be able to name and place stock there, and later distribute from it. Decided
+  a **warehouse is its own org-owned entity** (`warehouses`) attachable to many stores
+  (`warehouse_stores`, many-to-many) — **not** a flagged `stores` row (a warehouse is not a
+  retail outlet; this keeps the `store_business_model` view and POS/billing clean). It **reuses
+  the single Stock Placement tree**: `stock_locations` is relaxed to belong to a store **or** a
+  warehouse (`store_id` xor `warehouse_id`), so shelves/zones/racks work inside a warehouse with
+  no second placement system and no new `placement_type` (shelf = `rack`). Two create entry
+  points — the org **Stores** page ("New stock room", org-level) and the **Store edit** page (a
+  "Stock Rooms" card, auto-linked to that store), plus a read-only **stock-room ↔ store mapping
+  view** and a **first-class demo-creation facility** (each demo org type seeds its stock rooms and
+  shows the mapping, like Stock Placement/Purchase Trips). §6 gains a **"Warehouses / stock rooms"**
+  architecture bullet; §5's M3 line records it as a **prerequisite built before Inventory
+  intake** (so a received SKU can target a warehouse location from day one), while the stock
+  *movement* (`stock_transfers`) stays deferred to the transfer/intake spec. RLS becomes
+  dual-scope on `stock_locations` (store-owned rows store-scoped, warehouse-owned rows
+  org-scoped). Full design + phased dev plan: `roadmap/warehouses.md` v1.0.0. Supersedes the
+  earlier informal "godown-as-a-store" sketch. No code changed under this amendment — spec + plan
+  only, pending the go-ahead to build (§9).
+- **2026-09-08 — Binding UI & Responsive Rules for the mobile-first PWA; v1.14.0.**
   Evidence: on a phone (and installed to the home screen) the app read as a shrunk-down
   desktop page — text and spacing too large, form fields triggering iOS focus-zoom, the
   Operations bottom tab bar sitting under the home indicator. Fix landed as a single global

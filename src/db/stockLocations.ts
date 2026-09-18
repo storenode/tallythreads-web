@@ -30,8 +30,13 @@ export type PlacementColor =
 
 export interface StockLocation extends SyncMeta {
   id?: string;
-  store_id: string;
-  /** Container this sits under (same store); null = top level. */
+  /** Owning store, when this location sits in a store's selling floor. Exactly one of
+   * store_id / warehouse_id is set (DB CHECK stock_locations_one_owner). */
+  store_id: string | null;
+  /** Owning warehouse, when this location sits inside a warehouse/stock room. Exactly one of
+   * store_id / warehouse_id is set. See specs/roadmap/warehouses.md. */
+  warehouse_id: string | null;
+  /** Container this sits under (same owner); null = top level. */
   parent_id: string | null;
   placement_type: PlacementType;
   /** The identifier — a typed name (floor/section/zone) or the rack code "E-03-02". */
