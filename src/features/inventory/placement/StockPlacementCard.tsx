@@ -42,11 +42,15 @@ export function StockPlacementCard({
   canDesign,
   title = "Stock Placement",
   desc = "Where stock sits in this store — floors, sections, racks, and zones. Optional.",
+  bare = false,
 }: {
   owner: PlacementOwner;
   canDesign: boolean;
   title?: string;
   desc?: string;
+  /** Render as a section (heading + body) instead of its own Card — for
+   * embedding inside another card. */
+  bare?: boolean;
 }) {
   const rows = useLiveQuery(
     async () => {
@@ -84,28 +88,23 @@ export function StockPlacementCard({
     setDeleteTarget(null);
   };
 
-  return (
-    <>
-      <Card
-        title={title}
-        desc={desc}
-        actions={
-          canDesign && addUnder === undefined && editId === undefined ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setAddUnder(null)}
-            >
-              + Add
-            </Button>
-          ) : undefined
-        }
+  const addAction =
+    canDesign && addUnder === undefined && editId === undefined ? (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => setAddUnder(null)}
       >
-        {rows === undefined ? (
-          <p className="text-sm text-fg-muted">Loading…</p>
-        ) : (
-          <div className="space-y-2">
+        + Add
+      </Button>
+    ) : undefined;
+
+  const body =
+    rows === undefined ? (
+      <p className="text-sm text-fg-muted">Loading…</p>
+    ) : (
+      <div className="space-y-2">
             {/* Top-level add form */}
             {canDesign && addUnder === null && (
               <LocationForm
@@ -145,9 +144,27 @@ export function StockPlacementCard({
                 />
               ))
             )}
+      </div>
+    );
+
+  return (
+    <>
+      {bare ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-semibold text-fg">{title}</h4>
+              {desc && <p className="mt-0.5 text-xs text-fg-muted">{desc}</p>}
+            </div>
+            {addAction}
           </div>
-        )}
-      </Card>
+          {body}
+        </div>
+      ) : (
+        <Card title={title} desc={desc} actions={addAction}>
+          {body}
+        </Card>
+      )}
 
       <DeleteDialog
         target={deleteTarget}

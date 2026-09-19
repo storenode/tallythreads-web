@@ -1,7 +1,6 @@
 import {
   LayoutDashboard,
   Building2,
-  Store,
   ShieldCheck,
   CreditCard,
   ScrollText,
@@ -15,13 +14,7 @@ export const adminNav: ConsoleNavSection[] = [
   {
     items: [
       { label: "Dashboard", to: "/admin", icon: LayoutDashboard, end: true },
-    ],
-  },
-  {
-    heading: "Tenancy",
-    items: [
       { label: "Organizations", to: "/admin/organizations", icon: Building2 },
-      { label: "Stores", to: "/org/stores", icon: Store },
     ],
   },
   {

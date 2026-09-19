@@ -13,6 +13,7 @@ import {
   type CreateStoreInput,
 } from "@/features/stores/storesAdmin";
 import { seedDemoPurchaseTrips } from "./purchaseTrips.demo";
+import { seedDemoWarehouses } from "./warehouses.demo";
 import {
   createStorePlacements,
   demoPlacementFor,
@@ -272,8 +273,10 @@ export function useCreateIndependentDemo() {
         email: input.salesStaff.email.trim(),
         role_name: "store_sales_staff",
       });
-      // Placement uses the app's real write-through (Dexie + outbox) once the store exists.
+      // Placement + stock rooms are seeded via direct server inserts (see the
+      // seeders) so the demo is immediately complete on the server.
       await createStorePlacements(store.id, input.placement ?? []);
+      await seedDemoWarehouses(org.id, "independent", [store]);
 
       await seedDemoPurchaseTrips(org.id, owner.member_id, input.org.name.trim());
 

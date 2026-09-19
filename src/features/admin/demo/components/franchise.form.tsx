@@ -164,7 +164,7 @@ function StoreFields({
   );
 }
 
-export function CreateFranchiseForm() {
+export function CreateFranchiseForm({ onDone }: { onDone?: () => void } = {}) {
   const [org, setOrg] = useState<OrgDraft>(FRANCHISE_DEMO_DEFAULTS.org);
   const [groupName, setGroupName] = useState(FRANCHISE_DEMO_DEFAULTS.groupName);
   const [owner, setOwner] = useState<MemberDraft>(FRANCHISE_DEMO_DEFAULTS.owner);
@@ -226,9 +226,12 @@ export function CreateFranchiseForm() {
     e.preventDefault();
     if (!canSubmit) return;
     const input: FranchiseDemoInput = { org, groupName, owner, stores };
-    await createDemo.mutateAsync(input).catch(() => {
+    try {
+      await createDemo.mutateAsync(input);
+      onDone?.();
+    } catch {
       /* error surfaced via createDemo.error below */
-    });
+    }
   };
 
   return (

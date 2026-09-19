@@ -1,16 +1,14 @@
-import { createStockLocation } from "@/features/inventory/placement/data";
-import {
-  createWarehouse,
-  attachStore,
-} from "@/features/warehouses/data";
+import { supabase } from "@/lib/supabaseClient";
+import { insertDemoStockLocation } from "./demoPlacement";
 import type { OrgStore } from "@/features/stores/stores";
 import type { WarehouseType } from "@/db";
 
 /**
- * Demo seeding for Warehouses / stock rooms (specs/roadmap/warehouses.md §6). Writes through the
- * app's real offline-first path (Dexie + outbox) so demo stock rooms, their store attachments,
- * and their internal placements behave exactly like real data. Spread across the three org types
- * to exercise the full mapping matrix: store-level backyard · org-level central godown ·
+ * Demo seeding for Warehouses / stock rooms (specs/roadmap/warehouses.md §6). Uses direct
+ * server inserts (platform-admin RLS) — like the purchase-trip and placement seeders — so a
+ * freshly created demo's stock rooms, their store attachments, and their internal placements
+ * are immediately, reliably on the server (no offline-sync wait). Spread across the three org
+ * types to exercise the full mapping matrix: store-level backyard · org-level central godown ·
  * one-warehouse-many-stores · a store with two stock rooms · an unattached org-level warehouse.
  */
 
@@ -21,7 +19,8 @@ interface DemoZone {
   label?: string;
 }
 
-/** Create a warehouse + attach stores + a flat set of zone/rack placements (demo scale). */
+/** Create a warehouse + attach stores + a flat set of zone placements (demo scale),
+ * all via direct server inserts. */
 async function makeWarehouse(
   orgId: string,
   name: string,
@@ -29,20 +28,32 @@ async function makeWarehouse(
   attachStoreIds: string[],
   zones: DemoZone[],
 ): Promise<void> {
-  const wh = await createWarehouse({
-    organization_id: orgId,
-    name,
-    warehouse_type: type,
-    note: null,
-    sort_order: 0,
-  });
-  if (!wh.id) return;
-  for (const sid of attachStoreIds) await attachStore(wh.id, sid);
+  const { data: wh, error } = await supabase
+    .from("warehouses")
+    .insert({
+      organization_id: orgId,
+      name,
+      warehouse_type: type,
+      note: null,
+      sort_order: 0,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  const warehouseId = wh.id as string;
+
+  for (const sid of attachStoreIds) {
+    const { error: linkErr } = await supabase
+      .from("warehouse_stores")
+      .insert({ warehouse_id: warehouseId, store_id: sid });
+    if (linkErr) throw linkErr;
+  }
+
   let i = 0;
   for (const z of zones) {
-    await createStockLocation({
+    await insertDemoStockLocation({
       store_id: null,
-      warehouse_id: wh.id,
+      warehouse_id: warehouseId,
       parent_id: null,
       placement_type: "zone",
       code: z.code,
@@ -50,7 +61,6 @@ async function makeWarehouse(
       direction: null,
       rack_row: null,
       rack_col: null,
-      layout: null,
       color: null,
       sort_order: i++,
     });

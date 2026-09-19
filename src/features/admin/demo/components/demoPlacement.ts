@@ -1,5 +1,5 @@
 import type { PlacementColor, PlacementType, RackDirection } from "@/db";
-import { createStockLocation } from "@/features/inventory/placement/data";
+import { supabase } from "@/lib/supabaseClient";
 import { pad2 } from "@/features/inventory/placement/placement";
 
 /**
@@ -136,11 +136,40 @@ export function demoPlacementFor(
   return build ? build() : [];
 }
 
-// ─── Create (real write-through) ─────────────────────────────────────
+// ─── Create (direct server insert) ───────────────────────────────────
 
 /**
- * Create a store's placement tree via the app's real `createStockLocation` path (Dexie +
- * outbox), parents before children so `parent_id` resolves. Runs after the store exists.
+ * Insert one stock_locations row directly into Supabase (platform-admin RLS),
+ * returning its id. Demo seeding uses direct server inserts — like the
+ * purchase-trip seeder — rather than the app's offline-first Dexie/outbox path,
+ * so a freshly created demo's placements are immediately, reliably on the server
+ * (visible on any device, no sync wait). Shared with the warehouse seeder.
+ */
+export async function insertDemoStockLocation(row: {
+  store_id: string | null;
+  warehouse_id: string | null;
+  parent_id: string | null;
+  placement_type: PlacementType;
+  code: string;
+  label: string | null;
+  direction: RackDirection | null;
+  rack_row: string | null;
+  rack_col: string | null;
+  color: PlacementColor | null;
+  sort_order: number;
+}): Promise<string> {
+  const { data, error } = await supabase
+    .from("stock_locations")
+    .insert({ ...row, layout: null })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data.id as string;
+}
+
+/**
+ * Create a store's placement tree via direct server inserts, parents before
+ * children so `parent_id` resolves. Runs after the store exists.
  */
 export async function createStorePlacements(
   storeId: string,
@@ -153,7 +182,7 @@ export async function createStorePlacements(
     let i = 0;
     for (const n of level) {
       const isRack = n.type === "rack";
-      const created = await createStockLocation({
+      const id = await insertDemoStockLocation({
         store_id: storeId,
         warehouse_id: null,
         parent_id: parentId,
@@ -163,11 +192,10 @@ export async function createStorePlacements(
         direction: isRack ? (n.direction ?? null) : null,
         rack_row: isRack && n.row != null ? pad2(n.row) : null,
         rack_col: isRack && n.col != null ? pad2(n.col) : null,
-        layout: null,
         color: n.color ?? null,
         sort_order: i++,
       });
-      if (n.children?.length) await createLevel(n.children, created.id ?? null);
+      if (n.children?.length) await createLevel(n.children, id);
     }
   };
   await createLevel(nodes, null);

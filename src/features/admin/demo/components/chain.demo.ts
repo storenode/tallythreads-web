@@ -13,6 +13,7 @@ import {
   type CreateStoreInput,
 } from "@/features/stores/storesAdmin";
 import { seedDemoPurchaseTrips } from "./purchaseTrips.demo";
+import { seedDemoWarehouses } from "./warehouses.demo";
 import {
   createStorePlacements,
   demoPlacementFor,
@@ -344,6 +345,7 @@ export function useCreateChainDemo() {
         is_primary_contact: true,
       });
 
+      const createdStores = [];
       for (const s of input.stores) {
         const store = await createStore(org.id, s.store);
         await inviteStoreMember(store.id, {
@@ -351,9 +353,12 @@ export function useCreateChainDemo() {
           email: s.salesStaff.email.trim(),
           role_name: "store_sales_staff",
         });
-        // Placement uses the app's real write-through (Dexie + outbox) once the store exists.
+        // Placement is seeded via direct server inserts once the store exists.
         await createStorePlacements(store.id, s.placement ?? []);
+        createdStores.push(store);
       }
+
+      await seedDemoWarehouses(org.id, "chain", createdStores);
 
       await seedDemoPurchaseTrips(org.id, owner.member_id, input.org.name.trim());
 

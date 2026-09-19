@@ -1,5 +1,4 @@
 import {
-  LayoutDashboard,
   Building2,
   Store,
   CreditCard,
@@ -26,16 +25,11 @@ export function getOrgAdminNav(
   return [
     {
       items: [
-        { label: "Dashboard", to: "/admin", icon: LayoutDashboard, end: true },
-      ],
-    },
-    {
-      heading: "Tenancy",
-      items: [
         {
           label: "Organizations",
-          to: `/org/${orgId}/edit`,
+          to: `/org/${orgId}`,
           icon: Building2,
+          end: true,
         },
         { label: "Stores", to: `/org/${orgId}/stores`, icon: Store },
         ...(perms.canViewTrips

@@ -1,6 +1,6 @@
 # TallyThreads — Build Status & Roadmap
 
-**Updated:** 2026-09-05
+**Updated:** 2026-09-19
 
 The one place to see what's built and what's next. The full rationale/roadmap is
 `constitution.md` §5; this is the short board on top of it. Detailed build logs for
@@ -31,6 +31,15 @@ The foundation is done and working end-to-end:
 franchises, demo tooling), a stores area (`src/features/stores/`), and a store-scoped
 Operations shell at `/ops/:storeId` (`src/features/operations/`) whose five tabs
 (Billing, Inventory, Trips, Reports, Settings) are **stubs** — see below.
+
+> **2026-09-19 (v1.16.0):** organization setup is now a guided **wizard**
+> (`Organization → Stores → Stock setup → Go live`) reached from a shared **organization
+> card**, reused across the admin console, the org self-service console
+> (`/org/:orgId/setup/*`), and the demo page. Admin **Dashboard** is a placeholder;
+> **Organizations** is its own nav item. Stock locations + stock rooms are set up together
+> in the wizard's "Store stock" card. Demo orgs create through the real path and seed
+> stores/members/stock locations/stock rooms/purchase trips via server inserts, with
+> per-member launch links. See `constitution.md` §8 and the 2026-09-19 journal entry.
 
 > Note: the React frontend was reset to the login/PIN/PostgREST base on 2026-08-29
 > (`constitution.md` §8) and the Org/Stores/Members/Roles UI above was rebuilt after

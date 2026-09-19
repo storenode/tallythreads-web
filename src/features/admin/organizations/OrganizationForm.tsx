@@ -274,8 +274,23 @@ const emptyInviteRow = (): CreateFormValues["invites"][number] => ({
   is_primary_contact: false,
 });
 
-export default function OrganizationCreatePage() {
-  const navigate = useNavigate();
+/**
+ * The organization-create form body (core + registration + invites cards and
+ * the Cancel / submit footer), without any page chrome. Extracted so both the
+ * standalone "New organization" admin page and the setup wizard's first step
+ * can drive the exact same create flow. On success it calls `onCreated` with
+ * the new org and any non-fatal registration-details patch warning (the org
+ * already exists by then, so a patch failure never blocks the caller).
+ */
+export function OrganizationCreateForm({
+  onCreated,
+  onCancel,
+  submitLabel = "Create organization",
+}: {
+  onCreated: (org: Organization, warning: string | null) => void;
+  onCancel: () => void;
+  submitLabel?: string;
+}) {
   const createOrg = useCreateOrganization();
   const updateOrg = useUpdateOrganization();
   const { isLoading, withLoading } = useLoadingGate();
@@ -380,29 +395,16 @@ export default function OrganizationCreatePage() {
         }
       }
 
-      navigate(
-        LIST_PATH,
-        patchWarning ? { state: { warning: patchWarning } } : undefined,
-      );
+      onCreated(org, patchWarning);
     });
 
   return (
-    <div className="space-y-6">
+    <>
       <LoadingOverlay
         show={isLoading}
         scope="page"
         label="Creating organization…"
       />
-
-      <PageHeading
-        action={
-          <Button variant="ghost" size="sm" onClick={() => navigate(LIST_PATH)}>
-            Cancel
-          </Button>
-        }
-      >
-        New organization
-      </PageHeading>
 
       <FormProvider {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -492,17 +494,50 @@ export default function OrganizationCreatePage() {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => navigate(LIST_PATH)}
+              onClick={onCancel}
               disabled={isLoading}
             >
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Creating…" : "Create organization"}
+              {isLoading ? "Creating…" : submitLabel}
             </Button>
           </div>
         </form>
       </FormProvider>
+    </>
+  );
+}
+
+/**
+ * Standalone "New organization" admin page — thin wrapper around
+ * {@link OrganizationCreateForm} that returns to the organizations list on
+ * success (surfacing any registration-details patch warning as router state)
+ * or cancel.
+ */
+export default function OrganizationCreatePage() {
+  const navigate = useNavigate();
+  return (
+    <div className="space-y-6">
+      <PageHeading
+        action={
+          <Button variant="ghost" size="sm" onClick={() => navigate(LIST_PATH)}>
+            Cancel
+          </Button>
+        }
+      >
+        New organization
+      </PageHeading>
+
+      <OrganizationCreateForm
+        onCreated={(_org, warning) =>
+          navigate(
+            LIST_PATH,
+            warning ? { state: { warning } } : undefined,
+          )
+        }
+        onCancel={() => navigate(LIST_PATH)}
+      />
     </div>
   );
 }
@@ -801,10 +836,18 @@ export function OrganizationEditFormCard({
   org,
   orgId,
   doneTo,
+  submitLabel = "Save changes",
+  hideCancel = false,
 }: {
   org: Organization;
   orgId: string;
   doneTo: string;
+  /** Label for the primary submit button (e.g. "Next: Save changes" in the
+   * setup wizard, where saving also advances a step). */
+  submitLabel?: string;
+  /** Hide the Cancel button — used where an outer back/exit control already
+   * covers cancelling (e.g. the wizard's "← Dashboard"). */
+  hideCancel?: boolean;
 }) {
   const navigate = useNavigate();
   const updateOrg = useUpdateOrganization();
@@ -890,16 +933,18 @@ export function OrganizationEditFormCard({
           {serverError && <p className="text-sm text-red-500">{serverError}</p>}
 
           <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => navigate(doneTo)}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
+            {!hideCancel && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => navigate(doneTo)}
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+            )}
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Saving…" : "Save changes"}
+              {isLoading ? "Saving…" : submitLabel}
             </Button>
           </div>
         </form>

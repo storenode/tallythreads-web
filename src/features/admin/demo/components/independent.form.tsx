@@ -39,7 +39,7 @@ function Section({
   );
 }
 
-export function CreateIndependentForm() {
+export function CreateIndependentForm({ onDone }: { onDone?: () => void } = {}) {
   const [org, setOrg] = useState<OrgDraft>(INDEPENDENT_DEMO_DEFAULTS.org);
   const [store, setStore] = useState(INDEPENDENT_DEMO_DEFAULTS.store);
   const [owner, setOwner] = useState<MemberDraft>(
@@ -83,9 +83,12 @@ export function CreateIndependentForm() {
       salesStaff,
       placement,
     };
-    await createDemo.mutateAsync(input).catch(() => {
+    try {
+      await createDemo.mutateAsync(input);
+      onDone?.();
+    } catch {
       /* error surfaced via createDemo.error below */
-    });
+    }
   };
 
   const memberFields = (

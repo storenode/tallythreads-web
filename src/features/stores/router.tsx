@@ -1,4 +1,4 @@
-import { Navigate, useParams, type RouteObject } from "react-router-dom";
+import { useParams, type RouteObject } from "react-router-dom";
 import { AuthGuard } from "@/features/auth/AuthGuard";
 import { RequireArea } from "@/features/auth/RequireArea";
 import { RequireOrgAccess } from "@/features/auth/RequireOrgAccess";
@@ -42,7 +42,75 @@ export const storeRoutes: RouteObject[] = [
               {
                 element: <OrgAdminShell />,
                 children: [
-                  { index: true, element: <Navigate to="stores" replace /> },
+                  {
+                    index: true,
+                    lazy: async () => ({
+                      Component: (await import("./pages/OrgOrganizationsPage"))
+                        .default,
+                    }),
+                  },
+                  {
+                    // Org-scoped setup wizard — same steps as the admin console
+                    // (/admin/setup/:orgId/*), mounted here behind the org guard.
+                    path: "setup",
+                    lazy: async () => ({
+                      Component: (
+                        await import("@/features/admin/setup/SetupWizardLayout")
+                      ).default,
+                    }),
+                    children: [
+                      {
+                        index: true,
+                        lazy: async () => ({
+                          Component: (
+                            await import(
+                              "@/features/admin/setup/SetupWizardLayout"
+                            )
+                          ).SetupIndexRedirect,
+                        }),
+                      },
+                      {
+                        path: "organization",
+                        lazy: async () => ({
+                          Component: (
+                            await import(
+                              "@/features/admin/setup/steps/OrganizationStep"
+                            )
+                          ).default,
+                        }),
+                      },
+                      {
+                        path: "stores",
+                        lazy: async () => ({
+                          Component: (
+                            await import(
+                              "@/features/admin/setup/steps/StoresStep"
+                            )
+                          ).default,
+                        }),
+                      },
+                      {
+                        path: "stock-setup",
+                        lazy: async () => ({
+                          Component: (
+                            await import(
+                              "@/features/admin/setup/steps/StockSetupStep"
+                            )
+                          ).default,
+                        }),
+                      },
+                      {
+                        path: "go-live",
+                        lazy: async () => ({
+                          Component: (
+                            await import(
+                              "@/features/admin/setup/steps/GoLiveStep"
+                            )
+                          ).default,
+                        }),
+                      },
+                    ],
+                  },
                   {
                     path: "stores",
                     lazy: async () => ({

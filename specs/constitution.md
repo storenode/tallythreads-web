@@ -451,7 +451,24 @@ This constitution may be amended, but not casually. An amendment requires:
 
 ### Changelog
 
-- **2026-09-18 (latest) — Warehouses / stock rooms as first-class storage spaces; v1.15.0.**
+- **2026-09-19 (latest) — Organization Setup Wizard + unified admin/org consoles; v1.16.0.**
+  Evidence: the founder found the admin org surface confusing — a thin stats dashboard *and* a
+  separate org list, sparse cards, and a one-shot create form. Redesigned around one guided
+  **setup wizard** (`Organization → Stores → Stock setup → Go live`) reached from a shared
+  **organization card**, with the same card + wizard reused across the **admin console**, the
+  **org self-service console** (`/org/:orgId/setup/*`, area-aware), and the **demo page** — no
+  parallel surfaces. The admin **Dashboard** is now a placeholder; **Organizations** is its own
+  nav item (a directory of cards); the "Tenancy" group and the standalone Stores nav link were
+  dropped. Safe delete (archive + type-the-name hard delete) consolidated into one reusable
+  control used by the cards and the wizard's danger zone (admin only); **org members cannot delete
+  their own org**. The wizard folds **stock locations and stock rooms into one "Store stock"**
+  surface (reusing `StockPlacementCard`; a room's own placement edited via a step takeover), and
+  the **demo** now creates through the *real* org-create path (`is_demo=true`) and seeds its sample
+  data — stores, members, stock locations, **stock rooms**, and purchase trips — via **direct
+  server inserts** for reliable, shareable demos, plus per-member **launch links**. This is a
+  **code** amendment (built with the founder's go-ahead per §9), not spec-only; no schema/migration
+  changes. Retired `OrganizationListPage` and the `/admin/organizations/new|:id/edit` routes.
+- **2026-09-18 — Warehouses / stock rooms as first-class storage spaces; v1.15.0.**
   Evidence: working through inventory distribution for the three models (individual / chain /
   franchise), the founder identified a real, universal need — because of place and per-sq-ft
   cost, shops stash stock outside the selling floor (backyard, understairs, stockroom, godown),

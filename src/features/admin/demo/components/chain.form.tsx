@@ -166,7 +166,7 @@ function StoreFields({
   );
 }
 
-export function CreateChainForm() {
+export function CreateChainForm({ onDone }: { onDone?: () => void } = {}) {
   const [org, setOrg] = useState<OrgDraft>(CHAIN_DEMO_DEFAULTS.org);
   const [owner, setOwner] = useState<MemberDraft>(CHAIN_DEMO_DEFAULTS.owner);
   const [stores, setStores] = useState<ChainStoreDraft[]>(
@@ -215,9 +215,12 @@ export function CreateChainForm() {
     e.preventDefault();
     if (!canSubmit) return;
     const input: ChainDemoInput = { org, owner, stores };
-    await createDemo.mutateAsync(input).catch(() => {
+    try {
+      await createDemo.mutateAsync(input);
+      onDone?.();
+    } catch {
       /* error surfaced via createDemo.error below */
-    });
+    }
   };
 
   return (

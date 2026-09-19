@@ -64,26 +64,211 @@ export type UpdateOrganizationInput = Partial<
 
 const ORGANIZATIONS_KEY = ["admin", "organizations"] as const;
 
+// --- Full org detail: org + every dependent (stores, warehouses, their
+// stock locations, purchase trips). Assembled from a handful of batched
+// selects (keyed off organization_id / a collected id list) rather than one
+// nested query per org, so fetchAllOrganizations stays O(1) round trips
+// instead of N+1 — the founder has accepted the resulting payload size given
+// the current (small) admin user base. ---
+
+export interface StockLocationRow {
+  id: string;
+  storeId: string | null;
+  warehouseId: string | null;
+  parentId: string | null;
+  placementType: string;
+  code: string | null;
+  label: string;
+  sortOrder: number;
+}
+
+export interface StoreDetail {
+  id: string;
+  name: string;
+  storeCode: string | null;
+  stockLocations: StockLocationRow[];
+}
+
+export interface WarehouseDetail {
+  id: string;
+  name: string;
+  warehouseType: string;
+  storeIds: string[];
+  stockLocations: StockLocationRow[];
+}
+
+export interface OrganizationFullDetail extends Organization {
+  stores: StoreDetail[];
+  warehouses: WarehouseDetail[];
+  purchaseTrips: OrgPurchaseTripRow[];
+}
+
+function toStockLocationRow(row: {
+  id: string;
+  store_id: string | null;
+  warehouse_id: string | null;
+  parent_id: string | null;
+  placement_type: string;
+  code: string | null;
+  label: string;
+  sort_order: number;
+}): StockLocationRow {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    warehouseId: row.warehouse_id,
+    parentId: row.parent_id,
+    placementType: row.placement_type,
+    code: row.code,
+    label: row.label,
+    sortOrder: row.sort_order,
+  };
+}
+
+/** Attaches full nested detail (stores, warehouses, stock locations,
+ * purchase trips) to a base list of organizations, batching one select per
+ * dependent table across all org ids instead of querying per-org. */
+async function attachFullDetail(
+  orgs: Organization[],
+): Promise<OrganizationFullDetail[]> {
+  const orgIds = orgs.map((o) => o.id);
+  if (orgIds.length === 0) return [];
+
+  const [
+    { data: stores, error: storesError },
+    { data: warehouses, error: warehousesError },
+    { data: trips, error: tripsError },
+  ] = await Promise.all([
+    supabase
+      .from("stores")
+      .select("id, organization_id, name, store_code")
+      .in("organization_id", orgIds)
+      .is("deleted_at", null),
+    supabase
+      .from("warehouses")
+      .select("id, organization_id, name, warehouse_type")
+      .in("organization_id", orgIds)
+      .is("deleted_at", null),
+    supabase
+      .from("purchase_trips")
+      .select(
+        "id, organization_id, title, status, start_date, end_date, started_at, completed_at, planned_budget_paise",
+      )
+      .in("organization_id", orgIds)
+      .is("deleted_at", null)
+      .order("last_modified_at", { ascending: false }),
+  ]);
+  if (storesError) throw storesError;
+  if (warehousesError) throw warehousesError;
+  if (tripsError) throw tripsError;
+
+  const storeIds = (stores ?? []).map((s) => s.id as string);
+  const warehouseIds = (warehouses ?? []).map((w) => w.id as string);
+
+  const [
+    { data: warehouseStores, error: warehouseStoresError },
+    { data: stockLocations, error: stockLocationsError },
+  ] = await Promise.all([
+    warehouseIds.length > 0
+      ? supabase
+          .from("warehouse_stores")
+          .select("warehouse_id, store_id")
+          .in("warehouse_id", warehouseIds)
+      : Promise.resolve({ data: [], error: null }),
+    storeIds.length > 0 || warehouseIds.length > 0
+      ? supabase
+          .from("stock_locations")
+          .select(
+            "id, store_id, warehouse_id, parent_id, placement_type, code, label, sort_order",
+          )
+          .or(
+            [
+              storeIds.length > 0 ? `store_id.in.(${storeIds.join(",")})` : null,
+              warehouseIds.length > 0
+                ? `warehouse_id.in.(${warehouseIds.join(",")})`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(","),
+          )
+          .is("deleted_at", null)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (warehouseStoresError) throw warehouseStoresError;
+  if (stockLocationsError) throw stockLocationsError;
+
+  const tripRows: OrgPurchaseTripRow[] = (trips ?? []).map((row) => ({
+    id: row.id as string,
+    title: (row.title as string) ?? "Untitled trip",
+    status: row.status as OrgPurchaseTripRow["status"],
+    startDate: (row.start_date as string | null) ?? null,
+    endDate: (row.end_date as string | null) ?? null,
+    startedAt: (row.started_at as string | null) ?? null,
+    completedAt: (row.completed_at as string | null) ?? null,
+    plannedBudgetPaise: (row.planned_budget_paise as number | null) ?? null,
+  }));
+
+  return orgs.map((org) => {
+    const orgStores = (stores ?? []).filter(
+      (s) => s.organization_id === org.id,
+    );
+    const orgWarehouses = (warehouses ?? []).filter(
+      (w) => w.organization_id === org.id,
+    );
+
+    return {
+      ...org,
+      purchaseTrips: tripRows.filter(
+        (_, i) => trips![i].organization_id === org.id,
+      ),
+      stores: orgStores.map((s) => ({
+        id: s.id as string,
+        name: s.name as string,
+        storeCode: (s.store_code as string | null) ?? null,
+        stockLocations: (stockLocations ?? [])
+          .filter((sl) => sl.store_id === s.id)
+          .map(toStockLocationRow),
+      })),
+      warehouses: orgWarehouses.map((w) => ({
+        id: w.id as string,
+        name: w.name as string,
+        warehouseType: w.warehouse_type as string,
+        storeIds: (warehouseStores ?? [])
+          .filter((ws) => ws.warehouse_id === w.id)
+          .map((ws) => ws.store_id as string),
+        stockLocations: (stockLocations ?? [])
+          .filter((sl) => sl.warehouse_id === w.id)
+          .map(toStockLocationRow),
+      })),
+    };
+  });
+}
+
 // --- Plain async functions — safe to call outside a component too. ---
 
-export async function fetchOrganizations(): Promise<Organization[]> {
+export async function fetchAllOrganizations(): Promise<
+  OrganizationFullDetail[]
+> {
   const { data, error } = await supabase
     .from("organizations")
     .select("*")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data ?? [];
+  return attachFullDetail(data ?? []);
 }
 
-export async function fetchOrganization(id: string): Promise<Organization> {
+export async function fetchOrganizationById(
+  id: string,
+): Promise<OrganizationFullDetail> {
   const { data, error } = await supabase
     .from("organizations")
     .select("*")
     .eq("id", id)
     .single();
   if (error) throw error;
-  return data;
+  const [full] = await attachFullDetail([data]);
+  return full;
 }
 
 export async function createOrganization(
@@ -485,14 +670,14 @@ export async function inviteOrganizationMember(
 export function useOrganizations() {
   return useQuery({
     queryKey: ORGANIZATIONS_KEY,
-    queryFn: fetchOrganizations,
+    queryFn: fetchAllOrganizations,
   });
 }
 
 export function useOrganization(id: string | undefined) {
   return useQuery({
     queryKey: [...ORGANIZATIONS_KEY, id],
-    queryFn: () => fetchOrganization(id!),
+    queryFn: () => fetchOrganizationById(id!),
     enabled: !!id,
   });
 }
