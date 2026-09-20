@@ -72,10 +72,13 @@ export function setupAreaFromPath(pathname: string): SetupArea {
 export function completedSetupSteps(
   org: OrganizationFullDetail,
 ): Record<SetupStepKey, boolean> {
-  const hasStores = org.stores.length > 0;
+  // Defensive `?? []`: tolerate a briefly-bare Organization from a cache write
+  // (before full detail refetches) instead of crashing during render.
+  const stores = org.stores ?? [];
+  const hasStores = stores.length > 0;
   const hasStock =
-    org.warehouses.length > 0 ||
-    org.stores.some((s) => s.stockLocations.length > 0);
+    (org.warehouses ?? []).length > 0 ||
+    stores.some((s) => (s.stockLocations ?? []).length > 0);
   return {
     organization: true,
     stores: hasStores,

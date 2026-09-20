@@ -704,7 +704,16 @@ export function useUpdateOrganization() {
     }) => updateOrganization(id, patch),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_KEY });
-      queryClient.setQueryData([...ORGANIZATIONS_KEY, data.id], data);
+      // `data` is a bare Organization (no stores/warehouses/purchaseTrips), but the
+      // detail cache holds an OrganizationFullDetail. Merge onto the existing detail
+      // so its arrays survive — replacing it wholesale would leave the setup wizard's
+      // useOrganization() reading org.stores.length on undefined (crash on save).
+      // The invalidate above still refetches full detail; this just bridges the gap.
+      queryClient.setQueryData(
+        [...ORGANIZATIONS_KEY, data.id],
+        (prev: OrganizationFullDetail | undefined) =>
+          prev ? { ...prev, ...data } : undefined,
+      );
     },
   });
 }

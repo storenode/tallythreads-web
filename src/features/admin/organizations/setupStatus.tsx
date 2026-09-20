@@ -55,15 +55,21 @@ export const SETUP_STAGE_META: Record<
 /** Stores → stock setup (warehouses or stock locations) → activity (a
  * purchase trip) — each gate must clear before the next stage applies. */
 export function computeSetupStage(org: OrganizationFullDetail): SetupStage {
-  const hasStores = org.stores.length > 0;
+  // Defensive `?? []`: a cache write can briefly hand us a bare Organization
+  // (no nested arrays) before the full detail refetches — never crash on it.
+  const stores = org.stores ?? [];
+  const warehouses = org.warehouses ?? [];
+  const trips = org.purchaseTrips ?? [];
+
+  const hasStores = stores.length > 0;
   if (!hasStores) return "not_started";
 
   const hasStockSetup =
-    org.warehouses.length > 0 ||
-    org.stores.some((s) => s.stockLocations.length > 0);
+    warehouses.length > 0 ||
+    stores.some((s) => (s.stockLocations ?? []).length > 0);
   if (!hasStockSetup) return "stores_added";
 
-  const hasActivity = org.purchaseTrips.length > 0;
+  const hasActivity = trips.length > 0;
   if (!hasActivity) return "stock_ready";
 
   return "live";
