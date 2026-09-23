@@ -1,23 +1,94 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useLiveQuery } from "dexie-react-hooks";
+import { Boxes, Store, ChevronRight } from "lucide-react";
+import { db } from "@/db";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Tabs, type TabItem } from "@/components/ui/tabs/Tabs";
 import { SingleSelect } from "@/components/ui/SingleSelect";
-import type { Warehouse } from "@/db";
 import { useMember } from "@/features/auth/useMember";
 import { useEntitlements, hasPermission } from "@/features/auth/entitlements";
-import { useStoresByOrg } from "@/features/stores/stores";
+import { useStoresByOrg, type OrgStore } from "@/features/stores/stores";
 import { StockPlacementCard } from "@/features/inventory/placement/StockPlacementCard";
 import { StockRoomsManager } from "@/features/warehouses/StockRoomsManager";
-import { WarehouseEditCard } from "@/features/warehouses/WarehouseEditCard";
 import { useSetupOrg } from "../SetupWizardLayout";
 import { SetupStepFooter } from "./SetupStepFooter";
 
 /**
- * Wizard step 3 — stock setup. An org-wide stock-rooms section sits on top;
- * below, a store picker reveals a single "Store stock" card holding that
- * store's stock locations and its own stock rooms. Editing a specific stock
- * room takes the whole step over (option B — no nested cards). Everything
- * reuses the app's real components; the store is preselected from `?store=`.
+ * The selected store shown as an expandable row (parity with the stock-room
+ * accordion): expand to add/edit its stock locations (Floor › Section ›
+ * Rack/Zone). Locations write locally as you go; Save collapses the panel.
+ */
+function StoreStockRow({
+  store,
+  canDesign,
+}: {
+  store: OrgStore;
+  canDesign: boolean;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const locationCount = useLiveQuery(
+    async () =>
+      (await db.stock_locations.where("store_id").equals(store.id).toArray())
+        .filter((r) => !r.deleted_at).length,
+    [store.id],
+  );
+
+  return (
+    <div className="rounded-lg border border-border bg-bg-elevated">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="group flex w-full items-center gap-2 px-3 py-2 text-left"
+      >
+        <ChevronRight
+          size={16}
+          className={`shrink-0 text-fg-muted transition-transform ${expanded ? "rotate-90" : ""}`}
+        />
+        <span className="min-w-0 truncate font-medium text-fg group-hover:text-tt-green-600">
+          {store.name}
+        </span>
+        {store.store_code && (
+          <span className="shrink-0 text-xs text-fg-muted">
+            {store.store_code}
+          </span>
+        )}
+        {!!locationCount && (
+          <span className="shrink-0 text-xs text-fg-muted">
+            {locationCount} location{locationCount === 1 ? "" : "s"}
+          </span>
+        )}
+      </button>
+
+      {expanded && (
+        <div className="space-y-4 border-t border-border p-3">
+          <StockPlacementCard
+            owner={{ store_id: store.id, warehouse_id: null }}
+            canDesign={canDesign}
+            bare
+            title="Stock locations"
+            desc="Where stock sits in this store — floors, sections, racks, and zones. Optional."
+          />
+          {canDesign && (
+            <div className="flex justify-end border-t border-border pt-3">
+              <Button type="button" size="sm" onClick={() => setExpanded(false)}>
+                Save
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Wizard step 3 — stock setup, in two tabs. "Organization stock rooms" manages
+ * org-wide rooms; "Store stocks" picks a store to set up its stock locations and
+ * its own rooms. Stock rooms are an accordion — expand a room to add/edit its
+ * stock locations inline. The store is preselected from `?store=`.
  */
 export default function StockSetupStep() {
   const { org } = useSetupOrg();
@@ -25,7 +96,6 @@ export default function StockSetupStep() {
   const { data: entitlements } = useEntitlements(member?.id);
   const { data: stores } = useStoresByOrg(org.id);
   const [params, setParams] = useSearchParams();
-  const [editingRoom, setEditingRoom] = useState<Warehouse | null>(null);
 
   const canDesign = hasPermission(entitlements, "store.edit", {
     organizationId: org.id,
@@ -37,87 +107,75 @@ export default function StockSetupStep() {
 
   const selectedStore = (stores ?? []).find((s) => s.id === selectedStoreId);
 
-  // Option B: editing one stock room takes over the step.
-  if (editingRoom) {
-    return (
-      <div className="space-y-4">
-        <button
-          type="button"
-          onClick={() => setEditingRoom(null)}
-          className="text-sm font-medium text-fg-muted hover:text-fg"
+  const tabs: TabItem[] = [
+    {
+      id: "org-rooms",
+      label: "Organization stock rooms",
+      icon: <Boxes size={18} />,
+      content: (
+        <div id="org-stock-rooms">
+          <StockRoomsManager
+            orgId={org.id}
+            canDesign={canDesign}
+            title="Organization stock rooms"
+            desc="Org-wide storage not tied to one store — a central godown, transit hold, or shared warehouse. Expand a room to set up its stock locations (floors, sections, racks, zones)."
+          />
+        </div>
+      ),
+    },
+    {
+      id: "store-stock",
+      label: "Store stocks",
+      icon: <Store size={18} />,
+      content: (
+        <Card
+          title="Store stock"
+          desc="Pick a store to set up its stock locations (floors, sections, racks) and its own stock rooms."
+          actions={
+            <div className="w-56">
+              <SingleSelect
+                placeholder="Select a store…"
+                value={selectedStoreId}
+                onChange={(e) => setStore(e.target.value)}
+                options={(stores ?? []).map((s) => ({
+                  value: s.id,
+                  label: s.store_code ? `${s.name} (${s.store_code})` : s.name,
+                }))}
+              />
+            </div>
+          }
         >
-          ← Back to stock setup
-        </button>
-        <WarehouseEditCard
-          warehouse={editingRoom}
-          orgId={org.id}
-          canDesign={canDesign}
-        />
-      </div>
-    );
-  }
+          {!selectedStore ? (
+            <p className="text-sm text-fg-muted">
+              Select a store above to set up its stock locations and stock rooms.
+            </p>
+          ) : (
+            <div className="space-y-6">
+              <StoreStockRow store={selectedStore} canDesign={canDesign} />
+
+              <div className="border-t border-border pt-6">
+                <StockRoomsManager
+                  orgId={org.id}
+                  storeId={selectedStore.id}
+                  canDesign={canDesign}
+                  bare
+                  title="Stock rooms"
+                  desc="Storage this store uses off the selling floor — a backyard, understairs, or stockroom. Expand a room to set up its stock locations."
+                />
+              </div>
+            </div>
+          )}
+        </Card>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Org-wide stock rooms (not tied to a single store). */}
-      <div id="org-stock-rooms">
-        <StockRoomsManager
-          orgId={org.id}
-          canDesign={canDesign}
-          title="Organization stock rooms"
-          desc="Org-wide storage not tied to one store — a central godown, transit hold, or shared warehouse."
-          onEditRoom={setEditingRoom}
-        />
-      </div>
+      {/* Arriving from the Stores step (?store=) lands on the Store stocks tab. */}
+      <Tabs items={tabs} defaultActiveId={selectedStoreId ? "store-stock" : "org-rooms"} />
 
-      {/* One card for a store's stock: locations + its own rooms. */}
-      <Card
-        title="Store stock"
-        desc="Pick a store to set up its stock locations (floors, sections, racks) and its own stock rooms."
-        actions={
-          <div className="w-56">
-            <SingleSelect
-              placeholder="Select a store…"
-              value={selectedStoreId}
-              onChange={(e) => setStore(e.target.value)}
-              options={(stores ?? []).map((s) => ({
-                value: s.id,
-                label: s.store_code ? `${s.name} (${s.store_code})` : s.name,
-              }))}
-            />
-          </div>
-        }
-      >
-        {!selectedStore ? (
-          <p className="text-sm text-fg-muted">
-            Select a store above to set up its stock locations and stock rooms.
-          </p>
-        ) : (
-          <div className="space-y-6">
-            <StockPlacementCard
-              owner={{ store_id: selectedStore.id, warehouse_id: null }}
-              canDesign={canDesign}
-              bare
-              title="Stock locations"
-              desc="Where stock sits in this store — floors, sections, racks, and zones. Optional."
-            />
-
-            <div className="border-t border-border pt-6">
-              <StockRoomsManager
-                orgId={org.id}
-                storeId={selectedStore.id}
-                canDesign={canDesign}
-                bare
-                title="Stock rooms"
-                desc="Storage this store uses off the selling floor — a backyard, understairs, or stockroom."
-                onEditRoom={setEditingRoom}
-              />
-            </div>
-          </div>
-        )}
-      </Card>
-
-      <SetupStepFooter back="stores" next="go-live" nextLabel="Next: Go live →" />
+      <SetupStepFooter back="stores" next="members" nextLabel="Next: Members →" />
     </div>
   );
 }

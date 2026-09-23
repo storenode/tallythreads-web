@@ -100,6 +100,16 @@ export const storeRoutes: RouteObject[] = [
                         }),
                       },
                       {
+                        path: "members",
+                        lazy: async () => ({
+                          Component: (
+                            await import(
+                              "@/features/admin/setup/steps/MembersStep"
+                            )
+                          ).default,
+                        }),
+                      },
+                      {
                         path: "go-live",
                         lazy: async () => ({
                           Component: (

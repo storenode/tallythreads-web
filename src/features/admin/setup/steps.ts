@@ -1,4 +1,11 @@
-import { Building2, Store, Boxes, Rocket, type LucideIcon } from "lucide-react";
+import {
+  Building2,
+  Store,
+  Boxes,
+  Users,
+  Rocket,
+  type LucideIcon,
+} from "lucide-react";
 import type { OrganizationFullDetail } from "../organizations/organizations";
 
 /**
@@ -11,6 +18,7 @@ export type SetupStepKey =
   | "organization"
   | "stores"
   | "stock-setup"
+  | "members"
   | "go-live";
 
 export interface SetupStepDef {
@@ -25,6 +33,7 @@ export const SETUP_STEPS: SetupStepDef[] = [
   { key: "organization", label: "Organization", shortLabel: "Org", icon: Building2 },
   { key: "stores", label: "Stores", shortLabel: "Stores", icon: Store },
   { key: "stock-setup", label: "Stock setup", shortLabel: "Stock", icon: Boxes },
+  { key: "members", label: "Members", shortLabel: "People", icon: Users },
   { key: "go-live", label: "Go live", shortLabel: "Live", icon: Rocket },
 ];
 
@@ -83,6 +92,10 @@ export function completedSetupSteps(
     organization: true,
     stores: hasStores,
     "stock-setup": hasStock,
+    // Members step reads done once the org has a primary contact (Owner). The
+    // full per-store manager requirement is enforced at Go live (with a
+    // checklist), which needs membership data this summary doesn't carry.
+    members: org.primary_contact_member_id != null,
     "go-live": org.status === "active",
   };
 }

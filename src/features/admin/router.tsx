@@ -70,6 +70,13 @@ export const adminRoutes: RouteObject[] = [
                     }),
                   },
                   {
+                    path: "members",
+                    lazy: async () => ({
+                      Component: (await import("./setup/steps/MembersStep"))
+                        .default,
+                    }),
+                  },
+                  {
                     path: "go-live",
                     lazy: async () => ({
                       Component: (await import("./setup/steps/GoLiveStep"))

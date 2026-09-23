@@ -57,3 +57,45 @@ export function useArchivedStoresByOrg(organizationId: string | undefined) {
     enabled: !!organizationId,
   });
 }
+
+/** Per-store manager coverage for an org: `{ [storeId]: true }` when that store
+ * has at least one active `store_manager` membership. Backs the setup wizard's
+ * "every store needs a manager (its owner/in-charge)" go-live gate. */
+export async function fetchStoreManagerCoverage(
+  organizationId: string,
+): Promise<Record<string, boolean>> {
+  const { data: stores, error: storesError } = await supabase
+    .from("stores")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null);
+  if (storesError) throw storesError;
+
+  const ids = (stores ?? []).map((s) => s.id as string);
+  const coverage: Record<string, boolean> = {};
+  for (const id of ids) coverage[id] = false;
+  if (ids.length === 0) return coverage;
+
+  const { data: rows, error } = await supabase
+    .from("memberships")
+    .select("store_id, roles(name)")
+    .in("store_id", ids)
+    .is("deleted_at", null);
+  if (error) throw error;
+
+  for (const row of (rows ?? []) as unknown as {
+    store_id: string;
+    roles: { name: string } | null;
+  }[]) {
+    if (row.roles?.name === "store_manager") coverage[row.store_id] = true;
+  }
+  return coverage;
+}
+
+export function useStoreManagerCoverage(organizationId: string | undefined) {
+  return useQuery({
+    queryKey: ["org-portal", "store-manager-coverage", organizationId],
+    queryFn: () => fetchStoreManagerCoverage(organizationId as string),
+    enabled: !!organizationId,
+  });
+}

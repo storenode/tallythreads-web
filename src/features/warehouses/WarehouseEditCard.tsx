@@ -25,10 +25,16 @@ export function WarehouseEditCard({
   warehouse,
   orgId,
   canDesign,
+  showStoreAttach = true,
 }: {
   warehouse: Warehouse;
   orgId: string;
   canDesign: boolean;
+  /** Show the "Attached stores" section. Off for org-level stock rooms in the
+   * setup wizard — an org room is org-wide (implicitly serves all its stores),
+   * so per-store attachment isn't set here. On by default for the standalone
+   * stock-room page's mapping UI. */
+  showStoreAttach?: boolean;
 }) {
   const warehouseId = warehouse.id as string;
   const links = useWarehouseLinks(warehouseId);
@@ -107,38 +113,41 @@ export function WarehouseEditCard({
         </div>
       </Card>
 
-      <Card
-        title="Attached stores"
-        desc="Which stores draw stock from this stock room. A central godown serves many; a store's own backyard, one."
-      >
-        {(stores?.length ?? 0) === 0 ? (
-          <p className="text-sm text-fg-muted">No stores in this org yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {stores!.map((s) => (
-              <label
-                key={s.id}
-                className="flex items-center gap-2 rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  checked={attachedIds.has(s.id)}
-                  onChange={() => toggleStore(s.id)}
-                  disabled={!canDesign}
-                />
-                <span className="text-fg">{s.name}</span>
-                {s.store_code && (
-                  <span className="text-xs text-fg-muted">{s.store_code}</span>
-                )}
-              </label>
-            ))}
-          </div>
-        )}
-      </Card>
+      {showStoreAttach && (
+        <Card
+          title="Attached stores"
+          desc="Which stores draw stock from this stock room. A central godown serves many; a store's own backyard, one."
+        >
+          {(stores?.length ?? 0) === 0 ? (
+            <p className="text-sm text-fg-muted">No stores in this org yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {stores!.map((s) => (
+                <label
+                  key={s.id}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={attachedIds.has(s.id)}
+                    onChange={() => toggleStore(s.id)}
+                    disabled={!canDesign}
+                  />
+                  <span className="text-fg">{s.name}</span>
+                  {s.store_code && (
+                    <span className="text-xs text-fg-muted">{s.store_code}</span>
+                  )}
+                </label>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       <StockPlacementCard
         owner={{ store_id: null, warehouse_id: warehouseId }}
         canDesign={canDesign}
+        title="Stock locations"
         desc="Where stock sits inside this stock room — floors, sections, racks, and zones. Optional."
       />
     </div>

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   FormProvider,
-  useFieldArray,
   useForm,
   useFormContext,
   type Resolver,
@@ -203,84 +202,25 @@ function RegistrationDetailsFields() {
 /* Create                                                              */
 /* ------------------------------------------------------------------ */
 
-const MAX_INVITES = 3;
-
+// Create takes only the org's own fields now — no owner/primary-contact invites.
+// People are added (and mandated) later at the wizard's Members step, before an
+// org can go live. The RPC accepts an empty invites array, so no DB change.
 const createSchema = z
   .object({
     name: z.string().trim().min(1, "Organization name is required"),
     registration_type: z.enum(["independent", "chain", "franchise"]),
     is_demo: z.boolean(),
-    invites: z
-      .array(
-        z.object({
-          email: z.string().trim(),
-          role_name: z.enum(["org_owner", "org_manager", "org_accountant"]),
-          is_primary_contact: z.boolean(),
-        }),
-      )
-      .max(MAX_INVITES),
   })
-  .merge(registrationDetailsSchema)
-  .superRefine((val, ctx) => {
-    val.invites.forEach((row, i) => {
-      if (row.email && !z.string().email().safeParse(row.email).success) {
-        ctx.addIssue({
-          code: "custom",
-          message: "Enter a valid email address",
-          path: ["invites", i, "email"],
-        });
-      }
-    });
-
-    // Every organization must be created with an admin: at least one invited
-    // person, exactly one of them marked primary contact, and that person must
-    // hold the Owner role.
-    const filled = val.invites.filter((r) => r.email.trim());
-    if (filled.length === 0) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Add at least one invite — the organization needs a primary contact (Owner).",
-        path: ["invites", 0, "email"],
-      });
-      return;
-    }
-    const primaries = filled.filter((r) => r.is_primary_contact);
-    if (primaries.length === 0) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Mark one invite as the primary contact.",
-        path: ["invites"],
-      });
-    } else if (primaries.length > 1) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Only one invite can be the primary contact.",
-        path: ["invites"],
-      });
-    } else if (primaries[0].role_name !== "org_owner") {
-      ctx.addIssue({
-        code: "custom",
-        message: "The primary contact must have the Owner role.",
-        path: ["invites"],
-      });
-    }
-  });
+  .merge(registrationDetailsSchema);
 
 type CreateFormValues = z.infer<typeof createSchema>;
 
-const emptyInviteRow = (): CreateFormValues["invites"][number] => ({
-  email: "",
-  role_name: "org_owner",
-  is_primary_contact: false,
-});
-
 /**
- * The organization-create form body (core + registration + invites cards and
- * the Cancel / submit footer), without any page chrome. Extracted so both the
- * standalone "New organization" admin page and the setup wizard's first step
- * can drive the exact same create flow. On success it calls `onCreated` with
- * the new org and any non-fatal registration-details patch warning (the org
- * already exists by then, so a patch failure never blocks the caller).
+ * The organization-create form body (core + registration cards and the
+ * Cancel / submit footer), without any page chrome. On success it calls
+ * `onCreated` with the new org and any non-fatal registration-details patch
+ * warning (the org already exists by then, so a patch failure never blocks the
+ * caller). Owner/primary-contact are set later at the Members step.
  */
 export function OrganizationCreateForm({
   onCreated,
@@ -302,53 +242,16 @@ export function OrganizationCreateForm({
       name: "",
       registration_type: "" as RegistrationType,
       is_demo: false,
-      // Seed one Owner row already marked primary — every org needs an admin.
-      invites: [{ ...emptyInviteRow(), is_primary_contact: true }],
       ...registrationDetailsDefaults,
     },
   });
   const {
-    register,
-    control,
     handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
   } = form;
-
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "invites",
-  });
-  const watchedInvites = watch("invites");
-
-  // superRefine attaches the "needs an Owner primary contact" issues at the
-  // `invites` array root; RHF surfaces that as either `.message` or `.root.message`.
-  const invitesErrorNode = errors.invites as
-    | { message?: string; root?: { message?: string } }
-    | undefined;
-  const invitesError =
-    invitesErrorNode?.message ?? invitesErrorNode?.root?.message;
-
-  // Radio-like: checking one primary-contact box clears the others.
-  function setPrimary(index: number, checked: boolean) {
-    fields.forEach((_, i) => {
-      setValue(`invites.${i}.is_primary_contact`, checked && i === index, {
-        shouldDirty: true,
-      });
-    });
-  }
 
   const onSubmit = (values: CreateFormValues) =>
     withLoading(async () => {
       setServerError(null);
-      const invites = values.invites
-        .filter((row) => row.email.trim())
-        .map((row) => ({
-          email: row.email.trim(),
-          role_name: row.role_name,
-          is_primary_contact: row.is_primary_contact,
-        }));
 
       let org: Organization;
       try {
@@ -356,7 +259,8 @@ export function OrganizationCreateForm({
           name: values.name.trim(),
           registration_type: values.registration_type,
           is_demo: values.is_demo,
-          invites,
+          // No invites at creation — owner/primary contact added at Members step.
+          invites: [],
         });
       } catch (err) {
         setServerError(errorMessage(err, "Couldn't create the organization."));
@@ -417,75 +321,6 @@ export function OrganizationCreateForm({
             desc="Optional — you can also fill these in later from the edit page."
           >
             <RegistrationDetailsFields />
-          </Card>
-
-          <Card
-            title="Invites"
-            desc="Invite up to 3 people. Exactly one must be the primary contact, and that person must have the Owner role."
-            actions={
-              fields.length < MAX_INVITES ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => append(emptyInviteRow())}
-                >
-                  Add invite
-                </Button>
-              ) : null
-            }
-          >
-            {fields.length === 0 && (
-              <p className="text-sm text-fg-muted">No invites.</p>
-            )}
-
-            {fields.map((field, i) => (
-              <div
-                key={field.id}
-                className="space-y-3 rounded-xl border border-border p-4"
-              >
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Input
-                    label="Email"
-                    type="email"
-                    placeholder="person@example.com"
-                    error={errors.invites?.[i]?.email?.message}
-                    {...register(`invites.${i}.email`)}
-                  />
-                  <SingleSelect
-                    label="Role"
-                    placeholder={null}
-                    options={INVITE_ROLE_OPTIONS.map((o) => ({ ...o }))}
-                    {...register(`invites.${i}.role_name`)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
-                    <input
-                      type="checkbox"
-                      className="size-4 cursor-pointer rounded border-border accent-tt-green-500"
-                      checked={watchedInvites?.[i]?.is_primary_contact ?? false}
-                      onChange={(e) => setPrimary(i, e.target.checked)}
-                    />
-                    Primary contact
-                  </label>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => remove(i)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ))}
-
-            {invitesError && (
-              <p className="text-sm text-red-500">{invitesError}</p>
-            )}
           </Card>
 
           {serverError && <p className="text-sm text-red-500">{serverError}</p>}

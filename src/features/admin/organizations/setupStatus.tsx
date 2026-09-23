@@ -55,24 +55,19 @@ export const SETUP_STAGE_META: Record<
 /** Stores → stock setup (warehouses or stock locations) → activity (a
  * purchase trip) — each gate must clear before the next stage applies. */
 export function computeSetupStage(org: OrganizationFullDetail): SetupStage {
+  // Once the org has been activated (the wizard's Go-live sets status=active),
+  // it's live — regardless of whether it has any purchase-trip activity yet.
+  if (org.status === "active") return "live";
+
   // Defensive `?? []`: a cache write can briefly hand us a bare Organization
   // (no nested arrays) before the full detail refetches — never crash on it.
   const stores = org.stores ?? [];
-  const warehouses = org.warehouses ?? [];
-  const trips = org.purchaseTrips ?? [];
-
-  const hasStores = stores.length > 0;
-  if (!hasStores) return "not_started";
+  if (stores.length === 0) return "not_started";
 
   const hasStockSetup =
-    warehouses.length > 0 ||
+    (org.warehouses ?? []).length > 0 ||
     stores.some((s) => (s.stockLocations ?? []).length > 0);
-  if (!hasStockSetup) return "stores_added";
-
-  const hasActivity = trips.length > 0;
-  if (!hasActivity) return "stock_ready";
-
-  return "live";
+  return hasStockSetup ? "stock_ready" : "stores_added";
 }
 
 export function SetupProgressBar({ org }: { org: OrganizationFullDetail }) {
