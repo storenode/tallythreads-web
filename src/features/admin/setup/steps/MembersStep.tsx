@@ -170,10 +170,12 @@ function BackLink({ onClick }: { onClick: () => void }) {
 function OrgMemberEditForm({
   orgId,
   memberId,
+  isPrimaryContact,
   onDone,
 }: {
   orgId: string;
   memberId: string;
+  isPrimaryContact: boolean;
   onDone: () => void;
 }) {
   const { data: detail, isLoading, isError } = useOrgMemberDetail(orgId, memberId);
@@ -193,6 +195,7 @@ function OrgMemberEditForm({
         email: detail.email,
         roleName: detail.roleName,
         initialValues: detail,
+        isPrimaryContact,
       }}
       onSuccess={onDone}
       onCancel={onDone}
@@ -449,7 +452,9 @@ export default function MembersStep() {
   const ownerEmail =
     (orgMembers ?? []).find((m) => m.roleName === "org_owner")?.email ?? null;
 
-  const selectedStoreId = params.get("store") ?? "";
+  // Default the Store members tab to the first store when none is in the URL.
+  const paramStoreId = params.get("store") ?? "";
+  const selectedStoreId = paramStoreId || (stores?.[0]?.id ?? "");
   const setStore = (id: string) =>
     setParams(id ? { store: id } : {}, { replace: true });
   const selectedStore = (stores ?? []).find((s) => s.id === selectedStoreId);
@@ -477,6 +482,7 @@ export default function MembersStep() {
             <OrgMemberEditForm
               orgId={org.id}
               memberId={view.memberId}
+              isPrimaryContact={org.primary_contact_member_id === view.memberId}
               onDone={backToList}
             />
           )}
@@ -571,7 +577,7 @@ export default function MembersStep() {
     <div className="space-y-6">
       <Tabs
         items={tabs}
-        defaultActiveId={selectedStoreId ? "store-members" : "org-members"}
+        defaultActiveId={paramStoreId ? "store-members" : "org-members"}
       />
       <SetupStepFooter back="stock-setup" next="go-live" nextLabel="Next: Go live →" />
     </div>

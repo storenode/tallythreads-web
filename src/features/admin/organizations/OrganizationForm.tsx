@@ -81,7 +81,6 @@ const registrationDetailsSchema = z.object({
   state: z.string(),
   pincode: z.string(),
   country: z.string(),
-  primary_contact_phone: z.string(),
   website: z.string(),
   financial_year_start_month: z
     .string()
@@ -107,7 +106,6 @@ const registrationDetailsDefaults: RegistrationDetailsValues = {
   state: "",
   pincode: "",
   country: "",
-  primary_contact_phone: "",
   website: "",
   financial_year_start_month: "",
   preferred_language: "",
@@ -129,7 +127,6 @@ const REG_TEXT_FIELDS: {
   { name: "state", label: "State" },
   { name: "pincode", label: "Pincode" },
   { name: "country", label: "Country" },
-  { name: "primary_contact_phone", label: "Primary contact phone" },
   { name: "website", label: "Website", type: "url" },
   { name: "preferred_language", label: "Preferred language" },
 ];
@@ -144,7 +141,6 @@ const NULLABLE_TEXT_KEYS = [
   "state",
   "pincode",
   "country",
-  "primary_contact_phone",
   "website",
   "preferred_language",
   "notes",
@@ -414,7 +410,6 @@ function toDefaults(org: Organization): EditFormValues {
     state: s(org.state),
     pincode: s(org.pincode),
     country: s(org.country),
-    primary_contact_phone: s(org.primary_contact_phone),
     website: s(org.website),
     financial_year_start_month:
       org.financial_year_start_month != null

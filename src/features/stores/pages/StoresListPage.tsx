@@ -4,6 +4,8 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { useArchivedStoresByOrg, useStoresByOrg } from "../stores";
+import { useOrganization } from "@/features/admin/organizations/organizations";
+import { canAddStore, storeLimitReason } from "@/features/admin/organizations/orgPolicy";
 import { WarehousesGrid } from "@/features/warehouses/WarehousesGrid";
 import { WarehouseMap } from "@/features/warehouses/WarehouseMap";
 
@@ -11,6 +13,13 @@ export default function StoresListPage() {
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
   const { data: stores, isLoading, isError } = useStoresByOrg(orgId);
+  const { data: org } = useOrganization(orgId);
+
+  const addAllowed = canAddStore(
+    org?.registration_type ?? null,
+    stores?.length ?? 0,
+  );
+  const limitReason = storeLimitReason(org?.registration_type ?? null);
 
   const [showArchived, setShowArchived] = useState(false);
   const {
@@ -31,7 +40,12 @@ export default function StoresListPage() {
             >
               New stock room
             </Button>
-            <Button size="sm" onClick={() => navigate(`/org/${orgId}/stores/new`)}>
+            <Button
+              size="sm"
+              onClick={() => navigate(`/org/${orgId}/stores/new`)}
+              disabled={!addAllowed}
+              title={!addAllowed && limitReason ? limitReason : undefined}
+            >
               New store
             </Button>
           </div>
@@ -39,6 +53,10 @@ export default function StoresListPage() {
       >
         Stores
       </PageHeading>
+
+      {!addAllowed && limitReason && (
+        <p className="text-xs text-fg-muted">{limitReason}</p>
+      )}
 
       {isLoading && (
         <div className="flex justify-center py-16">

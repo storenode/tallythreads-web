@@ -310,6 +310,30 @@ export async function updateStoreMemberProfile(
   if (error) throw error;
 }
 
+/** Changes a store member's role in place — a direct membership UPDATE, allowed
+ * by the memberships UPDATE RLS (platform_admin / store staff.revoke). */
+export async function updateStoreMemberRole(
+  storeId: string,
+  memberId: string,
+  roleName: string,
+): Promise<void> {
+  const { data: role, error: roleError } = await supabase
+    .from("roles")
+    .select("id")
+    .eq("name", roleName)
+    .eq("scope_type", "store")
+    .single();
+  if (roleError) throw roleError;
+
+  const { error } = await supabase
+    .from("memberships")
+    .update({ role_id: role.id, last_modified_at: new Date().toISOString() })
+    .eq("store_id", storeId)
+    .eq("member_id", memberId)
+    .is("deleted_at", null);
+  if (error) throw error;
+}
+
 export interface InviteStoreMemberInput extends MemberProfileFields {
   email: string;
   role_name: string;
@@ -464,6 +488,32 @@ export function useUpdateStoreMemberProfile(storeId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: storeMembersKey(storeId) });
       queryClient.invalidateQueries({
         queryKey: storeMemberDetailKey(storeId, memberId),
+      });
+    },
+  });
+}
+
+export function useUpdateStoreMemberRole(storeId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      memberId,
+      roleName,
+    }: {
+      memberId: string;
+      roleName: string;
+    }) => updateStoreMemberRole(storeId!, memberId, roleName),
+    onSuccess: (_void, { memberId }) => {
+      queryClient.invalidateQueries({ queryKey: storeMembersKey(storeId) });
+      queryClient.invalidateQueries({
+        queryKey: storeMemberDetailKey(storeId, memberId),
+      });
+      // A manager change moves the store's go-live coverage/summary.
+      queryClient.invalidateQueries({
+        queryKey: ["org-portal", "store-manager-coverage"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["org-portal", "store-member-summary"],
       });
     },
   });

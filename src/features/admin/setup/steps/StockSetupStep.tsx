@@ -101,7 +101,9 @@ export default function StockSetupStep() {
     organizationId: org.id,
   });
 
-  const selectedStoreId = params.get("store") ?? "";
+  // Default the Store stocks tab to the first store when none is in the URL.
+  const paramStoreId = params.get("store") ?? "";
+  const selectedStoreId = paramStoreId || (stores?.[0]?.id ?? "");
   const setStore = (id: string) =>
     setParams(id ? { store: id } : {}, { replace: true });
 
@@ -173,7 +175,7 @@ export default function StockSetupStep() {
   return (
     <div className="space-y-6">
       {/* Arriving from the Stores step (?store=) lands on the Store stocks tab. */}
-      <Tabs items={tabs} defaultActiveId={selectedStoreId ? "store-stock" : "org-rooms"} />
+      <Tabs items={tabs} defaultActiveId={paramStoreId ? "store-stock" : "org-rooms"} />
 
       <SetupStepFooter back="stores" next="members" nextLabel="Next: Members →" />
     </div>

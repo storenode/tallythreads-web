@@ -99,3 +99,52 @@ export function useStoreManagerCoverage(organizationId: string | undefined) {
     enabled: !!organizationId,
   });
 }
+
+export interface StoreMemberSummary {
+  count: number;
+  hasManager: boolean;
+}
+
+/** Per-store member summary for an org: `{ [storeId]: { count, hasManager } }`.
+ * Backs the Go-live review (members-per-store table) and its manager gate. */
+export async function fetchStoreMemberSummary(
+  organizationId: string,
+): Promise<Record<string, StoreMemberSummary>> {
+  const { data: stores, error: storesError } = await supabase
+    .from("stores")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null);
+  if (storesError) throw storesError;
+
+  const ids = (stores ?? []).map((s) => s.id as string);
+  const summary: Record<string, StoreMemberSummary> = {};
+  for (const id of ids) summary[id] = { count: 0, hasManager: false };
+  if (ids.length === 0) return summary;
+
+  const { data: rows, error } = await supabase
+    .from("memberships")
+    .select("store_id, roles(name)")
+    .in("store_id", ids)
+    .is("deleted_at", null);
+  if (error) throw error;
+
+  for (const row of (rows ?? []) as unknown as {
+    store_id: string;
+    roles: { name: string } | null;
+  }[]) {
+    const s = summary[row.store_id];
+    if (!s) continue;
+    s.count += 1;
+    if (row.roles?.name === "store_manager") s.hasManager = true;
+  }
+  return summary;
+}
+
+export function useStoreMemberSummary(organizationId: string | undefined) {
+  return useQuery({
+    queryKey: ["org-portal", "store-member-summary", organizationId],
+    queryFn: () => fetchStoreMemberSummary(organizationId as string),
+    enabled: !!organizationId,
+  });
+}

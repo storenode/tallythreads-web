@@ -600,6 +600,10 @@ export async function fetchOrgMemberDetail(
     )
     .eq("organization_id", orgId)
     .eq("member_id", memberId)
+    // Org-scoped membership only. Store memberships also carry the parent
+    // organization_id, so without this filter a member who is both an org member
+    // and a store member returns two rows and .single() fails (PGRST116).
+    .is("store_id", null)
     .is("deleted_at", null)
     .single();
   if (error) throw error;
@@ -640,6 +644,53 @@ export async function updateOrgMemberProfile(
     ...memberProfileRpcParams(input),
   });
   if (error) throw error;
+}
+
+/**
+ * Changes an org member's role in place (and their primary-contact flag) — a
+ * direct membership UPDATE, allowed by the memberships UPDATE RLS
+ * (platform_admin / org.manage_members). Kept in place (no revoke + re-invite)
+ * so the membership id is preserved and no duplicate rows appear.
+ */
+export async function updateOrgMemberRole(
+  orgId: string,
+  memberId: string,
+  roleName: "org_owner" | "org_manager" | "org_accountant",
+  isPrimaryContact: boolean,
+): Promise<void> {
+  const { data: role, error: roleError } = await supabase
+    .from("roles")
+    .select("id")
+    .eq("name", roleName)
+    .eq("scope_type", "organization")
+    .single();
+  if (roleError) throw roleError;
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("memberships")
+    .update({ role_id: role.id, last_modified_at: now })
+    .eq("organization_id", orgId)
+    .eq("member_id", memberId)
+    .is("store_id", null)
+    .is("deleted_at", null);
+  if (error) throw error;
+
+  if (isPrimaryContact) {
+    const { error: pcError } = await supabase
+      .from("organizations")
+      .update({ primary_contact_member_id: memberId, last_modified_at: now })
+      .eq("id", orgId);
+    if (pcError) throw pcError;
+  } else {
+    // Only clear it if THIS member currently holds it (don't clobber another's).
+    const { error: pcError } = await supabase
+      .from("organizations")
+      .update({ primary_contact_member_id: null, last_modified_at: now })
+      .eq("id", orgId)
+      .eq("primary_contact_member_id", memberId);
+    if (pcError) throw pcError;
+  }
 }
 
 export interface InviteOrgMemberInput extends MemberProfileFields {
@@ -889,6 +940,29 @@ export function useUpdateOrgMemberProfile(orgId: string | undefined) {
       queryClient.invalidateQueries({
         queryKey: orgMemberDetailKey(orgId, memberId),
       });
+    },
+  });
+}
+
+export function useUpdateOrgMemberRole(orgId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      memberId,
+      roleName,
+      isPrimaryContact,
+    }: {
+      memberId: string;
+      roleName: "org_owner" | "org_manager" | "org_accountant";
+      isPrimaryContact: boolean;
+    }) => updateOrgMemberRole(orgId!, memberId, roleName, isPrimaryContact),
+    onSuccess: (_void, { memberId }) => {
+      queryClient.invalidateQueries({ queryKey: orgMembersKey(orgId) });
+      queryClient.invalidateQueries({
+        queryKey: orgMemberDetailKey(orgId, memberId),
+      });
+      // Primary contact lives on the org row — refresh org list/detail too.
+      queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_KEY });
     },
   });
 }

@@ -17,10 +17,12 @@ import { roleDisplayName } from "@/features/admin/roles/roles";
 import {
   useInviteOrganizationMember,
   useUpdateOrgMemberProfile,
+  useUpdateOrgMemberRole,
 } from "@/features/admin/organizations/organizations";
 import {
   useInviteStoreMember,
   useUpdateStoreMemberProfile,
+  useUpdateStoreMemberRole,
 } from "@/features/stores/storesAdmin";
 import type { MemberProfileFields } from "./types";
 
@@ -93,6 +95,8 @@ export interface MemberEditContext {
   email: string;
   roleName: string;
   initialValues: MemberProfileFields;
+  /** Whether this member is currently the org's primary contact (org scope). */
+  isPrimaryContact?: boolean;
 }
 
 interface MemberFormProps {
@@ -141,6 +145,8 @@ export function MemberForm({
   const inviteStoreMember = useInviteStoreMember(storeId);
   const updateOrgMember = useUpdateOrgMemberProfile(organizationId);
   const updateStoreMember = useUpdateStoreMemberProfile(storeId);
+  const updateOrgRole = useUpdateOrgMemberRole(organizationId);
+  const updateStoreRole = useUpdateStoreMemberRole(storeId);
 
   const { isLoading, withLoading } = useLoadingGate();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -148,7 +154,10 @@ export function MemberForm({
   const form = useForm<MemberFormValues>({
     resolver: zodResolver(memberFormSchema) as Resolver<MemberFormValues>,
     defaultValues: isEditing
-      ? emptyDefaults(edit.email, edit.roleName, edit.initialValues)
+      ? {
+          ...emptyDefaults(edit.email, edit.roleName, edit.initialValues),
+          is_primary_contact: edit.isPrimaryContact ?? false,
+        }
       : emptyDefaults("", isStoreScoped ? STORE_ROLE_NAMES[0] : "org_manager"),
   });
   const { handleSubmit } = form;
@@ -174,16 +183,35 @@ export function MemberForm({
 
       try {
         if (isEditing) {
+          const roleChanged = values.role_name !== edit.roleName;
           if (isStoreScoped) {
             await updateStoreMember.mutateAsync({
               memberId: edit.memberId,
               input: profileFields,
             });
+            if (roleChanged) {
+              await updateStoreRole.mutateAsync({
+                memberId: edit.memberId,
+                roleName: values.role_name,
+              });
+            }
           } else {
             await updateOrgMember.mutateAsync({
               memberId: edit.memberId,
               input: profileFields,
             });
+            const primaryChanged =
+              values.is_primary_contact !== (edit.isPrimaryContact ?? false);
+            if (roleChanged || primaryChanged) {
+              await updateOrgRole.mutateAsync({
+                memberId: edit.memberId,
+                roleName: values.role_name as
+                  | "org_owner"
+                  | "org_manager"
+                  | "org_accountant",
+                isPrimaryContact: values.is_primary_contact,
+              });
+            }
           }
         } else if (isStoreScoped) {
           await inviteStoreMember.mutateAsync({
@@ -229,9 +257,8 @@ export function MemberForm({
           >
             <MemberRoleFields
               roleOptions={roleOptions}
-              showPrimaryContact={!isStoreScoped && !isEditing}
-              readOnly={isEditing}
-              readOnlyRoleLabel={isEditing ? roleDisplayName(edit.roleName) : undefined}
+              showPrimaryContact={!isStoreScoped}
+              emailReadOnly={isEditing}
             />
           </Card>
 
@@ -275,17 +302,13 @@ export function MemberForm({
 function MemberRoleFields({
   roleOptions,
   showPrimaryContact,
-  readOnly,
-  readOnlyRoleLabel,
+  emailReadOnly,
 }: {
   roleOptions: { value: string; label: string }[];
   showPrimaryContact: boolean;
-  readOnly: boolean;
-  /** The current role's display label, resolved by the parent from edit.roleName —
-   * passed directly rather than re-derived here because the member's actual role
-   * may not even be in `roleOptions` (e.g. roleOptions lists creatable roles for
-   * this scope; an edited member could in principle hold a role outside that set). */
-  readOnlyRoleLabel?: string;
+  /** Email is the member's identity — read-only when editing (changing it is a
+   * separate identity swap). The role, unlike email, IS editable in edit mode. */
+  emailReadOnly: boolean;
 }) {
   const {
     register,
@@ -299,21 +322,17 @@ function MemberRoleFields({
         type="email"
         placeholder="person@example.com"
         error={errors.email?.message}
-        disabled={readOnly}
+        disabled={emailReadOnly}
         {...register("email")}
       />
-      {readOnly ? (
-        <Input label="Role" value={readOnlyRoleLabel ?? ""} disabled readOnly />
-      ) : (
-        <SingleSelect
-          label="Role"
-          placeholder={null}
-          options={roleOptions}
-          error={Boolean(errors.role_name)}
-          hint={errors.role_name?.message}
-          {...register("role_name")}
-        />
-      )}
+      <SingleSelect
+        label="Role"
+        placeholder={null}
+        options={roleOptions}
+        error={Boolean(errors.role_name)}
+        hint={errors.role_name?.message}
+        {...register("role_name")}
+      />
       {showPrimaryContact && (
         <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
           <input

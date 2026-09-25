@@ -14,6 +14,7 @@ import {
   useStore,
   useUpdateStore,
 } from "@/features/stores/storesAdmin";
+import { canAddStore, storeLimitReason } from "../../organizations/orgPolicy";
 import { useSetupNav, useSetupOrg } from "../SetupWizardLayout";
 import { SetupStepFooter } from "./SetupStepFooter";
 
@@ -242,6 +243,8 @@ export default function StoresStep() {
   }
 
   const storeCount = stores?.length ?? 0;
+  const addAllowed = canAddStore(org.registration_type, storeCount);
+  const limitReason = storeLimitReason(org.registration_type);
 
   return (
     <div className="space-y-6">
@@ -249,7 +252,11 @@ export default function StoresStep() {
         title="Stores"
         desc="Add every branch this organization runs. Click a store to edit it."
         actions={
-          <Button size="sm" onClick={() => setView({ mode: "create" })}>
+          <Button
+            size="sm"
+            onClick={() => setView({ mode: "create" })}
+            disabled={!addAllowed}
+          >
             Add store
           </Button>
         }
@@ -261,6 +268,9 @@ export default function StoresStep() {
         )}
         {isError && (
           <p className="text-sm text-red-500">Couldn&apos;t load stores.</p>
+        )}
+        {!isLoading && !addAllowed && limitReason && (
+          <p className="mb-2 text-xs text-fg-muted">{limitReason}</p>
         )}
         {!isLoading && !isError && storeCount === 0 && (
           <p className="text-sm text-fg-muted">
