@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   FormProvider,
   useForm,
@@ -13,18 +13,13 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { SingleSelect } from "@/components/ui/SingleSelect";
 import { Card } from "@/components/ui/Card";
-import { PageHeading } from "@/components/ui/PageHeading";
-import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/Spinner";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { useLoadingGate } from "@/hooks/useLoadingGate";
 import { LogoUpload } from "@/components/ui/LogoUpload";
 import { OrganizationCoreFields } from "./OrganizationCoreFields";
-import { FranchiseCard } from "../franchises/FranchiseCard";
 import {
-  useArchiveOrganization,
   useCreateOrganization,
-  useOrganization,
   useOrganizationMembers,
   useRevokeOrganizationMember,
   useUpdateOrganization,
@@ -35,8 +30,6 @@ import {
   type RegistrationType,
   type UpdateOrganizationInput,
 } from "./organizations";
-
-const LIST_PATH = "/admin/organizations";
 
 const INVITE_ROLE_OPTIONS = [
   { value: "org_owner", label: "Owner" },
@@ -340,39 +333,6 @@ export function OrganizationCreateForm({
   );
 }
 
-/**
- * Standalone "New organization" admin page — thin wrapper around
- * {@link OrganizationCreateForm} that returns to the organizations list on
- * success (surfacing any registration-details patch warning as router state)
- * or cancel.
- */
-export default function OrganizationCreatePage() {
-  const navigate = useNavigate();
-  return (
-    <div className="space-y-6">
-      <PageHeading
-        action={
-          <Button variant="ghost" size="sm" onClick={() => navigate(LIST_PATH)}>
-            Cancel
-          </Button>
-        }
-      >
-        New organization
-      </PageHeading>
-
-      <OrganizationCreateForm
-        onCreated={(_org, warning) =>
-          navigate(
-            LIST_PATH,
-            warning ? { state: { warning } } : undefined,
-          )
-        }
-        onCancel={() => navigate(LIST_PATH)}
-      />
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /* Edit                                                                */
 /* ------------------------------------------------------------------ */
@@ -627,35 +587,6 @@ export function MembersCard({ org }: { org: Organization }) {
   );
 }
 
-export function OrganizationEditPage() {
-  const { orgId } = useParams<{ orgId: string }>();
-  const { data: org, isLoading, isError } = useOrganization(orgId);
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-16">
-        <Spinner size={28} />
-      </div>
-    );
-  }
-
-  if (isError || !org || !orgId) {
-    return (
-      <div className="space-y-4">
-        <PageHeading>Organization not found</PageHeading>
-        <p className="text-sm text-fg-muted">
-          This organization doesn&apos;t exist or couldn&apos;t be loaded.
-        </p>
-        <Link to={LIST_PATH} className="text-sm font-medium text-tt-green-600">
-          ← Back to organizations
-        </Link>
-      </div>
-    );
-  }
-
-  return <EditForm org={org} orgId={orgId} />;
-}
-
 /**
  * The organization edit form itself — core + registration cards, logo, and the
  * Save / Cancel row. Self-contained (owns its useForm, patch-building and
@@ -780,104 +711,5 @@ export function OrganizationEditFormCard({
         </form>
       </FormProvider>
     </>
-  );
-}
-
-function EditForm({ org, orgId }: { org: Organization; orgId: string }) {
-  const navigate = useNavigate();
-  const archiveOrg = useArchiveOrganization();
-  const { isLoading, withLoading } = useLoadingGate();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
-  const handleArchive = () =>
-    withLoading(async () => {
-      setServerError(null);
-      try {
-        await archiveOrg.mutateAsync(orgId);
-        navigate(LIST_PATH);
-      } catch (err) {
-        setConfirmOpen(false);
-        setServerError(errorMessage(err, "Couldn't archive the organization."));
-      }
-    });
-
-  return (
-    <div className="space-y-6">
-      <LoadingOverlay show={isLoading} scope="page" label="Archiving…" />
-
-      <PageHeading
-        action={
-          <Link
-            to={LIST_PATH}
-            className="text-sm font-medium text-fg-muted hover:text-fg"
-          >
-            ← Back
-          </Link>
-        }
-      >
-        {org.name}
-      </PageHeading>
-
-      {!org.primary_contact_member_id && (
-        <p className="rounded-lg border border-warning-text/40 bg-warning-bg px-3 py-2 text-sm text-warning-text">
-          This organization has no primary contact. Assign one from the Members
-          section below.
-        </p>
-      )}
-
-      <OrganizationEditFormCard org={org} orgId={orgId} doneTo={LIST_PATH} />
-
-      <MembersCard org={org} />
-
-      <FranchiseCard org={org} />
-
-      <Card title="Danger zone">
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-sm text-fg-muted">
-            Archiving hides this organization from the console. It can be
-            restored later by an engineer.
-          </p>
-          <Button
-            type="button"
-            variant="ghost"
-            className="border-red-500/50 text-red-500 hover:enabled:bg-red-500/10"
-            onClick={() => setConfirmOpen(true)}
-            disabled={isLoading}
-          >
-            Archive
-          </Button>
-        </div>
-      </Card>
-
-      {serverError && <p className="text-sm text-red-500">{serverError}</p>}
-
-      <Modal
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        title="Archive organization?"
-      >
-        <p className="text-sm text-fg-muted">
-          <span className="font-medium text-fg">{org.name}</span> will be
-          soft-deleted and removed from the console.
-        </p>
-        <div className="mt-6 flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setConfirmOpen(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            className="bg-red-500 hover:enabled:bg-red-600"
-            onClick={handleArchive}
-          >
-            Archive
-          </Button>
-        </div>
-      </Modal>
-    </div>
   );
 }
