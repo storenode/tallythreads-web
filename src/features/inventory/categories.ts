@@ -15,6 +15,21 @@ import {
 
 const INVENTORY_CATEGORIES = "inventory_categories";
 
+/** Common cloth-store departments offered as ready checkboxes (custom ones can be added).
+ * Shared by the store Categories card and the demo seeder so demo stores tick the same boxes. */
+export const STANDARD_CATEGORIES: readonly string[] = [
+  "Sarees",
+  "Dress Materials",
+  "Readymade",
+  "Kids Wear",
+  "Men's Wear",
+  "Women's Wear",
+  "Blouse Pieces & Falls",
+  "Home Furnishing",
+  "Dhotis & Towels",
+  "Accessories",
+];
+
 export function createCategory(data: Omit<InventoryCategory, keyof SyncMeta>) {
   return createRow(INVENTORY_CATEGORIES, db.inventory_categories, data);
 }

@@ -14,7 +14,7 @@ Every flow runs twice: `desktop`, and `mobile-375`, a 375px phone viewport (cons
 | Spec | Happy path |
 |---|---|
 | `auth.spec.ts` | A demo launch link (`demo-login` issue → `/demo/launch` redeem) signs the org owner in and lands in `/org/:orgId`; the admin session opens the admin console |
-| `org-setup-wizard.spec.ts` | Admin: Organization (demo, trial) → Stores → Stock setup (stock room) → Members (owner + primary contact, "Owner manages this store") → **Go live**; verifies `status = active` in the DB |
+| `org-setup-wizard.spec.ts` | Admin: Organization (demo, trial) → Stores (+ categories: 2 standard + 1 custom, re-checked and synced) → Stock setup (stock room) → Members (owner + primary contact, "Owner manages this store") → **Go live**; verifies `status = active` in the DB |
 | `purchase-trip.spec.ts` | Owner: plan → start → manual invoice + item → expense → **landed ₹1,050.00 / MRP ₹1,260.00** → complete; verifies the sync to Supabase |
 | `deliveries.spec.ts` | Owner: Pending → In Transit → Received (list buttons) → item check gates Verify → Verified → **Ready for Inventory**; verifies the DB |
 | `offline-sync.spec.ts` | Owner: create a trip **offline** → Dexie row `_dirty = 1`, not on the server → reconnect → synced to Supabase, "Synced ✓" (§2.I, §7.2, §7.4) |

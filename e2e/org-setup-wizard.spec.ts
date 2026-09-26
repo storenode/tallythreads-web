@@ -2,7 +2,7 @@ import { clientFor } from "./support/api";
 import { expect, test } from "./support/fixtures";
 
 // Happy path 2 — the Organization Setup Wizard, driven by the platform admin:
-// Organization → Stores → Stock setup → Members → Go live.
+// Organization → Stores (+ inventory categories) → Stock setup → Members → Go live.
 // The org is created with "Demo organization" ticked and hard-deleted afterwards.
 
 test("admin sets up a new organization end to end and takes it live", async ({
@@ -16,6 +16,8 @@ test("admin sets up a new organization end to end and takes it live", async ({
   const storeCode = `E2E-${tag.slice(-4).toUpperCase()}`;
   const ownerEmail = `e2e.wizard.${tag}@example.com`;
   const roomName = `E2E Godown ${tag}`;
+  const customCategory = `E2E Bridal ${tag}`;
+  const categories = ["Sarees", "Kids Wear", customCategory];
 
   // --- Step 1: Organization -------------------------------------------------------
   await page.goto("/admin/setup/new");
@@ -37,6 +39,28 @@ test("admin sets up a new organization end to end and takes it live", async ({
   await page.getByLabel("Store code").fill(storeCode);
   await page.getByRole("button", { name: "Add store" }).click();
   await expect(page.getByRole("button", { name: storeName })).toBeVisible();
+
+  // Categories live on the store's edit form (they need a store id) and save with it.
+  await page.getByRole("button", { name: storeName }).click();
+  await expect(page.getByRole("heading", { name: "Categories" })).toBeVisible();
+  await page.getByLabel("Sarees", { exact: true }).check();
+  await page.getByLabel("Kids Wear", { exact: true }).check();
+  await page.getByRole("button", { name: "+ Add category" }).click();
+  // Enter adds the custom category (and must not submit the store form).
+  await page.getByPlaceholder("New category (e.g. Wedding Collection)").fill(customCategory);
+  await page.getByPlaceholder("New category (e.g. Wedding Collection)").press("Enter");
+  await expect(page.getByLabel(customCategory, { exact: true })).toBeChecked();
+  await expect(page.getByRole("heading", { name: "Edit store" })).toBeVisible();
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Add every branch this organization runs.")).toBeVisible();
+
+  // Reopening the store shows the saved selection (offline-first: read back from Dexie).
+  await page.getByRole("button", { name: storeName }).click();
+  for (const name of categories) {
+    await expect(page.getByLabel(name, { exact: true })).toBeChecked();
+  }
+  await expect(page.getByLabel("Readymade", { exact: true })).not.toBeChecked();
+  await page.getByRole("button", { name: "Cancel" }).click();
 
   await page.getByRole("button", { name: "Next: Stock setup →" }).click();
 
@@ -81,7 +105,7 @@ test("admin sets up a new organization end to end and takes it live", async ({
   const db = clientFor(env, env.adminJwt);
   const { data: org, error } = await db
     .from("organizations")
-    .select("status, is_demo, primary_contact_member_id, stores(name, store_code)")
+    .select("status, is_demo, primary_contact_member_id, stores(id, name, store_code)")
     .eq("id", orgId)
     .single();
   expect(error).toBeNull();
@@ -91,4 +115,20 @@ test("admin sets up a new organization end to end and takes it live", async ({
     stores: [{ name: storeName, store_code: storeCode }],
   });
   expect(org!.primary_contact_member_id).not.toBeNull();
+
+  // Categories were written through Dexie → outbox; the sync push lands them server-side.
+  const storeId = (org!.stores as { id: string }[])[0].id;
+  await expect
+    .poll(
+      async () => {
+        const { data } = await db
+          .from("inventory_categories")
+          .select("name, organization_id")
+          .eq("store_id", storeId)
+          .is("deleted_at", null);
+        return (data ?? []).map((c) => `${c.name}|${c.organization_id}`).sort();
+      },
+      { message: "the store's categories should sync to Supabase", timeout: 90_000 },
+    )
+    .toEqual(categories.map((name) => `${name}|${orgId}`).sort());
 });

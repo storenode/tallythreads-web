@@ -14,6 +14,7 @@ import {
 } from "@/features/stores/storesAdmin";
 import { seedDemoPurchaseTrips } from "./purchaseTrips.demo";
 import { seedDemoWarehouses } from "./warehouses.demo";
+import { seedDemoStoreCategories } from "./categories.demo";
 import {
   createStorePlacements,
   demoPlacementFor,
@@ -353,8 +354,10 @@ export function useCreateChainDemo() {
           email: s.salesStaff.email.trim(),
           role_name: "store_sales_staff",
         });
-        // Placement is seeded via direct server inserts once the store exists.
-        await createStorePlacements(store.id, s.placement ?? []);
+        // Categories + placement are seeded via direct server inserts once the store
+        // exists — categories first, so placement sections can be tagged with one.
+        const categoryIds = await seedDemoStoreCategories(org.id, store.id, "chain");
+        await createStorePlacements(store.id, s.placement ?? [], categoryIds);
         createdStores.push(store);
       }
 

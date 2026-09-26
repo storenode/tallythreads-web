@@ -24,6 +24,13 @@ Each store defines its own **categories/departments** (Sarees, Dress Material, K
 - **Offline:** Dexie v11 `inventory_categories` + `stock_locations.category_id`; synced via the
   outbox (categories push before locations). Data layer: `src/features/inventory/categories.ts`.
 - RLS: `has_store_permission` — read `inventory.read`, write `inventory.write`.
+- **Demo (`/admin/demo`):** every demo store is seeded with categories by org type
+  (`categories.demo.ts` — independent: Sarees / Dress Materials / Readymade / Blouse Pieces & Falls;
+  chain: Men's / Women's / Kids Wear / Sarees / Home Furnishing; franchise (Bandrip): custom
+  "Streetwear" + Accessories) via direct server insert, **before** the placement tree, so demo
+  sections/zones carry a `category_id` (e.g. the "Sarees" section → Sarees).
+- **E2E:** `e2e/org-setup-wizard.spec.ts` ticks two standard + one custom category on the new store,
+  re-opens it, and verifies the rows sync to Supabase.
 
 ---
 

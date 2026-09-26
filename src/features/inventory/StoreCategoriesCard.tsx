@@ -9,24 +9,11 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import {
+  STANDARD_CATEGORIES,
   createCategory,
   deleteCategory,
   useCategoriesByStore,
 } from "./categories";
-
-/** Common cloth-store departments offered as ready checkboxes. Custom ones can be added. */
-const STANDARD_CATEGORIES = [
-  "Sarees",
-  "Dress Materials",
-  "Readymade",
-  "Kids Wear",
-  "Men's Wear",
-  "Women's Wear",
-  "Blouse Pieces & Falls",
-  "Home Furnishing",
-  "Dhotis & Towels",
-  "Accessories",
-];
 
 export interface StoreCategoriesHandle {
   /** Persist the selection against the store's existing categories (create newly
@@ -148,7 +135,12 @@ export const StoreCategoriesFields = forwardRef<
               placeholder="New category (e.g. Wedding Collection)"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addCustom()}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                // Inside the store <form>: Enter must add the category, not submit the store.
+                e.preventDefault();
+                addCustom();
+              }}
             />
             <Button type="button" size="sm" onClick={addCustom}>
               Add

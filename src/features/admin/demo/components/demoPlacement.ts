@@ -15,6 +15,9 @@ export interface DemoPlacementNode {
   code: string;
   label?: string;
   color?: PlacementColor;
+  /** Store category this node holds (e.g. "Sarees") — resolved to `category_id` against the
+   * store's seeded demo categories at create time; unmatched names are left untagged. */
+  category?: string;
   // rack only:
   direction?: RackDirection;
   row?: number;
@@ -47,12 +50,13 @@ function rackGrid(
 
 /** Traditional folded-stock shop: product-type sections with rack grids + a display zone. */
 const sectionsWithRacks = (): DemoPlacementNode[] => [
-  { type: "section", code: "Sarees", color: "red", children: rackGrid("E", 2, 4, "red") },
-  { type: "section", code: "Dress Material", color: "blue", children: rackGrid("W", 1, 3, "blue") },
+  { type: "section", code: "Sarees", color: "red", category: "Sarees", children: rackGrid("E", 2, 4, "red") },
+  { type: "section", code: "Dress Material", color: "blue", category: "Dress Materials", children: rackGrid("W", 1, 3, "blue") },
   {
     type: "section",
     code: "Readymade",
     color: "green",
+    category: "Readymade",
     children: [
       { type: "zone", code: "Readymade display", color: "green" },
       ...rackGrid("N", 1, 2, "green"),
@@ -67,11 +71,12 @@ const multiFloor = (): DemoPlacementNode[] => [
     code: "Ground",
     color: "slate",
     children: [
-      { type: "section", code: "Men's", color: "blue", children: rackGrid("E", 1, 3, "blue") },
+      { type: "section", code: "Men's", color: "blue", category: "Men's Wear", children: rackGrid("E", 1, 3, "blue") },
       {
         type: "section",
         code: "Women's",
         color: "pink",
+        category: "Women's Wear",
         children: [
           { type: "zone", code: "Saree display", color: "pink" },
           ...rackGrid("W", 1, 2, "pink"),
@@ -84,11 +89,12 @@ const multiFloor = (): DemoPlacementNode[] => [
     code: "First",
     color: "slate",
     children: [
-      { type: "section", code: "Kids", color: "amber", children: rackGrid("N", 1, 2, "amber") },
+      { type: "section", code: "Kids", color: "amber", category: "Kids Wear", children: rackGrid("N", 1, 2, "amber") },
       {
         type: "section",
         code: "Home Furnishing",
         color: "teal",
+        category: "Home Furnishing",
         children: [{ type: "zone", code: "Curtains wall", color: "teal" }],
       },
     ],
@@ -107,11 +113,11 @@ const flatRacks = (): DemoPlacementNode[] => [
 // plus a small back-store rack section. Bandrip runs the SAME brand-standard layout in every
 // branch, so this one template is applied to every franchise store (see demoPlacementFor).
 const bandripStandard = (): DemoPlacementNode[] => [
-  { type: "zone", code: "New drops", label: "New arrivals · entrance display", color: "amber" },
-  { type: "zone", code: "The bandits", label: "Caps, sunglasses & bandanas wall", color: "violet" },
-  { type: "zone", code: "Jackets & hoodies rail", color: "blue" },
-  { type: "zone", code: "Oversized tees rack", color: "teal" },
-  { type: "zone", code: "Bottoms rack", label: "Cargos, wide-leg & jeans", color: "slate" },
+  { type: "zone", code: "New drops", label: "New arrivals · entrance display", color: "amber", category: "Streetwear" },
+  { type: "zone", code: "The bandits", label: "Caps, sunglasses & bandanas wall", color: "violet", category: "Accessories" },
+  { type: "zone", code: "Jackets & hoodies rail", color: "blue", category: "Streetwear" },
+  { type: "zone", code: "Oversized tees rack", color: "teal", category: "Streetwear" },
+  { type: "zone", code: "Bottoms rack", label: "Cargos, wide-leg & jeans", color: "slate", category: "Streetwear" },
   { type: "section", code: "Stockroom", color: "green", children: rackGrid("N", 1, 3, "green") },
 ];
 
@@ -157,6 +163,7 @@ export async function insertDemoStockLocation(row: {
   rack_col: string | null;
   color: PlacementColor | null;
   sort_order: number;
+  category_id?: string | null;
 }): Promise<string> {
   const { data, error } = await supabase
     .from("stock_locations")
@@ -174,6 +181,8 @@ export async function insertDemoStockLocation(row: {
 export async function createStorePlacements(
   storeId: string,
   nodes: DemoPlacementNode[],
+  /** The store's category ids by name (from seedDemoStoreCategories), for `node.category`. */
+  categoryIds: ReadonlyMap<string, string> = new Map(),
 ): Promise<void> {
   const createLevel = async (
     level: DemoPlacementNode[],
@@ -194,6 +203,7 @@ export async function createStorePlacements(
         rack_col: isRack && n.col != null ? pad2(n.col) : null,
         color: n.color ?? null,
         sort_order: i++,
+        category_id: (n.category && categoryIds.get(n.category)) || null,
       });
       if (n.children?.length) await createLevel(n.children, id);
     }

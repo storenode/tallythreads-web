@@ -14,6 +14,7 @@ import {
 } from "@/features/stores/storesAdmin";
 import { seedDemoPurchaseTrips } from "./purchaseTrips.demo";
 import { seedDemoWarehouses } from "./warehouses.demo";
+import { seedDemoStoreCategories } from "./categories.demo";
 import {
   createStorePlacements,
   demoPlacementFor,
@@ -273,9 +274,10 @@ export function useCreateIndependentDemo() {
         email: input.salesStaff.email.trim(),
         role_name: "store_sales_staff",
       });
-      // Placement + stock rooms are seeded via direct server inserts (see the
+      // Categories, placement + stock rooms are seeded via direct server inserts (see the
       // seeders) so the demo is immediately complete on the server.
-      await createStorePlacements(store.id, input.placement ?? []);
+      const categoryIds = await seedDemoStoreCategories(org.id, store.id, "independent");
+      await createStorePlacements(store.id, input.placement ?? [], categoryIds);
       await seedDemoWarehouses(org.id, "independent", [store]);
 
       await seedDemoPurchaseTrips(org.id, owner.member_id, input.org.name.trim());
