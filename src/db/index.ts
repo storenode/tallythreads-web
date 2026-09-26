@@ -13,6 +13,7 @@ import type { PendingReceipt } from "./pendingReceipts";
 import type { StockLocation } from "./stockLocations";
 import type { Warehouse } from "./warehouses";
 import type { WarehouseStore } from "./warehouseStores";
+import type { InventoryCategory } from "./inventoryCategories";
 
 // Re-export entity types so external code keeps importing from `@/db`.
 export type { SyncMeta } from "./types";
@@ -39,6 +40,7 @@ export type {
 } from "./stockLocations";
 export type { Warehouse, WarehouseType } from "./warehouses";
 export type { WarehouseStore } from "./warehouseStores";
+export type { InventoryCategory } from "./inventoryCategories";
 
 export const db = new Dexie("tallythreads") as Dexie & {
   products: EntityTable<Product, "_localId">;
@@ -55,6 +57,7 @@ export const db = new Dexie("tallythreads") as Dexie & {
   stock_locations: EntityTable<StockLocation, "_localId">;
   warehouses: EntityTable<Warehouse, "_localId">;
   warehouse_stores: EntityTable<WarehouseStore, "_localId">;
+  inventory_categories: EntityTable<InventoryCategory, "_localId">;
 };
 
 // ─── Migration history ───────────────────────────────────────────────
@@ -134,4 +137,14 @@ db.version(10).stores({
     "_localId, id, warehouse_id, store_id, _dirty, last_modified_at",
   stock_locations:
     "_localId, id, store_id, warehouse_id, parent_id, _dirty, last_modified_at",
+});
+
+// v11 (Inventory — phase 1): store-scoped product categories. stock_locations gains a
+// category_id index (a location may be tagged with a category). Redefining the
+// stock_locations store string only adds the new index; existing rows are untouched.
+db.version(11).stores({
+  inventory_categories:
+    "_localId, id, organization_id, store_id, _dirty, last_modified_at",
+  stock_locations:
+    "_localId, id, store_id, warehouse_id, parent_id, category_id, _dirty, last_modified_at",
 });

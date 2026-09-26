@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/Card";
 import { OrganizationEditFormCard } from "../../organizations/OrganizationForm";
 import { OrgDeleteControl } from "../../organizations/OrgDeleteControl";
@@ -26,21 +26,6 @@ export default function OrganizationStep() {
         submitLabel="Next: Save changes →"
         hideCancel
       />
-
-      <Card title="Organization stock rooms">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-fg-muted">
-            Set up org-wide storage not tied to one store — a central godown,
-            transit hold, or shared warehouse.
-          </p>
-          <Link
-            to={`${stepPath("stock-setup")}#org-stock-rooms`}
-            className="shrink-0 text-sm font-medium text-tt-green-600 hover:underline"
-          >
-            Organization stock rooms →
-          </Link>
-        </div>
-      </Card>
 
       {area === "admin" && (
         <Card title="Danger zone">

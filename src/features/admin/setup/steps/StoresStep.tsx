@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FormProvider, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,6 +8,12 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Spinner } from "@/components/ui/Spinner";
 import { StoreDetailsFields } from "@/features/stores/StoreDetailsFields";
+import {
+  StoreCategoriesFields,
+  type StoreCategoriesHandle,
+} from "@/features/inventory/StoreCategoriesCard";
+import { useMember } from "@/features/auth/useMember";
+import { useEntitlements, hasPermission } from "@/features/auth/entitlements";
 import { useStoresByOrg } from "@/features/stores/stores";
 import {
   useCreateStore,
@@ -84,11 +90,13 @@ const TEXT_KEYS = [
 function StoreForm({
   orgId,
   storeId,
+  canManageInventory,
   onDone,
   onCancel,
 }: {
   orgId: string;
   storeId?: string;
+  canManageInventory: boolean;
   onDone: () => void;
   onCancel: () => void;
 }) {
@@ -96,6 +104,7 @@ function StoreForm({
   const { data: store, isLoading } = useStore(storeId);
   const createStore = useCreateStore(orgId);
   const updateStore = useUpdateStore();
+  const categoriesRef = useRef<StoreCategoriesHandle>(null);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const form = useForm<StoreValues>({
@@ -147,6 +156,8 @@ function StoreForm({
           if (Object.keys(patch).length > 0) {
             await updateStore.mutateAsync({ id: storeId, patch });
           }
+          // Persist category selection as part of Save (staged in the fields).
+          await categoriesRef.current?.commit();
         } else {
           await createStore.mutateAsync(values);
         }
@@ -187,6 +198,16 @@ function StoreForm({
           <StoreDetailsFields />
         </Card>
 
+        {/* Categories — needs a store id, so edit only; saved on this form's Save. */}
+        {isEdit && storeId && (
+          <StoreCategoriesFields
+            ref={categoriesRef}
+            orgId={orgId}
+            storeId={storeId}
+            canManage={canManageInventory}
+          />
+        )}
+
         {serverError && <p className="text-sm text-red-500">{serverError}</p>}
 
         <div className="flex justify-end gap-3">
@@ -226,16 +247,24 @@ export default function StoresStep() {
   const { org } = useSetupOrg();
   const { stepPath } = useSetupNav();
   const navigate = useNavigate();
+  const { member } = useMember();
+  const { data: entitlements } = useEntitlements(member?.id);
   const { data: stores, isLoading, isError } = useStoresByOrg(org.id);
   const [view, setView] = useState<StoresView>({ mode: "list" });
+
+  const canManageInventory = hasPermission(entitlements, "inventory.write", {
+    organizationId: org.id,
+  });
 
   const backToList = () => setView({ mode: "list" });
 
   if (view.mode !== "list") {
+    const editStoreId = view.mode === "edit" ? view.storeId : undefined;
     return (
       <StoreForm
         orgId={org.id}
-        storeId={view.mode === "edit" ? view.storeId : undefined}
+        storeId={editStoreId}
+        canManageInventory={canManageInventory}
         onDone={backToList}
         onCancel={backToList}
       />

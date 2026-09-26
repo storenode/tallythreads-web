@@ -29,6 +29,9 @@ const PUSH_ORDER = [
   // store-attachments and before any stock_location it owns, so it precedes both.
   "warehouses",
   "warehouse_stores",
+  // Store-scoped product categories. A stock_location may reference one via category_id,
+  // so categories push before the placement tree.
+  "inventory_categories",
   // Placement tree. May be owned by a store (created online via admin) OR a warehouse
   // (above), and nests via parent_id — a parent row is queued before its child, so
   // queued_at ordering within the table already pushes parents first.
@@ -47,6 +50,7 @@ const DEXIE_TABLE = {
   trip_activities: db.trip_activities,
   warehouses: db.warehouses,
   warehouse_stores: db.warehouse_stores,
+  inventory_categories: db.inventory_categories,
   stock_locations: db.stock_locations,
 } as const;
 

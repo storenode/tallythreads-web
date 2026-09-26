@@ -15,7 +15,10 @@ This folder is the project's brain. Read it in this order and you have the whole
    - [`schema.md`](reference/schema.md) — the live database (verified against Supabase; source of truth)
    - [`roles-and-permissions.md`](reference/roles-and-permissions.md) — the RBAC catalog
    - [`franchise-settlement.md`](reference/franchise-settlement.md) — the franchise settlement engine
-4. **[`journal/`](journal/)** — the dated dev log. Read the latest entries for recent decisions and context that isn't in the code yet.
+4. **[`roadmap/`](roadmap/)** — per-module specs and plans: `purchase-trips.md`, `deliveries.md`,
+   `stock-placement.md`, `warehouses.md`, **`inventory.md`**, **`assistant.md`** (the Store agent),
+   `shift-store-ops-log.md`, and `future/` sketches. Start from `status.md`.
+5. **[`journal/`](journal/)** — the dated dev log. Read the latest entries for recent decisions and context that isn't in the code yet.
 
 ## 🗂️ Layout
 

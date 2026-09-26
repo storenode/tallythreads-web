@@ -20,6 +20,7 @@ import {
 } from "./data";
 import { swatchClasses } from "./colors";
 import { ColorPicker } from "./ColorPicker";
+import { useCategoriesByStore } from "@/features/inventory/categories";
 import {
   buildTree,
   describeDescendants,
@@ -375,6 +376,12 @@ function LocationForm({
     editRow?.color ?? null,
   );
 
+  // Category tag (store-owned locations only — categories are store-scoped).
+  const categories = useCategoriesByStore(owner.store_id ?? undefined);
+  const [categoryId, setCategoryId] = useState<string | null>(
+    editRow?.category_id ?? null,
+  );
+
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -417,6 +424,7 @@ function LocationForm({
             rack_col: String(c).padStart(2, "0"),
             layout: null,
             color,
+            category_id: categoryId,
             sort_order: base + i++,
           });
         }
@@ -443,6 +451,7 @@ function LocationForm({
           code,
           label: label.trim() || null,
           color,
+          category_id: categoryId,
           ...(editRow!.placement_type === "rack"
             ? { direction, rack_row: row, rack_col: col }
             : {}),
@@ -459,6 +468,7 @@ function LocationForm({
           rack_col: isRack ? String(col).padStart(2, "0") : null,
           layout: null,
           color,
+          category_id: categoryId,
           sort_order: base,
         });
       }
@@ -583,6 +593,20 @@ function LocationForm({
         )}
 
         <ColorPicker value={color} onChange={setColor} />
+
+        {/* Category tag — store-owned locations only (categories are store-scoped). */}
+        {owner.store_id && (categories?.length ?? 0) > 0 && (
+          <SingleSelect
+            label="Category (optional)"
+            placeholder="— none —"
+            value={categoryId ?? ""}
+            onChange={(e) => setCategoryId(e.target.value || null)}
+            options={(categories ?? []).map((c) => ({
+              value: c.id ?? c._localId,
+              label: c.name,
+            }))}
+          />
+        )}
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 

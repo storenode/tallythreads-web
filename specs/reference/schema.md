@@ -15,8 +15,9 @@ this doc is kept to match it, not the other way round.
 
 ## 0. What actually exists
 
-**22 tables + 2 views are live.** Grouped below: Identity & Device, Tenancy/Roles/Access,
-Franchise, Purchase-Trip (M4), **Stock Placement (M3 — `stock_locations`, §3B)**, Demo/QA. The
+**25 tables + 2 views are live.** Grouped below: Identity & Device, Tenancy/Roles/Access,
+Franchise, Purchase-Trip (M4), **Stock Placement (M3 — `stock_locations`, §3B)**, **Warehouses
+(§3C)**, **Inventory categories (§3D — `inventory_categories`)**, Demo/QA. The
 two views are `store_business_model` (§5) and `incoming_stock` (§3A — the price-free
 store-staff feed). Conventions: UUID PKs (`gen_random_uuid()`), soft delete (`deleted_at`),
 `last_modified_at` for last-write-wins where present, timestamps are `timestamptz`, money
@@ -411,7 +412,10 @@ every level optional (a flat boutique, a multi-floor showroom, or a godown — s
 compass points), `rack_row`, `rack_col` — `code` is generated `{dir}-{row}-{col}` (e.g. `E-03-02`)
 but editable. `color` CHECK (`red`,`amber`,`green`,`teal`,`blue`,`violet`,`pink`,`slate`) —
 optional palette token for quick visual ID (aid only; the code is always shown). `layout` jsonb —
-**reserved** for a future visual planogram, unused. `sort_order`, `last_modified_at`, `deleted_at`.
+**reserved** for a future visual planogram, unused. **`category_id`** FK → `inventory_categories`
+(nullable, `on delete set null`; store-owned locations only) — optionally tags a location with a
+store category ("this rack is Kids", see §3D; added 2026-09-26). `sort_order`, `last_modified_at`,
+`deleted_at`.
 
 Offline-first (mirrored in Dexie, synced via the outbox like the `purchase_*` tables). **Dual-scope
 RLS** (2026-09-18): a **store-owned** row uses the store-scoped helper `has_store_permission()` —
@@ -447,6 +451,23 @@ backyard links exactly one; an unattached org warehouse links none. Drives which
 locations a store sees in the intake picker. RLS: read = warehouse-org owner/manager **or** a
 member with `inventory.read` on the linked store; design (attach/detach) = `store.edit` at the
 warehouse's org; hard DELETE platform-admin-only.
+
+## 3D. Inventory categories (Inventory — phase 1) — store-scoped departments
+
+Full spec: [`roadmap/inventory.md`](../roadmap/inventory.md). The first table of the **Inventory**
+module proper. Each store defines its **own** categories (Sarees / Dress Material / Kids / …) — an
+org can have "Kids" in one store and not another, so categories are **store-scoped**, not org-wide.
+Set up per store in the wizard's Stores step; a `stock_locations` row can be tagged with one
+(`category_id`, §3B). Live 2026-09-26 (migration `20260926100000_inventory_categories`).
+
+### `inventory_categories` — a store's product category/department
+`id`, `organization_id` FK, `store_id` FK, `name` (**unique per store** among non-deleted),
+`next_sequence` int default 1 (**reserved** — the per-`(store, category)` running counter for the
+later SKU phase `STORE-CATEGORY-COLOR-SIZE-SEQ`), `last_modified_at`, `deleted_at`. Store-scoped RLS
+via `has_store_permission()` (which cascades org_owner/org_manager): **read** = `inventory.read`,
+**write** (insert/update, incl. soft-delete) = `inventory.write`; hard DELETE platform-admin-only.
+Offline-first (Dexie + outbox), pushed **before** `stock_locations` (a location may reference it).
+FK `on delete cascade` from org/store, so `hard_delete_organization` clears it.
 
 ---
 
@@ -522,8 +543,13 @@ warehouse-owned stock_locations).
 - **`settlement_rules.plugin_id`** + one-source check — the hybrid engine (M1d). Not migrated.
 - **`shifts` / `petty_expenses`** — Shift & Store Operations Log (M10). Designed in
   `../roadmap/shift-store-ops-log.md`; not migrated. Feeds M1d's `deduct_expenses`.
-- Products / variant matrix / barcode — M3. Invoices / GST — M5. `content_items` (AI Studio) —
-  see `../roadmap/future/ai-studio.md`.
+- **`inventory` (master) + `inventory_items` (variants)** + **`organizations.sku_template`** — the
+  Inventory module's product master/variant matrix with auto-SKU + Code128 barcode. Designed in
+  `../roadmap/inventory.md`; **not yet migrated** (phase 1 shipped `inventory_categories` only, §3D).
+- **`store_knowledge`** (pgvector embeddings) + the `store-agent` edge function — the **Assistant**
+  (store chat / RAG + tool-use). Designed in `../roadmap/assistant.md`; not migrated (needs the
+  `vector` extension). Invoices / GST — M5. `content_items` (AI Studio) — see
+  `../roadmap/future/ai-studio.md`.
 - **Client offline mirror:** `src/db/` (Dexie) already scaffolds local stores
   (`products`, `invoices`, `outbox`, `members`, `entitlements`) ahead of their Supabase
   tables — the M2 sync layer will reconcile these with the server. They are client-side
@@ -538,6 +564,14 @@ data model and the diagram.
 
 ## 8. Changelog
 
+- **v3.6.0 (2026-09-26)** — **Inventory categories (Inventory phase 1), live.** New store-scoped
+  **`inventory_categories`** table (§3D: each store defines its own departments; `next_sequence`
+  reserved for SKUs) and a nullable **`stock_locations.category_id`** FK (§3B) so a placement node
+  can be tagged with a category. Store-scoped RLS via `has_store_permission` (`inventory.read` /
+  `inventory.write`); offline-first (Dexie v11 + outbox, pushed before `stock_locations`). Migration
+  `20260926100000_inventory_categories`. Managed per store in the setup wizard's Stores step; the
+  category picker appears on store placement in Stock setup. Next: `inventory` master + items +
+  `sku_template` (SKU/barcode), then the **Assistant** (`../roadmap/assistant.md`).
 - **v3.5.0 (2026-09-18)** — **Warehouses / stock rooms (M3 prerequisite), live.** New
   **`warehouses`** (org-owned storage space: backyard/stockroom/godown/other) and
   **`warehouse_stores`** (many-to-many warehouse↔store attach) tables (§3C), plus **`stock_locations`

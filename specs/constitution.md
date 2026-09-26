@@ -289,7 +289,7 @@ founder direction alone, not a real AI Studio customer request yet.
 | M0 | Project foundation, PWA config, CI | 8 |
 | M1 | Identity, tenancy, franchise linkage & settlement engine, RLS — five sub-phases (M1a–M1e) fully speced in `M1-task-plan.md`. Covers: Google Sign-in + device-gated PIN (`M1-auth-google.md`, `M1a-identity-auth.md` — M1a Tasks 1–2 implemented, see §8); organizations/stores/roles/permissions/memberships/store_invitations/access_grants/channels, now with a platform/organization/store role model and a TDD-built entitlements function (`M1b-core-tenancy.md` v2.0.0); `stock_locations`/`stock_transfers` and `franchise_groups`/`franchise_memberships` plus the settlement rule engine (`M1-franchise-model.md`) — **franchise linkage now under active build, see §8's 2026-08-27 entry**; full column reference in `M1-schema-reference.md`; RLS across all of it, including the `stock_transfers` org/franchise-link validation (§8) | 115 |
 | M2 | **Offline sync engine** (Dexie ⇄ Supabase push/pull) | 62 |
-| M3 | Inventory, variant matrix, barcode. **Prerequisites (built first): Stock Placement** (`stock_locations` location tree, live) **→ Warehouses / stock rooms** (`warehouses`/`warehouse_stores`, org-owned storage spaces reusing the placement tree — speced `roadmap/warehouses.md`, build before intake) | 36 |
+| M3 | Inventory, variant matrix, barcode. **Prerequisites (built first): Stock Placement** (`stock_locations` location tree, live) **→ Warehouses / stock rooms** (`warehouses`/`warehouse_stores`, org-owned storage spaces reusing the placement tree — speced `roadmap/warehouses.md`, build before intake) **→ Inventory phase 1: categories** (`inventory_categories`, store-scoped, live 2026-09-26). Master + variants + SKU/barcode still to build — `roadmap/inventory.md` | 36 |
 | M4 | **Purchase-Trip module** (landed cost engine) | 52 |
 | M5 | Billing/POS, GST calc, printing | 58 |
 | M6 | GST reports, GSTR export | 24 |
@@ -297,6 +297,7 @@ founder direction alone, not a real AI Studio customer request yet.
 | M8 | PWA polish, offline UX, shadow-mode verification before go-live with Bandrip | 30 |
 | M9 | Launch prep | 16 |
 | M10 | **Shift & Store Operations Log** — sales-person login→logoff capture: working hours/attendance, petty-utility expense logging with approval, and end-of-shift handover notes (AI-assisted phrasing in a later phase). A store-facing differentiator vs. QueueBuster; feeds M1's franchise-settlement expense inputs. Speced in `roadmap/shift-store-ops-log.md`. **The M10 number is an identifier, not a build-position** — this module is store-facing and independent of M2–M5, so it can be built early (online-first) if chosen; see §8's 2026-09-05 entry | 24 |
+| M11 | **Assistant (Store agent)** — chat for stock/store info: **hybrid Claude tool-use** (live inventory queries) **+ pgvector RAG** (descriptions/policies). Online-only; depends on the Inventory master/items. Speced in `roadmap/assistant.md`; added to scope 2026-09-26 (§8). Hours TBD | — |
 | **Total** | | **441 hrs (~44 weeks @ 10 hr/wk, ~11–12 months w/ buffer)** |
 
 **AI Studio has no module number or hour estimate yet** (see §2.VI, §3's 2026-08-26
@@ -451,7 +452,22 @@ This constitution may be amended, but not casually. An amendment requires:
 
 ### Changelog
 
-- **2026-09-19 (latest) — Organization Setup Wizard + unified admin/org consoles; v1.16.0.**
+- **2026-09-26 (latest) — Members step + go-live gate, store-limit policy, Inventory categories,
+  Assistant module; v1.17.0.** Evidence: continuing the setup-wizard build with the founder. (1) A
+  **Members** step (org + store members, add/edit incl. in-place **role** change and primary-contact
+  toggle, "owner manages this store"), and a **Go-live gate** — an org can't go live without a
+  primary contact and a **manager per store**, shown as a checklist + a per-store members recap.
+  (2) Org **create no longer captures a primary contact** (people are added/mandated at Members). (3)
+  A central **`orgPolicy`** — an **independent org is capped at one store** (Add-store disabled once
+  reached), everywhere store-add appears. (4) **Inventory — phase 1 (categories):** store-scoped
+  `inventory_categories` (each store defines its own; managed in the Stores step, offline-first) and
+  a nullable `stock_locations.category_id` so a placement node can be tagged with a category —
+  migration `20260926100000`, schema §3D. (5) The **Assistant (Store agent)** module was added to
+  scope — a chat over stock/store info using **hybrid Claude tool-use + pgvector RAG**
+  (`roadmap/assistant.md`), sequenced after the Inventory master/items. Full inventory design +
+  phases: `roadmap/inventory.md`. Code amendment (built with go-ahead per §9); the only DB change is
+  the inventory_categories migration.
+- **2026-09-19 — Organization Setup Wizard + unified admin/org consoles; v1.16.0.**
   Evidence: the founder found the admin org surface confusing — a thin stats dashboard *and* a
   separate org list, sparse cards, and a one-shot create form. Redesigned around one guided
   **setup wizard** (`Organization → Stores → Stock setup → Go live`) reached from a shared

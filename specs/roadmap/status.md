@@ -1,6 +1,6 @@
 # TallyThreads — Build Status & Roadmap
 
-**Updated:** 2026-09-19
+**Updated:** 2026-09-26
 
 The one place to see what's built and what's next. The full rationale/roadmap is
 `constitution.md` §5; this is the short board on top of it. Detailed build logs for
@@ -41,6 +41,13 @@ Operations shell at `/ops/:storeId` (`src/features/operations/`) whose five tabs
 > stores/members/stock locations/stock rooms/purchase trips via server inserts, with
 > per-member launch links. See `constitution.md` §8 and the 2026-09-19 journal entry.
 
+> **2026-09-26:** the wizard gained a **Members** step (org + store members, add/edit/role,
+> "owner manages this store") with a **Go-live gate** (org primary contact + a manager per store)
+> and a per-store members recap; a central **store-limit policy** (independent = 1 store); and
+> **Inventory phase 1 — categories** (store-scoped, in the Stores step, offline-first) with a
+> category tag on stock placement. The **Assistant** module was speced (`assistant.md`). See the
+> 2026-09-26 journal entry.
+
 > Note: the React frontend was reset to the login/PIN/PostgREST base on 2026-08-29
 > (`constitution.md` §8) and the Org/Stores/Members/Roles UI above was rebuilt after
 > that. The underlying Supabase schema was never reset.
@@ -63,7 +70,8 @@ Operations are billing/inventory/reports, not a Purchase-Trip.
 | **M1c** | Stock locations/transfers, franchise linkage, goods-received-from-franchisor | Franchise **linkage + rule storage** live (`franchise_groups`/`franchise_memberships`/`settlement_rules`); stock-transfer flow + goods-received **not built** |
 | **M1d** | **Franchise settlement engine** (`lib/franchiseSettlement.ts`) — hybrid recipe/plugin, money-critical, unit-tested | **Speced, not built.** Design + Nellore golden test in `../reference/franchise-settlement.md` v2.0.0 §4. No M2 dependency (pure logic) — buildable now |
 | **M2** | Offline sync engine (Dexie ⇄ Supabase) | Not started — gates M3/M4/M5 |
-| **M3** | Inventory, variant matrix, barcode | **Stock Placement built** (offline-first, live) — the `stock_locations` Floor › Section › Rack/Zone tree with a store-edit card + optional palette colours; demo seeds it per store. See `stock-placement.md`. Products / variant matrix / barcode / intake still to build |
+| **M3** | Inventory, variant matrix, barcode | **Stock Placement built** (offline-first, live) — the `stock_locations` Floor › Section › Rack/Zone tree with a store-edit card + optional palette colours; demo seeds it per store. **Inventory phase 1 (categories) built** — store-scoped `inventory_categories` (wizard Stores step) + `stock_locations.category_id` tag. See `inventory.md` + `stock-placement.md`. Product master + variants + SKU/barcode (`sku_template`) still to build |
+| **M11** | **Assistant (Store agent)** — chat for stock/store info: hybrid Claude tool-use (live inventory) + pgvector RAG (descriptions/policies) | **Speced, not built** (`assistant.md`). Depends on the Inventory master/items; online-only. Needs the `vector` extension + a `store-agent` edge function |
 | **M4** | Purchase-Trip module (landed cost) — the core differentiator | **Built** (offline-first, live). Plan → start → invoices/items/expenses → complete/cancel/clone; landed-cost + MRP; per-invoice receiving pipeline via the **Deliveries** page (`in_transit→received→verified→approved`, `deliveries.md`) — `approved` hands off to M3. See `purchase-trips.md` + `deliveries.md` |
 | **M5** | Billing/POS, GST calc, printing | Permission keys seeded; no tables |
 | **M6** | GST reports, GSTR export | Not started |
@@ -91,7 +99,7 @@ Not yet decided — this is the roadmap conversation in progress.
 
 Organized by purpose (see `../README.md` for the map): `constitution.md`;
 `reference/{schema.md, roles-and-permissions.md, franchise-settlement.md}`;
-`roadmap/{status.md (this file), workflow.md, backlog.md, purchase-trips.md, shift-store-ops-log.md, future/ai-studio.md}`;
+`roadmap/{status.md (this file), workflow.md, backlog.md, purchase-trips.md, deliveries.md, stock-placement.md, warehouses.md, inventory.md, assistant.md, shift-store-ops-log.md, future/ai-studio.md}`;
 `journal/` (dated dev log). Root `CLAUDE.md` points here.
 
 Removed (recoverable via git) — completed-work build logs and stale/duplicate docs:

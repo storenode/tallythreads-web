@@ -51,5 +51,8 @@ export interface StockLocation extends SyncMeta {
   layout: Record<string, unknown> | null;
   /** Optional palette colour for quick visual identification (null = neutral/none). */
   color: PlacementColor | null;
+  /** Optional store category this location belongs to (Sarees rack, Kids zone…) — null = none.
+   * Store-owned locations only. See inventory_categories. */
+  category_id: string | null;
   sort_order: number;
 }

@@ -281,6 +281,9 @@ matrix a reviewer or investor would want to see, per org type.
 
 ## Relationship to the rest of Inventory
 
+- **Category tag (2026-09-26):** a location can carry an optional `category_id` → the store's
+  `inventory_categories` (see `inventory.md` §3D), e.g. "this rack is Kids". Set via a category
+  dropdown on the placement form; **store-owned locations only** (categories are store-scoped).
 - **Consumer:** Inventory **intake** (the parked M3 flow) calls the Placement Picker to attach
   one or more `stock_locations` to each SKU it shelves; the link + per-location quantity live in
   the inventory tables.
