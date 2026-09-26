@@ -33,4 +33,5 @@ pnpm dev          # run the app
 pnpm test         # vitest
 pnpm typecheck    # tsc -b --noEmit
 pnpm lint         # oxlint
+pnpm e2e          # Playwright happy-path suite (live DB, demo orgs) — see e2e/README.md
 ```

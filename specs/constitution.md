@@ -1,6 +1,6 @@
 # TallyThreads — Project Constitution
 
-**Version:** 1.15.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-18 · **Status:** Active
+**Version:** 1.18.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-26 · **Status:** Active
 
 This document is the source of truth for how TallyThreads is built. Any human contributor
 or AI coding agent (Claude Code, etc.) working on this repo MUST read this file first and
@@ -265,7 +265,7 @@ founder direction alone, not a real AI Studio customer request yet.
 | Receipt print (fallback) | `react-to-print` (browser print dialog) | MIT |
 | Receipt print (direct) | `esc-pos-encoder` + Web Bluetooth API | MIT |
 | Icons | Lucide React | ISC |
-| Testing | Vitest + React Testing Library | MIT |
+| Testing | Vitest + React Testing Library (unit/component); Playwright `@playwright/test` (end-to-end, `e2e/`) | MIT; Apache 2.0 |
 | Package manager | pnpm | MIT |
 | Hosting | Vercel Pro ($20/mo — required once commercial per Vercel ToS) | — |
 | Backend infra | Supabase Pro ($25/mo) | — |
@@ -452,7 +452,19 @@ This constitution may be amended, but not casually. An amendment requires:
 
 ### Changelog
 
-- **2026-09-26 (latest) — Members step + go-live gate, store-limit policy, Inventory categories,
+- **2026-09-26 (latest) — Playwright end-to-end suite added to the stack; v1.18.0.** Evidence:
+  every happy path (sign-in, the setup wizard, Purchase-Trip, Deliveries, offline sync) had only
+  been checked by hand — founder browser walkthroughs and the `_e2e_/` Claude-in-Chrome prompt
+  files — so each regression cost a full manual pass. §7's Definition of Done (works offline, sync
+  round-trip, 375px) also had no automated check. §4's testing row gains **Playwright**
+  (`@playwright/test`, Apache 2.0 — permissive per §2.III, no paid service needed). Chosen over
+  Cypress for real offline emulation (`context.setOffline`), multi-viewport projects and IndexedDB
+  access, and over Vitest browser mode because it drives whole user journeys. The suite (`e2e/`,
+  `pnpm e2e`) runs **desktop + 375px** against the **live** Supabase project using only `is_demo`
+  orgs, which each test creates and hard-deletes. Sign-in uses the existing `demo-login` grant
+  flow plus a platform-admin session JWT (`E2E_ADMIN_JWT`, kept out of git). Vitest stays the unit
+  runner for the §2.V money logic. No schema or app-code change.
+- **2026-09-26 — Members step + go-live gate, store-limit policy, Inventory categories,
   Assistant module; v1.17.0.** Evidence: continuing the setup-wizard build with the founder. (1) A
   **Members** step (org + store members, add/edit incl. in-place **role** change and primary-contact
   toggle, "owner manages this store"), and a **Go-live gate** — an org can't go live without a

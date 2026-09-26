@@ -2,8 +2,8 @@
 
 This folder holds hand-run QA "prompt files" for testing the live app at
 **https://tallythreads.vercel.app** using the Claude in Chrome browser extension —
-not an automated test suite (no Playwright/Vitest here; those are a separate,
-later concern). Each prompt file is a self-contained set of instructions you
+not an automated test suite. The automated Playwright happy-path suite lives in
+[`../e2e/`](../e2e/README.md) (`pnpm e2e`). Each prompt file is a self-contained set of instructions you
 paste directly into the Claude in Chrome extension. It drives the browser,
 checks the app behaves as expected, and reports back — either "all checks
 passed" or one or more structured failure reports you can save and re-test

@@ -14,6 +14,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:report": "playwright show-report",
     "dev:kill": "lsof -ti :5173 | xargs kill",
     "supabase:login": "supabase login",
     "supabase:db:push": "supabase db push",
@@ -39,6 +42,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

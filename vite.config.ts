@@ -60,6 +60,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
+    // Unit/component tests only — the Playwright suite in e2e/ runs via `pnpm e2e`.
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
     coverage: {
       provider: "v8",
       include: ["src/lib/**"], // §2.V: money logic is what must stay covered
