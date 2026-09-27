@@ -1,32 +1,38 @@
 # Database Schema — Single Source of Truth
 
 **Status:** Living reference. **Verified against the live Supabase database**
-(`gmmeaplomgotqtivevkg`, `public` schema) on 2026-09-05 — the live DB is authoritative;
-this doc is kept to match it, not the other way round.
-**Version:** 3.9.0
+(`gmmeaplomgotqtivevkg`, `public` schema) on 2026-09-28 — tables, columns, CHECKs, unique
+indexes, FK delete rules, RLS policies, triggers, functions and the migration history were
+re-read from the catalog. The live DB is authoritative; this doc is kept to match it, not the
+other way round. The ER diagram below is kept identical to `supabase/schema.mmd`.
+**Version:** 3.9.1
 **Related:** `../constitution.md` (§6 architecture rules, §2.IX store models),
 `roles-and-permissions.md` (role/permission catalog), `franchise-settlement.md`
 (the settlement engine — proposed M1d, see §4).
 
 > **How to re-verify:** with Docker running and the project linked,
-> `supabase db dump --linked --schema public -f schema.sql` and diff against this doc.
+> `supabase db dump --linked --schema public -f schema.sql` and diff against this doc. Without
+> Docker, query `pg_class` / `pg_constraint` / `pg_policies` / `pg_proc` and
+> `supabase_migrations.schema_migrations` (local `supabase/migrations/` file names must match the
+> recorded versions — 71 of 71 did on 2026-09-28).
 
 ---
 
 ## 0. What actually exists
 
-**25 tables + 2 views are live.** Grouped below: Identity & Device, Tenancy/Roles/Access,
-Franchise, Purchase-Trip (M4), **Stock Placement (M3 — `stock_locations`, §3B)**, **Warehouses
-(§3C)**, **Inventory categories (§3D — `inventory_categories`)**, Demo/QA. The
-two views are `store_business_model` (§5) and `incoming_stock` (§3A — the price-free
-store-staff feed). Conventions: UUID PKs (`gen_random_uuid()`), soft delete (`deleted_at`),
-`last_modified_at` for last-write-wins where present, timestamps are `timestamptz`, money
-(when it arrives) in integer paise.
+**30 tables + 3 views are live, all with RLS enabled.** Grouped below: Identity & Device (2),
+Tenancy/Roles/Access (8), Franchise (3), Purchase-Trip (M4, 5), Stock Placement (§3B,
+`stock_locations`), Warehouses (§3C, 2), **Inventory (§3D, 7: `inventory_categories`,
+`inventory_items`, `sku_counters`, `stock_transfers`, `stock_transfer_items`,
+`stock_movements`)**, Demo/QA (2). Views: `store_business_model` (§5), `incoming_stock` (§3A —
+price-free store-staff feed) and `stock_levels` (§3D — derived on-hand). Storage buckets:
+`org-logos` (public) and `receipts` (private). Conventions: UUID PKs (`gen_random_uuid()`), soft
+delete (`deleted_at`), `last_modified_at` for last-write-wins where present (not on
+`sku_counters`), timestamps are `timestamptz`, money in integer paise.
 
-**Speced but NOT yet migrated** (do not assume these exist): `stock_transfers`,
-`settlement_statements`, and a `settlement_rules.plugin_id` column — all belong to M1c/M1d,
-see §7. (The rest of M3 — products / variant matrix / barcode — is also not built yet;
-`stock_locations` is the first M3 table, see §3B.)
+**Speced but NOT yet migrated** (do not assume these exist): `settlement_statements` and a
+`settlement_rules.plugin_id` column (M1d), store → store transfers, `label_prints`,
+`reissue_inventory_item`, adjustments / stock count — see §7.
 
 ```mermaid
 erDiagram
@@ -38,7 +44,7 @@ erDiagram
     permissions ||--o{ role_permissions : ""
     roles ||--o{ store_invitations : "role_id"
     organizations ||--o{ stores : "owns"
-    organizations ||--o{ memberships : "org scope"
+    organizations ||--o{ memberships : "org scope (also set on store rows)"
     organizations ||--o{ store_invitations : "org invite"
     organizations ||--o{ franchise_groups : "franchisor"
     organizations ||--o{ demo_scenarios : ""
@@ -54,6 +60,30 @@ erDiagram
     purchase_trips ||--o{ purchase_invoices : ""
     purchase_invoices ||--o{ purchase_invoice_items : ""
     purchase_trips ||--o{ trip_expenses : ""
+    purchase_trips ||--o{ trip_activities : "journey log"
+    purchase_invoices ||--o{ trip_activities : "ref_invoice"
+    members ||--o{ trip_activities : "logged_by"
+    organizations ||--o{ warehouses : "owns"
+    warehouses ||--o{ warehouse_stores : ""
+    stores ||--o{ warehouse_stores : "draws from"
+    stores ||--o{ stock_locations : "display placements"
+    warehouses ||--o{ stock_locations : "stock-room placements"
+    stock_locations ||--o{ stock_locations : "parent_id (tree)"
+    stores ||--o{ inventory_categories : "departments"
+    inventory_categories ||--o{ stock_locations : "tags (category_id)"
+    organizations ||--o{ inventory_items : "catalogues"
+    purchase_invoice_items ||--o{ inventory_items : "split into"
+    stores ||--o{ inventory_items : "allocated (null = UNA)"
+    inventory_categories ||--o{ inventory_items : "category_id"
+    inventory_items ||--o{ inventory_items : "replaced_by_item_id"
+    organizations ||--o{ sku_counters : "SKU sequences"
+    organizations ||--o{ stock_transfers : "dispatches"
+    stores ||--o{ stock_transfers : "receives"
+    stock_transfers ||--o{ stock_transfer_items : ""
+    inventory_items ||--o{ stock_transfer_items : ""
+    inventory_items ||--o{ stock_movements : "append-only log"
+    stock_transfers ||--o{ stock_movements : "transfer_id"
+    stock_movements ||--o{ stock_levels : "summed (view)"
 
     members {
         uuid id PK
@@ -80,6 +110,8 @@ erDiagram
         text name
         text registration_type "CHECK independent|chain|franchise"
         text status "CHECK trial|active|suspended|churned"
+        text org_code "CHECK ^[A-Z0-9]{2,6}$ — UNA SKU prefix"
+        jsonb label_settings "reserved: org label layout"
         text legal_name_gstin_pan_address "profile"
         smallint financial_year_start_month
         boolean is_demo
@@ -89,7 +121,7 @@ erDiagram
     stores {
         uuid id PK
         uuid organization_id FK
-        text store_code
+        text store_code "SKU prefix, e.g. BND-KDP"
         text name
         text address_gstin_phone_email "profile"
         time opening_time_closing_time
@@ -114,8 +146,8 @@ erDiagram
         uuid id PK
         uuid member_id FK
         uuid role_id FK
-        uuid organization_id FK "nullable"
-        uuid store_id FK "nullable"
+        uuid organization_id FK "null only for platform rows"
+        uuid store_id FK "null = org-level"
     }
     store_invitations {
         uuid id PK
@@ -153,7 +185,7 @@ erDiagram
     settlement_rules {
         uuid id PK
         uuid franchise_group_id FK
-        jsonb config "not null (no plugin_id yet — see §7)"
+        jsonb config "not null (no plugin_id yet)"
         date effective_from
         date effective_to
     }
@@ -179,6 +211,7 @@ erDiagram
         bigint planned_budget_paise
         bigint estimated_expenses_paise
         numeric expected_margin_pct
+        timestamptz started_at_completed_at
     }
     purchase_invoices {
         uuid id PK
@@ -186,20 +219,115 @@ erDiagram
         text supplier_name "free-text (no master yet)"
         jsonb margin_config "recipe; or…"
         text margin_plugin_id "…plugin (at most one)"
+        text source "CHECK manual|ai_scan"
+        text receiving_status "CHECK pending|in_transit|received|verified|ready_for_inventory"
     }
     purchase_invoice_items {
         uuid id PK
         uuid invoice_id FK
-        text description "model/style → product in M3"
+        text description
         int quantity
         bigint unit_cost_paise
         boolean is_trending "drives boosted margin"
+        int received_quantity "null = unchecked"
     }
     trip_expenses {
         uuid id PK
         uuid trip_id FK
         text category "CHECK travel|lodging|food|transport|other"
         bigint amount_paise
+    }
+    trip_activities {
+        uuid id PK
+        uuid trip_id FK
+        uuid member_id FK "who logged it"
+        text kind "CHECK note|started|completed|arrived|expense|invoice|receipt_scan|cancelled"
+        uuid ref_invoice_id FK "nullable"
+        timestamptz occurred_at
+    }
+    warehouses {
+        uuid id PK
+        uuid organization_id FK
+        text name
+        text warehouse_type "CHECK backyard|stockroom|godown|other"
+        int sort_order
+    }
+    warehouse_stores {
+        uuid id PK
+        uuid warehouse_id FK
+        uuid store_id FK "unique pair among live rows"
+    }
+    stock_locations {
+        uuid id PK
+        uuid store_id FK "exactly one of store_id…"
+        uuid warehouse_id FK "…or warehouse_id"
+        uuid parent_id FK "self-ref; null = top level"
+        text placement_type "CHECK floor|section|zone|rack"
+        text code "unique per (owner,parent), case-insensitive"
+        text direction_rack_row_rack_col "rack builder inputs"
+        text color "CHECK palette token"
+        uuid category_id FK "nullable"
+    }
+    inventory_categories {
+        uuid id PK
+        uuid organization_id FK
+        uuid store_id FK
+        text name "unique per store"
+        text code "CHECK ^[A-Z0-9]{2,6}$; one name = one code org-wide"
+        int next_sequence "unused (see sku_counters)"
+    }
+    inventory_items {
+        uuid id PK
+        uuid organization_id FK
+        uuid source_invoice_item_id FK
+        uuid store_id FK "null = unallocated (UNA)"
+        uuid category_id FK
+        text category_code
+        text name_color_size
+        int quantity
+        bigint mrp_paise "tax-inclusive"
+        bigint landed_unit_cost_paise "cost — org-only RLS"
+        text status "CHECK draft|finalized|retired"
+        text sku "unique per org; set by Finalize"
+        uuid replaced_by_item_id FK
+        int labels_printed
+    }
+    sku_counters {
+        uuid organization_id PK
+        text scope PK "store id or UNA"
+        text category_code PK
+        int next_seq
+    }
+    stock_transfers {
+        uuid id PK
+        uuid organization_id FK
+        uuid to_store_id FK
+        text status "CHECK dispatched|received"
+        timestamptz dispatched_at_received_at
+    }
+    stock_transfer_items {
+        uuid id PK
+        uuid transfer_id FK
+        uuid item_id FK
+        int qty_sent
+        int qty_received "null until received"
+    }
+    stock_movements {
+        uuid id PK
+        uuid organization_id FK
+        uuid item_id FK
+        int quantity "> 0"
+        text kind "CHECK finalize|reissue|dispatch|receive|shortage|excess|place|move|adjust"
+        text from_kind_to_kind "org|transit|store"
+        uuid from_to_store_warehouse_location FK
+        uuid transfer_id FK
+        uuid member_id FK
+    }
+    stock_levels {
+        uuid item_id "view: sum of movements"
+        text loc_kind
+        uuid store_warehouse_location
+        int quantity
     }
 ```
 
@@ -292,7 +420,11 @@ cached in Dexie keyed by `member_id` (offline-capable). Edge functions:
 ### `memberships` — the only thing that grants access.
 `id`, `member_id` FK, `role_id` FK, `organization_id` FK (nullable), `store_id` FK (nullable),
 `created_at`/`last_modified_at`/`deleted_at`. Platform rows: both FK null. Org rows:
-`organization_id` only (cascades to every store). Store rows: `store_id` only.
+`organization_id` set, `store_id` null (cascades to every store of the org). **Store rows:
+`store_id` set and `organization_id` also set** to the store's org (`invite_store_member` writes
+both; live 2026-09-28: 9 of 9 store rows). So "org-level" means `store_id IS NULL`, never merely
+`organization_id IS NOT NULL` — the rule the permission helpers follow since the 2026-09-28 fix
+(§6).
 
 **Entitlements & RLS** are enforced by SECURITY DEFINER functions (§6): `is_platform_admin()`,
 `has_org_permission(org_id, key)`, `has_store_permission(store_id, key)`.
@@ -400,8 +532,7 @@ what `has_incoming_visibility` checks for store staff. See `roles-and-permission
 ## 3B. Stock Placement (M3) — the first Inventory table
 
 Full spec: [`roadmap/stock-placement.md`](../roadmap/stock-placement.md). Where stock physically
-sits in a store — the target Inventory intake will place SKUs into. First M3 table (the rest of
-M3 — products / variants / barcode — is not built).
+sits in a store or stock room — the `from_/to_location_id` of `stock_movements` (§3D).
 
 ### `stock_locations` — one location tree, owned by a store **or** a warehouse
 `id`, **`store_id`** FK (nullable) **or `warehouse_id`** FK (nullable) — **exactly one is set**
@@ -410,7 +541,7 @@ M3 — products / variants / barcode — is not built).
 (`floor`,`section`,`zone`,`rack`) — floor/section are containers, zone/rack are leaf placements;
 every level optional (a flat boutique, a multi-floor showroom, or a godown — same table). `code`
 (the identifier; **unique per (owner, parent_id), case-insensitive**, among non-deleted — owner =
-`coalesce(store_id, warehouse_id)`), `label`. Rack-only builder inputs: `direction` CHECK (8
+`coalesce(store_id, warehouse_id)`; index `stock_locations_sibling_code_uniq`), `label`. Rack-only builder inputs: `direction` CHECK (8
 compass points), `rack_row`, `rack_col` — `code` is generated `{dir}-{row}-{col}` (e.g. `E-03-02`)
 but editable. `color` CHECK (`red`,`amber`,`green`,`teal`,`blue`,`violet`,`pink`,`slate`) —
 optional palette token for quick visual ID (aid only; the code is always shown). `layout` jsonb —
@@ -460,7 +591,8 @@ Full spec: [`roadmap/inventory.md`](../roadmap/inventory.md). The first table of
 module proper. Each store defines its **own** categories (Sarees / Dress Material / Kids / …) — an
 org can have "Kids" in one store and not another, so categories are **store-scoped**, not org-wide.
 Set up per store in the wizard's Stores step; a `stock_locations` row can be tagged with one
-(`category_id`, §3B). Live 2026-09-26 (migration `20260926100000_inventory_categories`).
+(`category_id`, §3B). Live 2026-09-26 (migration `20260926170130_inventory_categories`; the local
+file was named `20260926100000` until 2026-09-28 and has been renamed to the recorded version).
 
 ### `inventory_categories` — a store's product category/department
 `id`, `organization_id` FK, `store_id` FK, `name` (**unique per store** among non-deleted),
@@ -470,9 +602,9 @@ Set up per store in the wizard's Stores step; a `stock_locations` row can be tag
 valid supplied code, else `inventory_category_code_for()` — first 3 letters, suffixed on a clash;
 corrects rather than rejects, and bumps `last_modified_at` so devices re-pull) and
 `inventory_categories_propagate_code` (AFTER update of code, security definer: a code edit applies to
-that name in every store of the org). `next_sequence` int default 1 (**unused**; superseded by the
-planned `sku_counters`, Phase 2C), `last_modified_at`, `deleted_at`. Store-scoped RLS
-via `has_store_permission()` (which cascades org_owner/org_manager): **read** = `inventory.read`,
+that name in every store of the org). `next_sequence` int default 1 (**unused**; superseded by
+`sku_counters`, below), `last_modified_at`, `deleted_at`. Store-scoped RLS
+via `has_store_permission()` (which cascades org-level org_owner/org_manager): **read** = `inventory.read`,
 **write** (insert/update, incl. soft-delete) = `inventory.write`; hard DELETE platform-admin-only.
 Offline-first (Dexie + outbox), pushed **before** `stock_locations` (a location may reference it).
 FK `on delete cascade` from org/store, so `hard_delete_organization` clears it.
@@ -480,6 +612,7 @@ FK `on delete cascade` from org/store, so `hard_delete_organization` clears it.
 ---
 
 ### `inventory_items` — one row per SKU (Inventory Phase 2B, live 2026-09-27)
+Unique index `inventory_items_org_sku_uq (organization_id, sku) where sku is not null`.
 A Ready-for-Inventory invoice line split by colour × size × store, catalogued and priced at the
 org. `id`, `organization_id` FK (cascade), `source_invoice_item_id` FK → `purchase_invoice_items`
 (set null), `store_id` FK (set null; **NULL = unallocated**), `category_id` FK →
@@ -490,27 +623,33 @@ draft), `sku` (**unique per org** where set; present exactly when not draft — 
 `replaced_by_item_id` (self FK), `finalized_at`, `labels_printed` int ≥ 0, `created_by` FK →
 members (set null), `last_modified_at`, `deleted_at`. **Org-only RLS** (select/insert/update:
 `is_platform_admin()` or `has_org_permission(org, 'inventory.manage')`), because rows carry
-cost; stores get a price-free view in Phase 2E. **`inventory_items_guard`** trigger: clients insert
-drafts only; SKU/status are set only on the Finalize RPC path (session flag
-`tallythreads.inventory_rpc`, Phase 2C); once finalized, `sku`/`status`/`store_id`/
+cost; no DELETE policy (drafts soft-delete). Stores read items only through the price-free
+`store_stock` / `store_incoming` RPCs below. **`inventory_items_guard`** trigger: clients insert
+drafts only; SKU/status are set only on the RPC path (session flag
+`tallythreads.inventory_rpc`, set by `finalize_inventory_items` / `dispatch_stock`); once finalized, `sku`/`status`/`store_id`/
 `category_code`/`color`/`size` are frozen (retire + reissue instead). Offline-first (Dexie v12,
 pushed after categories/locations). Migration `20260927195747_inventory_items`.
 
 ### Inventory distribution (Phases 2C–2E, live 2026-09-28)
 Migration `20260927222247_inventory_distribution`. Spec: `../roadmap/inventory.md` §5, §8.
 
-- **`sku_counters`** — `(organization_id, scope, category_code)` PK, `next_seq`; `scope` = a store
-  id or `'UNA'`. Written only by `next_inventory_sku()` (upsert = row lock, so numbers never
+- **`sku_counters`** — `(organization_id, scope, category_code)` PK, `next_seq` int default 1;
+  `scope` = a store id (as text) or `'UNA'`; FK org cascade; no `last_modified_at` / `deleted_at`
+  (server-only, not synced). Written only by `next_inventory_sku()` (upsert = row lock, so numbers never
   collide); select for `inventory.manage`. Supersedes `inventory_categories.next_sequence`.
 - **`stock_transfers`** — dispatch org → store: `organization_id`, `to_store_id`, `status`
   (`dispatched`/`received`), `note`, `dispatched_at/by`, `received_at/by`, `last_modified_at`,
-  `deleted_at`. **`stock_transfer_items`** — `transfer_id`, `item_id`, `qty_sent` > 0,
-  `qty_received` ≥ 0. Select: the org (`inventory.manage`) or the receiving store
+  `deleted_at` (FKs: org and store cascade; members set null). **`stock_transfer_items`** —
+  `organization_id`, `transfer_id` (cascade), `item_id` (cascade), `qty_sent` > 0, `qty_received`
+  ≥ 0 (null until received), `last_modified_at`, `deleted_at`. Select: the org (`inventory.manage`) or the receiving store
   (`inventory.read`). **No client write policies** — written by the RPCs only.
 - **`stock_movements`** — the **append-only** stock log: `item_id`, `quantity` > 0, `kind`
   (`finalize`/`reissue`/`dispatch`/`receive`/`shortage`/`excess`/`place`/`move`/`adjust`), a
   from side and a to side, each `kind` ∈ `org`/`transit`/`store` + `store_id` / `warehouse_id` /
-  `location_id`, `transfer_id`, `reason`, `member_id`, `created_at`. CHECKs keep sides coherent.
+  `location_id`, `transfer_id`, `reason`, `member_id`, `created_at`, `last_modified_at`,
+  `deleted_at`. CHECKs keep sides coherent: at least one side; an `org` side has no store; a
+  `transit`/`store` side has one. FKs: item, org and stores cascade; warehouse, location,
+  transfer and member set null. No DELETE policy.
   RLS: select for the org or `has_store_permission(coalesce(to_store_id, from_store_id),
   'inventory.read')`; insert/update for the org, or store staff with `inventory.write` for
   `place`/`move` **within one store**. Triggers: `stock_movements_immutable` (rows never change;
@@ -587,6 +726,13 @@ decision later on whether `registration_type` should be relaxed to informational
 also carries its store's `organization_id`, and before `20260927222039_fix_permission_scope`
 it was wrongly treated as org-level (store staff got their role in every store of the org).
 
+**Trigger & internal functions:** `inventory_categories_assign_code()`,
+`inventory_categories_propagate_code()` (definer), `inventory_category_code_for(org, name,
+exclude_id)`, `inventory_items_guard()`, `stock_movements_immutable()`,
+`stock_movements_validate()`, `next_inventory_sku(org, store, category_code, color, size)`,
+`sku_segment(text)`, `stock_location_in_store(store, warehouse, location)` (definer). API EXECUTE
+is revoked on the trigger functions and `next_inventory_sku`.
+
 **RPCs (write paths, all permission-gated):** `provision_organization_with_contacts`,
 `invite_organization_member`, `invite_store_member`, `update_member_profile`,
 `accept_pending_invitations`, `archive_store`, `restore_store`, `hard_delete_store`,
@@ -616,14 +762,28 @@ warehouse-owned stock_locations). Inventory: `finalize_inventory_items`, `dispat
   tables — the M2 sync layer will reconcile these with the server. They are client-side
   IndexedDB stores, not `public` tables, so they are not in the ERD above.
 
-**UI ↔ DB check (2026-09-05):** the app reads/writes only tables that exist live
-(`organizations`, `stores`, `memberships`, `roles`, `permissions`, `role_permissions`,
-`franchise_groups`, `franchise_memberships`) plus the RPCs in §6 — no drift between the UI
-data model and the diagram.
+**UI ↔ DB check (2026-09-28):** every table / view the app (`src/`, `supabase/functions/`) reads
+or writes exists live — `devices`, `members`, `memberships`, `organizations`, `stores`, `roles`,
+`permissions`, `role_permissions`, `franchise_groups`, `franchise_memberships`, the five
+`purchase_*` / `trip_*` tables, `warehouses`, `warehouse_stores`, `stock_locations`,
+`inventory_categories`, `inventory_items`, `stock_transfers`, `stock_movements` (sync push), and the
+views `incoming_stock` / `stock_levels` — as do all 12 RPCs it calls and the `org-logos` /
+`receipts` buckets. Not yet used by the app: `access_grants`, `channels`, `settlement_rules`,
+`demo_scenarios`, `qa_test_cases` are admin/future tables; `stock_transfer_items` is read embedded
+in `stock_transfers`.
 
 ---
 
 ## 8. Changelog
+
+- **v3.9.1 (2026-09-28)** — **Full re-verification against the live DB** (catalog queries: 30
+  tables + 3 views, CHECKs, unique indexes, FK delete rules, 88 policies, 5 triggers, 28 functions,
+  71 migrations). Fixed drift: §0 counts and "not yet migrated" list (`stock_transfers` is live);
+  the ER diagram now covers all 30 tables (and `supabase/schema.mmd` is identical to it again —
+  the two had diverged); `memberships` store rows **do** carry `organization_id`; §3D wording
+  (`sku_counters` live, stores read via RPCs, key/FK details); §6 trigger/internal functions.
+  Migration file `20260926100000_inventory_categories.sql` renamed to its recorded version
+  `20260926170130`.
 
 - **v3.9.0 (2026-09-28)** — **Inventory distribution live** (`20260927222247_inventory_distribution`):
   `sku_counters`, `stock_transfers` + `stock_transfer_items`, append-only `stock_movements`,

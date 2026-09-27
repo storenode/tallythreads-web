@@ -7,7 +7,7 @@ erDiagram
     permissions ||--o{ role_permissions : ""
     roles ||--o{ store_invitations : "role_id"
     organizations ||--o{ stores : "owns"
-    organizations ||--o{ memberships : "org scope"
+    organizations ||--o{ memberships : "org scope (also set on store rows)"
     organizations ||--o{ store_invitations : "org invite"
     organizations ||--o{ franchise_groups : "franchisor"
     organizations ||--o{ demo_scenarios : ""
@@ -26,8 +26,27 @@ erDiagram
     purchase_trips ||--o{ trip_activities : "journey log"
     purchase_invoices ||--o{ trip_activities : "ref_invoice"
     members ||--o{ trip_activities : "logged_by"
-    stores ||--o{ stock_locations : "placements"
+    organizations ||--o{ warehouses : "owns"
+    warehouses ||--o{ warehouse_stores : ""
+    stores ||--o{ warehouse_stores : "draws from"
+    stores ||--o{ stock_locations : "display placements"
+    warehouses ||--o{ stock_locations : "stock-room placements"
     stock_locations ||--o{ stock_locations : "parent_id (tree)"
+    stores ||--o{ inventory_categories : "departments"
+    inventory_categories ||--o{ stock_locations : "tags (category_id)"
+    organizations ||--o{ inventory_items : "catalogues"
+    purchase_invoice_items ||--o{ inventory_items : "split into"
+    stores ||--o{ inventory_items : "allocated (null = UNA)"
+    inventory_categories ||--o{ inventory_items : "category_id"
+    inventory_items ||--o{ inventory_items : "replaced_by_item_id"
+    organizations ||--o{ sku_counters : "SKU sequences"
+    organizations ||--o{ stock_transfers : "dispatches"
+    stores ||--o{ stock_transfers : "receives"
+    stock_transfers ||--o{ stock_transfer_items : ""
+    inventory_items ||--o{ stock_transfer_items : ""
+    inventory_items ||--o{ stock_movements : "append-only log"
+    stock_transfers ||--o{ stock_movements : "transfer_id"
+    stock_movements ||--o{ stock_levels : "summed (view)"
 
     members {
         uuid id PK
@@ -54,6 +73,8 @@ erDiagram
         text name
         text registration_type "CHECK independent|chain|franchise"
         text status "CHECK trial|active|suspended|churned"
+        text org_code "CHECK ^[A-Z0-9]{2,6}$ — UNA SKU prefix"
+        jsonb label_settings "reserved: org label layout"
         text legal_name_gstin_pan_address "profile"
         smallint financial_year_start_month
         boolean is_demo
@@ -63,7 +84,7 @@ erDiagram
     stores {
         uuid id PK
         uuid organization_id FK
-        text store_code
+        text store_code "SKU prefix, e.g. BND-KDP"
         text name
         text address_gstin_phone_email "profile"
         time opening_time_closing_time
@@ -88,8 +109,8 @@ erDiagram
         uuid id PK
         uuid member_id FK
         uuid role_id FK
-        uuid organization_id FK "nullable"
-        uuid store_id FK "nullable"
+        uuid organization_id FK "null only for platform rows"
+        uuid store_id FK "null = org-level"
     }
     store_invitations {
         uuid id PK
@@ -127,7 +148,7 @@ erDiagram
     settlement_rules {
         uuid id PK
         uuid franchise_group_id FK
-        jsonb config "not null (no plugin_id yet — see §7)"
+        jsonb config "not null (no plugin_id yet)"
         date effective_from
         date effective_to
     }
@@ -148,11 +169,12 @@ erDiagram
         uuid organization_id FK "sourcing org"
         uuid created_by FK
         text title
-        text status "CHECK planning|active|completed"
+        text status "CHECK planning|active|completed|cancelled"
         jsonb route "planning legs"
         bigint planned_budget_paise
         bigint estimated_expenses_paise
         numeric expected_margin_pct
+        timestamptz started_at_completed_at
     }
     purchase_invoices {
         uuid id PK
@@ -160,14 +182,17 @@ erDiagram
         text supplier_name "free-text (no master yet)"
         jsonb margin_config "recipe; or…"
         text margin_plugin_id "…plugin (at most one)"
+        text source "CHECK manual|ai_scan"
+        text receiving_status "CHECK pending|in_transit|received|verified|ready_for_inventory"
     }
     purchase_invoice_items {
         uuid id PK
         uuid invoice_id FK
-        text description "model/style → product in M3"
+        text description
         int quantity
         bigint unit_cost_paise
         boolean is_trending "drives boosted margin"
+        int received_quantity "null = unchecked"
     }
     trip_expenses {
         uuid id PK
@@ -180,21 +205,90 @@ erDiagram
         uuid trip_id FK
         uuid member_id FK "who logged it"
         text kind "CHECK note|started|completed|arrived|expense|invoice|receipt_scan|cancelled"
-        text note
         uuid ref_invoice_id FK "nullable"
         timestamptz occurred_at
     }
+    warehouses {
+        uuid id PK
+        uuid organization_id FK
+        text name
+        text warehouse_type "CHECK backyard|stockroom|godown|other"
+        int sort_order
+    }
+    warehouse_stores {
+        uuid id PK
+        uuid warehouse_id FK
+        uuid store_id FK "unique pair among live rows"
+    }
     stock_locations {
         uuid id PK
-        uuid store_id FK
+        uuid store_id FK "exactly one of store_id…"
+        uuid warehouse_id FK "…or warehouse_id"
         uuid parent_id FK "self-ref; null = top level"
         text placement_type "CHECK floor|section|zone|rack"
-        text code "unique per (store,parent), case-insensitive"
-        text label "nullable"
-        text direction "CHECK 8-dir; rack only"
-        text rack_row "rack only"
-        text rack_col "rack only"
-        text color "CHECK palette token; nullable"
-        jsonb layout "reserved for planogram; nullable"
-        int sort_order
+        text code "unique per (owner,parent), case-insensitive"
+        text direction_rack_row_rack_col "rack builder inputs"
+        text color "CHECK palette token"
+        uuid category_id FK "nullable"
+    }
+    inventory_categories {
+        uuid id PK
+        uuid organization_id FK
+        uuid store_id FK
+        text name "unique per store"
+        text code "CHECK ^[A-Z0-9]{2,6}$; one name = one code org-wide"
+        int next_sequence "unused (see sku_counters)"
+    }
+    inventory_items {
+        uuid id PK
+        uuid organization_id FK
+        uuid source_invoice_item_id FK
+        uuid store_id FK "null = unallocated (UNA)"
+        uuid category_id FK
+        text category_code
+        text name_color_size
+        int quantity
+        bigint mrp_paise "tax-inclusive"
+        bigint landed_unit_cost_paise "cost — org-only RLS"
+        text status "CHECK draft|finalized|retired"
+        text sku "unique per org; set by Finalize"
+        uuid replaced_by_item_id FK
+        int labels_printed
+    }
+    sku_counters {
+        uuid organization_id PK
+        text scope PK "store id or UNA"
+        text category_code PK
+        int next_seq
+    }
+    stock_transfers {
+        uuid id PK
+        uuid organization_id FK
+        uuid to_store_id FK
+        text status "CHECK dispatched|received"
+        timestamptz dispatched_at_received_at
+    }
+    stock_transfer_items {
+        uuid id PK
+        uuid transfer_id FK
+        uuid item_id FK
+        int qty_sent
+        int qty_received "null until received"
+    }
+    stock_movements {
+        uuid id PK
+        uuid organization_id FK
+        uuid item_id FK
+        int quantity "> 0"
+        text kind "CHECK finalize|reissue|dispatch|receive|shortage|excess|place|move|adjust"
+        text from_kind_to_kind "org|transit|store"
+        uuid from_to_store_warehouse_location FK
+        uuid transfer_id FK
+        uuid member_id FK
+    }
+    stock_levels {
+        uuid item_id "view: sum of movements"
+        text loc_kind
+        uuid store_warehouse_location
+        int quantity
     }
