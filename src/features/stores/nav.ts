@@ -6,6 +6,7 @@ import {
   Settings,
   Truck,
   PackageCheck,
+  Boxes,
 } from "lucide-react";
 import type { ConsoleNavSection } from "@/layouts/console/nav";
 
@@ -17,10 +18,12 @@ import type { ConsoleNavSection } from "@/layouts/console/nav";
 // of the route/RLS checks — see specs/reference/roles-and-permissions.md §5). Purchase
 // Trips is org-level only (`trip.read` → org_owner/org_manager/platform_admin); store
 // staff never reach this console, but hiding the link keeps the nav honest for any
-// future mixed-role org member.
+// future mixed-role org member. Inventory is org-level processing (`inventory.manage` →
+// org_owner/org_manager): catalogue, price, SKU, labels, dispatch. Store staff use the store's
+// own Inventory tab in /ops instead.
 export function getOrgAdminNav(
   orgId: string,
-  perms: { canViewTrips?: boolean } = {},
+  perms: { canViewTrips?: boolean; canManageInventory?: boolean } = {},
 ): ConsoleNavSection[] {
   return [
     {
@@ -45,6 +48,9 @@ export function getOrgAdminNav(
                 icon: PackageCheck,
               },
             ]
+          : []),
+        ...(perms.canManageInventory
+          ? [{ label: "Inventory", to: `/org/${orgId}/inventory`, icon: Boxes }]
           : []),
       ],
     },

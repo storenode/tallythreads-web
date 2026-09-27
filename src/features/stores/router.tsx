@@ -5,6 +5,7 @@ import { RequireOrgAccess } from "@/features/auth/RequireOrgAccess";
 import ConsoleShell from "@/layouts/console/ConsoleShell";
 import { getOrgAdminNav } from "./nav";
 import { purchaseTripRoutes } from "../purchaseTrips/router";
+import { inventoryRoutes } from "../inventory/router";
 import { useMember } from "@/features/auth/useMember";
 import { useEntitlements, hasPermission } from "@/features/auth/entitlements";
 
@@ -16,8 +17,13 @@ function OrgAdminShell() {
   const canViewTrips = hasPermission(entitlements, "trip.read", {
     organizationId: orgId,
   });
+  const canManageInventory = hasPermission(entitlements, "inventory.manage", {
+    organizationId: orgId,
+  });
   return (
-    <ConsoleShell nav={getOrgAdminNav(orgId ?? "", { canViewTrips })} />
+    <ConsoleShell
+      nav={getOrgAdminNav(orgId ?? "", { canViewTrips, canManageInventory })}
+    />
   );
 }
 
@@ -199,6 +205,7 @@ export const storeRoutes: RouteObject[] = [
                     }),
                   },
                   ...purchaseTripRoutes,
+                  ...inventoryRoutes,
                 ],
               },
             ],

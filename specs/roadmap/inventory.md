@@ -318,6 +318,14 @@ Each phase ships on its own with tests, is verified offline where relevant, and 
       unit-tested).
 - [x] Demo seeders set `org_code` (category codes come from the trigger).
 - [x] E2E: the wizard spec sets a short code and asserts category codes in the UI and the DB.
+- [x] **Entry points** (added after founder review, 2026-09-27):
+      - **Org console → Inventory** (`/org/:orgId/inventory`, left menu, `inventory.manage`): tabs
+        **Ready for inventory** (Deliveries' approved invoices with received qty + landed cost/pc,
+        the queue Phase 2B catalogues) and **Categories** (org-wide name ↔ code, which stores).
+      - **Store → Inventory tab** (`/ops/:storeId/inventory`, `inventory.read`, shown only to those
+        who have it): price-free: stock on hand + incoming (empty states until 2D/2E), where stock
+        lives (display locations + attached stock rooms), store categories with codes.
+      - E2E `e2e/inventory.spec.ts`: an org owner reaches Inventory from the left menu.
 
 ### Phase 2B: Catalogue & pricing (~12h)
 - [ ] `lib/mrpPricing.ts` + golden tests (rounding, forecast, GST slab boundary): **before any UI**.

@@ -20,10 +20,19 @@ export interface OperationsNavItem {
 // and M3/M5 (Inventory/POS) aren't built yet, the same caveat the pre-cleanup /app
 // shell had. See M-role-permission-model.md for which roles (store_manager,
 // store_sales_staff, ...) land here.
-export function getOperationsNav(storeId: string): OperationsNavItem[] {
+//
+// `perms` hides tabs the member can't use (defense-in-depth on top of the page/RLS checks).
+// Inventory needs `inventory.read` for this store — held by store_manager / sales / temp staff
+// and cascaded to org_owner / org_manager.
+export function getOperationsNav(
+  storeId: string,
+  perms: { canViewInventory?: boolean } = {},
+): OperationsNavItem[] {
   return [
     { label: "Billing", to: `/ops/${storeId}/billing`, icon: Receipt },
-    { label: "Inventory", to: `/ops/${storeId}/inventory`, icon: Boxes },
+    ...(perms.canViewInventory
+      ? [{ label: "Inventory", to: `/ops/${storeId}/inventory`, icon: Boxes }]
+      : []),
     {
       label: "Incoming Stock",
       to: `/ops/${storeId}/incoming`,
