@@ -543,9 +543,14 @@ warehouse-owned stock_locations).
 - **`settlement_rules.plugin_id`** + one-source check — the hybrid engine (M1d). Not migrated.
 - **`shifts` / `petty_expenses`** — Shift & Store Operations Log (M10). Designed in
   `../roadmap/shift-store-ops-log.md`; not migrated. Feeds M1d's `deduct_expenses`.
-- **`inventory` (master) + `inventory_items` (variants)** + **`organizations.sku_template`** — the
-  Inventory module's product master/variant matrix with auto-SKU + Code128 barcode. Designed in
-  `../roadmap/inventory.md`; **not yet migrated** (phase 1 shipped `inventory_categories` only, §3D).
+- **Inventory Phase 2** (spec final 2026-09-27, `../roadmap/inventory.md` v2.0.0 §10) — **not yet
+  migrated**: `inventory_items` (one row per SKU; cost column hidden from stores via a price-free
+  `store_inventory` view), `sku_counters` (server-assigned SKU sequence; supersedes the unused
+  `inventory_categories.next_sequence`), `stock_transfers` + `stock_transfer_items` (dispatch),
+  append-only `stock_movements` with trigger-derived `stock_levels`, `label_prints`; new columns
+  `organizations.org_code` / `label_settings` and `inventory_categories.code`; RPCs
+  `finalize_inventory_items` / `reissue_inventory_item`. (Replaces the earlier `inventory` master +
+  `sku_template` sketch.)
 - **`store_knowledge`** (pgvector embeddings) + the `store-agent` edge function — the **Assistant**
   (store chat / RAG + tool-use). Designed in `../roadmap/assistant.md`; not migrated (needs the
   `vector` extension). Invoices / GST — M5. `content_items` (AI Studio) — see

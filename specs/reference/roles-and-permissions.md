@@ -49,7 +49,7 @@ Every row below is tagged with one of three statuses, because "the role exists" 
 | `org_owner` | organization | Live | Everything within the org: create stores, invite/remove Owner/Manager/Accountant, full financial visibility (`settlement.read`, `org.manage_members`) |
 | `org_manager` | organization | Live | Create stores (restored 2026-08-26 — see §7), invite/manage store-level staff, operate any store in the org. No `settlement.read`, no `org.manage_members` |
 | `org_accountant` | organization | Live | Read-only: `reports.read`, `settlement.read` only |
-| `store_manager` | store | **Named, not seeded** | Not yet built — the deferred "assign a Manager to a store" follow-up. Proposed shape below (§6), not a decision |
+| `store_manager` | store | **Live** (seeded `20260830050000`; verified in the live DB 2026-09-27) | `billing.write/read`, `inventory.write/read`, `trip.view_incoming`. Required per store by the setup wizard's Go-live gate. (§6 below is the original proposal, kept for history) |
 | `store_sales_staff` | store | Live (role/permissions only — POS UI is M5, not built) | `billing.write/read`, `inventory.write/read` |
 | `store_temp_staff` | store | Live (same caveat) | Identical access to `store_sales_staff`; differs only in that revocation is manual, no auto-expiry |
 | `store_cleaning_staff` | store | Live (same caveat) | `maintenance.access` only |
@@ -69,7 +69,8 @@ Every row below is tagged with one of three statuses, because "the role exists" 
 | `maintenance.access` | Store ops | Seeded — no maintenance screen yet | `store_cleaning_staff` only |
 | `trip.create` / `trip.read` | Purchase Trips (M4) | **Live (2026-09-05)** — gate RLS on `purchase_trips`/`purchase_invoices`/`purchase_invoice_items`/`trip_expenses` (write / financial read) | `org_owner`, `org_manager` |
 | `trip.view_incoming` | Purchase Trips (M4) — visibility | **Live (2026-09-05)** — price-free `incoming_stock` view for store staff (no cost/MRP/margin), gated via `has_incoming_visibility()` | `store_sales_staff`, `store_temp_staff`, `store_manager` |
-| `stock.transfer.create` / `stock.transfer.read` | Stock Distribution (M1c, `schema.md` §1) | **Seeded 2026-08-26** — no `stock_locations`/`stock_transfers` tables yet | `org_owner`, `org_manager` |
+| `stock.transfer.create` / `stock.transfer.read` | Stock Distribution (M1c, `schema.md` §1) | **Seeded 2026-08-26** — `stock_locations` live; `stock_transfers` planned as Inventory Phase 2D **dispatch** (org → store) | `org_owner`, `org_manager` |
+| `inventory.manage` | Inventory Phase 2 (`../roadmap/inventory.md` §2) | **Planned (Phase 2A)**: catalogue, price, finalize SKUs, print, retire/reissue. Separate from `inventory.write`, which store roles also hold (they only receive/place/move) | `org_owner`, `org_manager` |
 | `content.create` | AI Studio (`../roadmap/future/ai-studio.md`) | **Seeded 2026-08-26** — no content tables yet | `platform_editor`, `platform_content_lead` |
 | `content.review` / `content.publish` | AI Studio | **Seeded 2026-08-26** | `platform_content_lead` only |
 

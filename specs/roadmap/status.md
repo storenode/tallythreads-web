@@ -1,6 +1,6 @@
 # TallyThreads — Build Status & Roadmap
 
-**Updated:** 2026-09-26
+**Updated:** 2026-09-27
 
 The one place to see what's built and what's next. The full rationale/roadmap is
 `constitution.md` §5; this is the short board on top of it. Detailed build logs for
@@ -70,7 +70,7 @@ Operations are billing/inventory/reports, not a Purchase-Trip.
 | **M1c** | Stock locations/transfers, franchise linkage, goods-received-from-franchisor | Franchise **linkage + rule storage** live (`franchise_groups`/`franchise_memberships`/`settlement_rules`); stock-transfer flow + goods-received **not built** |
 | **M1d** | **Franchise settlement engine** (`lib/franchiseSettlement.ts`) — hybrid recipe/plugin, money-critical, unit-tested | **Speced, not built.** Design + Nellore golden test in `../reference/franchise-settlement.md` v2.0.0 §4. No M2 dependency (pure logic) — buildable now |
 | **M2** | Offline sync engine (Dexie ⇄ Supabase) | Not started — gates M3/M4/M5 |
-| **M3** | Inventory, variant matrix, barcode | **Stock Placement built** (offline-first, live) — the `stock_locations` Floor › Section › Rack/Zone tree with a store-edit card + optional palette colours; demo seeds it per store. **Inventory phase 1 (categories) built** — store-scoped `inventory_categories` (wizard Stores step) + `stock_locations.category_id` tag. See `inventory.md` + `stock-placement.md`. Product master + variants + SKU/barcode (`sku_template`) still to build |
+| **M3** | Inventory, variant matrix, barcode | **Stock Placement built** (offline-first, live) — the `stock_locations` Floor › Section › Rack/Zone tree with a store-edit card + optional palette colours; demo seeds it per store. **Inventory phase 1 (categories) built** — store-scoped `inventory_categories` (wizard Stores step) + `stock_locations.category_id` tag. See `inventory.md` + `stock-placement.md`. **Phase 2 spec final (2026-09-27, `inventory.md` v2.0.0):** org catalogue + MRP pricing → server SKUs → labels → dispatch; store receive/place/move. **Next: Phase 2A** (org code, category code, `inventory.manage`) |
 | **M11** | **Assistant (Store agent)** — chat for stock/store info: hybrid Claude tool-use (live inventory) + pgvector RAG (descriptions/policies) | **Speced, not built** (`assistant.md`). Depends on the Inventory master/items; online-only. Needs the `vector` extension + a `store-agent` edge function |
 | **M4** | Purchase-Trip module (landed cost) — the core differentiator | **Built** (offline-first, live). Plan → start → invoices/items/expenses → complete/cancel/clone; landed-cost + MRP; per-invoice receiving pipeline via the **Deliveries** page (`in_transit→received→verified→approved`, `deliveries.md`) — `approved` hands off to M3. See `purchase-trips.md` + `deliveries.md` |
 | **M5** | Billing/POS, GST calc, printing | Permission keys seeded; no tables |
