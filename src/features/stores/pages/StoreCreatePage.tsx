@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { FormProvider, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { STORE_CODE_HINT, storeCodeSchema } from "@/features/stores/storeCode";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
@@ -18,7 +19,7 @@ function errorMessage(err: unknown, fallback: string) {
 
 const createStoreSchema = z.object({
   name: z.string().trim().min(1, "Store name is required"),
-  store_code: z.string(),
+  store_code: storeCodeSchema,
   address_line1: z.string(),
   address_line2: z.string(),
   city: z.string(),
@@ -113,8 +114,11 @@ export default function StoreCreatePage() {
               />
               <Input
                 label="Store code"
-                placeholder="ANR-01"
+                placeholder="BND-KDP"
+                className="uppercase"
+                autoCapitalize="characters"
                 error={errors.store_code?.message}
+                hint={errors.store_code?.message ? undefined : STORE_CODE_HINT}
                 {...register("store_code")}
               />
             </div>

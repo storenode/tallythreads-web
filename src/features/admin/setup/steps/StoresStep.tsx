@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FormProvider, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { STORE_CODE_HINT, storeCodeSchema } from "@/features/stores/storeCode";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -32,7 +33,7 @@ const s = (v: string | null | undefined) => v ?? "";
 
 const storeSchema = z.object({
   name: z.string().trim().min(1, "Store name is required"),
-  store_code: z.string(),
+  store_code: storeCodeSchema,
   address_line1: z.string(),
   address_line2: z.string(),
   city: z.string(),
@@ -91,12 +92,14 @@ function StoreForm({
   orgId,
   storeId,
   canManageInventory,
+  canManageCodes,
   onDone,
   onCancel,
 }: {
   orgId: string;
   storeId?: string;
   canManageInventory: boolean;
+  canManageCodes: boolean;
   onDone: () => void;
   onCancel: () => void;
 }) {
@@ -185,7 +188,11 @@ function StoreForm({
             />
             <Input
               label="Store code"
-              placeholder="ANR-01"
+              placeholder="BND-KDP"
+              className="uppercase"
+              autoCapitalize="characters"
+              error={errors.store_code?.message}
+              hint={errors.store_code?.message ? undefined : STORE_CODE_HINT}
               {...register("store_code")}
             />
           </div>
@@ -205,6 +212,7 @@ function StoreForm({
             orgId={orgId}
             storeId={storeId}
             canManage={canManageInventory}
+            canEditCodes={canManageCodes}
           />
         )}
 
@@ -252,6 +260,11 @@ export default function StoresStep() {
   const { data: stores, isLoading, isError } = useStoresByOrg(org.id);
   const [view, setView] = useState<StoresView>({ mode: "list" });
 
+  // Category SKU codes are org-level (inventory.manage — org roles); ticking categories is
+  // inventory.write.
+  const canManageCodes = hasPermission(entitlements, "inventory.manage", {
+    organizationId: org.id,
+  });
   const canManageInventory = hasPermission(entitlements, "inventory.write", {
     organizationId: org.id,
   });
@@ -265,6 +278,7 @@ export default function StoresStep() {
         orgId={org.id}
         storeId={editStoreId}
         canManageInventory={canManageInventory}
+        canManageCodes={canManageCodes}
         onDone={backToList}
         onCancel={backToList}
       />

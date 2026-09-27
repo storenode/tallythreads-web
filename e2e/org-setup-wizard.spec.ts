@@ -16,12 +16,22 @@ test("admin sets up a new organization end to end and takes it live", async ({
   const storeCode = `E2E-${tag.slice(-4).toUpperCase()}`;
   const ownerEmail = `e2e.wizard.${tag}@example.com`;
   const roomName = `E2E Godown ${tag}`;
+  const orgCode = `E${tag.slice(-5)}`.toUpperCase(); // 6 chars, A–Z/0–9
   const customCategory = `E2E Bridal ${tag}`;
   const categories = ["Sarees", "Kids Wear", customCategory];
+  // SKU category codes (inventory.md §5): first 3 letters/digits of the name.
+  const categoryCodes: Record<string, string> = {
+    Sarees: "SAR",
+    "Kids Wear": "KID",
+    [customCategory]: "E2E",
+  };
 
   // --- Step 1: Organization -------------------------------------------------------
   await page.goto("/admin/setup/new");
   await page.getByLabel("Organization name").fill(orgName);
+  // The short code is suggested from the name (initials) until you type your own.
+  await expect(page.getByLabel("Short code")).not.toHaveValue("");
+  await page.getByLabel("Short code").fill(orgCode.toLowerCase()); // stored uppercase
   await page.getByLabel("Registration type").selectOption("chain");
   await page.getByLabel("Demo organization").check();
   // Created as a trial so the Go-live step has something to flip.
@@ -50,6 +60,12 @@ test("admin sets up a new organization end to end and takes it live", async ({
   await page.getByPlaceholder("New category (e.g. Wedding Collection)").fill(customCategory);
   await page.getByPlaceholder("New category (e.g. Wedding Collection)").press("Enter");
   await expect(page.getByLabel(customCategory, { exact: true })).toBeChecked();
+  // Each ticked category shows its SKU code (editable for org roles; the admin is one).
+  for (const name of categories) {
+    await expect(page.getByLabel(`${name} code`, { exact: true })).toHaveValue(
+      categoryCodes[name],
+    );
+  }
   await expect(page.getByRole("heading", { name: "Edit store" })).toBeVisible();
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Add every branch this organization runs.")).toBeVisible();
@@ -105,7 +121,7 @@ test("admin sets up a new organization end to end and takes it live", async ({
   const db = clientFor(env, env.adminJwt);
   const { data: org, error } = await db
     .from("organizations")
-    .select("status, is_demo, primary_contact_member_id, stores(id, name, store_code)")
+    .select("status, is_demo, org_code, primary_contact_member_id, stores(id, name, store_code)")
     .eq("id", orgId)
     .single();
   expect(error).toBeNull();
@@ -115,6 +131,7 @@ test("admin sets up a new organization end to end and takes it live", async ({
     stores: [{ name: storeName, store_code: storeCode }],
   });
   expect(org!.primary_contact_member_id).not.toBeNull();
+  expect(org!.org_code).toBe(orgCode);
 
   // Categories were written through Dexie → outbox; the sync push lands them server-side.
   const storeId = (org!.stores as { id: string }[])[0].id;
@@ -123,12 +140,16 @@ test("admin sets up a new organization end to end and takes it live", async ({
       async () => {
         const { data } = await db
           .from("inventory_categories")
-          .select("name, organization_id")
+          .select("name, code, organization_id")
           .eq("store_id", storeId)
           .is("deleted_at", null);
-        return (data ?? []).map((c) => `${c.name}|${c.organization_id}`).sort();
+        return (data ?? [])
+          .map((c) => `${c.name}|${c.code}|${c.organization_id}`)
+          .sort();
       },
       { message: "the store's categories should sync to Supabase", timeout: 90_000 },
     )
-    .toEqual(categories.map((name) => `${name}|${orgId}`).sort());
+    .toEqual(
+      categories.map((name) => `${name}|${categoryCodes[name]}|${orgId}`).sort(),
+    );
 });

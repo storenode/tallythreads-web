@@ -551,6 +551,11 @@ warehouse-owned stock_locations).
   `organizations.org_code` / `label_settings` and `inventory_categories.code`; RPCs
   `finalize_inventory_items` / `reissue_inventory_item`. (Replaces the earlier `inventory` master +
   `sku_template` sketch.)
+  **Phase 2A migration written, not applied** (`20260927100000_inventory_phase2a_codes.sql`):
+  `organizations.org_code` + `label_settings`, `inventory_categories.code` with the
+  `inventory_categories_assign_code` / `inventory_categories_propagate_code` triggers and
+  `inventory_category_code_for()`, plus the `inventory.manage` permission. Move into §2/§3D once
+  applied.
 - **`store_knowledge`** (pgvector embeddings) + the `store-agent` edge function — the **Assistant**
   (store chat / RAG + tool-use). Designed in `../roadmap/assistant.md`; not migrated (needs the
   `vector` extension). Invoices / GST — M5. `content_items` (AI Studio) — see

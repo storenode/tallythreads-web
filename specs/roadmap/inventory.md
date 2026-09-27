@@ -1,8 +1,8 @@
 # M3 — Inventory: catalogue, pricing, SKU/barcode labels, distribution & store stock
 
-**Status:** Phase 1 (categories) **Built & live** (2026-09-26). Phase 2 **spec final** (2026-09-27),
-not started. Build begins with Phase 2A on the founder's go-ahead.
-**Version:** 2.0.0
+**Status:** Phase 1 (categories) **Built & live** (2026-09-26). Phase 2 **spec final** (2026-09-27).
+**Phase 2A built** (2026-09-27), migration written but **not yet applied** to the live DB.
+**Version:** 2.1.0
 **Est:** see §11 (M3 is 36h in constitution §5 and needs revising; this spec's phases total ~50h)
 **Tracking:** [storenode/tallythreads-web#30](https://github.com/storenode/tallythreads-web/issues/30)
 **Builds on:** Deliveries (`deliveries.md`) → Stock Placement (`stock-placement.md`) → Warehouses /
@@ -142,7 +142,10 @@ Required and **only** these: **name, category, colour, size, quantity, MRP.**
   to finalize**: Finalize is blocked for a store without one, with a link to fill it in.
   (Live check 2026-09-27: all 5 stores have codes.)
 - **`org_code`**: **new** short code on the organization (e.g. `BND`). Suggested from the
-  name, editable, unique, uppercase A–Z/0–9, 2–6 chars. Used only for `UNA` SKUs.
+  prefix the org's store codes share (`BND-KDP` → `BND`), else the name's initials; editable;
+  uppercase A–Z/0–9, 2–6 chars. Used only for `UNA` SKUs. **Not globally unique** (decided in
+  2A): SKUs are only resolved inside one org, and a global rule would let one customer block
+  another's natural code.
 - **`CAT`**: **new** category code on `inventory_categories` (e.g. Sarees → `SAR`). Generated
   from the name (first 3 letters, uppercase), editable, unique within the store, **locked once
   any SKU uses it**. **Org-wide consistency rule:** within one org, a category name maps to one
@@ -294,14 +297,26 @@ SKUs), receive, place, move and adjustments write to Dexie first.
 Each phase ships on its own with tests, is verified offline where relevant, and is checked at
 375px (constitution §7).
 
-### Phase 2A: Foundations (~4h)
-- [ ] Migration: `organizations.org_code` (+ backfill a suggestion for existing orgs),
-      `organizations.label_settings`, `inventory_categories.code` (+ backfill from names, per-org
-      consistency), `inventory.manage` permission → `org_owner`, `org_manager`.
-- [ ] Wizard: Organization step gets **Short code**; Stores step marks **Store code** required;
-      category code shown (editable) in the Categories card.
-- [ ] Demo seeders set `org_code` + category codes.
-- [ ] `schema.md` + `roles-and-permissions.md` updated to match the live DB.
+### Phase 2A: Foundations (~4h) — **built 2026-09-27, migration NOT yet applied**
+- [x] Migration `20260927100000_inventory_phase2a_codes.sql`: `organizations.org_code` (+ backfill:
+      shared store-code prefix, else initials) and `label_settings`; `inventory_categories.code`
+      (+ backfill); the `inventory_categories_assign_code` trigger (one name ↔ one code per org;
+      corrects offline writes instead of rejecting them and bumps `last_modified_at` so devices
+      re-pull) and the `inventory_categories_propagate_code` trigger (a code edit applies to every
+      store of the org); `inventory.manage` → `org_owner`, `org_manager`. **Dry-run verified**
+      twice against the live DB inside rolled-back transactions (VCS / BND backfill,
+      MEN/WOM/KID/…, collision → `SAR2`, org-wide recode, rejection of another name's code).
+- [ ] **Apply the migration to the live DB** (founder go-ahead), then update `schema.md` §2/§3D +
+      changelog, and `roles-and-permissions.md` (`inventory.manage` → Live).
+- [x] Org form (create + edit, wizard Organization step): **Short code**, suggested from the name /
+      store codes until typed (`OrganizationCoreFields`, component-tested).
+- [x] Store code **required** and normalised (uppercase) in every store form (wizard, org Store
+      create/edit), via the shared `storeCodeSchema`.
+- [x] Categories card: each ticked category shows its **code**; org roles (`inventory.manage`) can
+      edit it, with the clash check mirroring the trigger (`src/features/inventory/codes.ts`,
+      unit-tested).
+- [x] Demo seeders set `org_code` (category codes come from the trigger).
+- [x] E2E: the wizard spec sets a short code and asserts category codes in the UI and the DB.
 
 ### Phase 2B: Catalogue & pricing (~12h)
 - [ ] `lib/mrpPricing.ts` + golden tests (rounding, forecast, GST slab boundary): **before any UI**.
@@ -381,6 +396,9 @@ Each store defines its own **categories/departments** (Sarees, Dress Material, K
 ---
 
 ## Changelog
+- **v2.1.0 (2026-09-27)**: Phase 2A built (migration written and dry-run verified, **not
+  applied**). `org_code` is not globally unique (SKUs are org-scoped). Category codes are enforced
+  server-side by triggers (assign/normalise + org-wide propagation).
 - **v2.0.0 (2026-09-27)**: Phase 2 redesigned with the founder and **finalized**. The org
   catalogues Ready-for-Inventory lines, prices them (landed-cost suggestion, rounding, net-of-GST
   forecast), allocates, finalizes (server SKUs), prints labels and dispatches. Stores receive,

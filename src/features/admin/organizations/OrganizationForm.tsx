@@ -18,6 +18,7 @@ import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { useLoadingGate } from "@/hooks/useLoadingGate";
 import { LogoUpload } from "@/components/ui/LogoUpload";
 import { OrganizationCoreFields } from "./OrganizationCoreFields";
+import { CODE_RE, normalizeCode } from "@/features/inventory/codes";
 import {
   useCreateOrganization,
   useOrganizationMembers,
@@ -194,9 +195,19 @@ function RegistrationDetailsFields() {
 // Create takes only the org's own fields now — no owner/primary-contact invites.
 // People are added (and mandated) later at the wizard's Members step, before an
 // org can go live. The RPC accepts an empty invites array, so no DB change.
+// Short code: typed in any case, stored uppercase A–Z/0–9 (the SKU prefix for stock
+// not yet allocated to a store — specs/roadmap/inventory.md §5).
+const orgCodeField = z.preprocess(
+  (v) => normalizeCode(String(v ?? "")),
+  z.string(),
+);
+
 const createSchema = z
   .object({
     name: z.string().trim().min(1, "Organization name is required"),
+    org_code: orgCodeField.refine((v) => CODE_RE.test(v), {
+      message: "Short code must be 2–6 letters or numbers (e.g. BND)",
+    }),
     registration_type: z.enum(["independent", "chain", "franchise"]),
     is_demo: z.boolean(),
   })
@@ -229,6 +240,7 @@ export function OrganizationCreateForm({
     resolver: zodResolver(createSchema) as Resolver<CreateFormValues>,
     defaultValues: {
       name: "",
+      org_code: "",
       registration_type: "" as RegistrationType,
       is_demo: false,
       ...registrationDetailsDefaults,
@@ -260,7 +272,7 @@ export function OrganizationCreateForm({
       // transaction — this is a plain follow-up update, same mechanism as editing
       // them later. Only send fields actually filled in; nothing here blocks
       // navigation, since the org (and any invites) already exist either way.
-      const patch: UpdateOrganizationInput = {};
+      const patch: UpdateOrganizationInput = { org_code: values.org_code };
       if (values.legal_entity_type)
         patch.legal_entity_type = values.legal_entity_type as LegalEntityType;
       if (values.financial_year_start_month)
@@ -348,6 +360,10 @@ const editSchema = z
     // pattern already used for legal_entity_type below.
     registration_type: z.string(),
     is_demo: z.boolean(),
+    // "" = not set (orgs created before short codes); otherwise 2–6 of A–Z/0–9.
+    org_code: orgCodeField.refine((v) => v === "" || CODE_RE.test(v), {
+      message: "Short code must be 2–6 letters or numbers (e.g. BND)",
+    }),
   })
   .merge(registrationDetailsSchema);
 
@@ -360,6 +376,7 @@ function toDefaults(org: Organization): EditFormValues {
     name: org.name,
     registration_type: s(org.registration_type),
     is_demo: org.is_demo,
+    org_code: s(org.org_code),
     legal_name: s(org.legal_name),
     legal_entity_type: s(org.legal_entity_type),
     gstin: s(org.gstin),
@@ -638,6 +655,7 @@ export function OrganizationEditFormCard({
             ? null
             : (values.registration_type as RegistrationType);
       if (dirtyFields.is_demo) patch.is_demo = values.is_demo;
+      if (dirtyFields.org_code) patch.org_code = values.org_code || null;
       if (dirtyFields.status) patch.status = values.status;
       if (dirtyFields.legal_entity_type)
         patch.legal_entity_type =
@@ -678,7 +696,15 @@ export function OrganizationEditFormCard({
       <FormProvider {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Card title="Organization">
-            <OrganizationCoreFields />
+            <OrganizationCoreFields
+              storeCodes={
+                "stores" in org
+                  ? (org as { stores: { storeCode: string | null }[] }).stores.map(
+                      (st) => st.storeCode,
+                    )
+                  : []
+              }
+            />
           </Card>
 
           <Card title="Registration details">

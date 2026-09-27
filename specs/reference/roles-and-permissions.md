@@ -70,7 +70,7 @@ Every row below is tagged with one of three statuses, because "the role exists" 
 | `trip.create` / `trip.read` | Purchase Trips (M4) | **Live (2026-09-05)** — gate RLS on `purchase_trips`/`purchase_invoices`/`purchase_invoice_items`/`trip_expenses` (write / financial read) | `org_owner`, `org_manager` |
 | `trip.view_incoming` | Purchase Trips (M4) — visibility | **Live (2026-09-05)** — price-free `incoming_stock` view for store staff (no cost/MRP/margin), gated via `has_incoming_visibility()` | `store_sales_staff`, `store_temp_staff`, `store_manager` |
 | `stock.transfer.create` / `stock.transfer.read` | Stock Distribution (M1c, `schema.md` §1) | **Seeded 2026-08-26** — `stock_locations` live; `stock_transfers` planned as Inventory Phase 2D **dispatch** (org → store) | `org_owner`, `org_manager` |
-| `inventory.manage` | Inventory Phase 2 (`../roadmap/inventory.md` §2) | **Planned (Phase 2A)**: catalogue, price, finalize SKUs, print, retire/reissue. Separate from `inventory.write`, which store roles also hold (they only receive/place/move) | `org_owner`, `org_manager` |
+| `inventory.manage` | Inventory Phase 2 (`../roadmap/inventory.md` §2) | **Migration written (`20260927100000`), not yet applied**; the app already checks it for category-code editing: catalogue, price, finalize SKUs, print, retire/reissue. Separate from `inventory.write`, which store roles also hold (they only receive/place/move) | `org_owner`, `org_manager` |
 | `content.create` | AI Studio (`../roadmap/future/ai-studio.md`) | **Seeded 2026-08-26** — no content tables yet | `platform_editor`, `platform_content_lead` |
 | `content.review` / `content.publish` | AI Studio | **Seeded 2026-08-26** | `platform_content_lead` only |
 

@@ -56,3 +56,13 @@ export function useCategoriesByStore(storeId: string | undefined) {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [storeId]);
 }
+
+/** All active categories across the org's stores (live) — the org-wide name ↔ code map. */
+export function useCategoriesByOrg(orgId: string | undefined) {
+  return useLiveQuery(async () => {
+    if (!orgId) return [] as InventoryCategory[];
+    return (
+      await db.inventory_categories.where("organization_id").equals(orgId).toArray()
+    ).filter((c) => !c.deleted_at);
+  }, [orgId]);
+}

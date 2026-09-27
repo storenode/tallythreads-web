@@ -15,6 +15,7 @@ import {
 import { seedDemoPurchaseTrips } from "./purchaseTrips.demo";
 import { seedDemoWarehouses } from "./warehouses.demo";
 import { seedDemoStoreCategories } from "./categories.demo";
+import { suggestOrgCode } from "@/features/inventory/codes";
 import {
   createStorePlacements,
   demoPlacementFor,
@@ -258,7 +259,11 @@ export function useCreateIndependentDemo() {
         invites: [],
       });
 
-      await updateOrganization(org.id, buildOrgPatch(input.org));
+      // Short org code (SKU prefix for unallocated stock) from the stores' shared prefix.
+      await updateOrganization(org.id, {
+        ...buildOrgPatch(input.org),
+        org_code: suggestOrgCode(input.org.name, [input.store.store_code]) || null,
+      });
 
       const store = await createStore(org.id, input.store);
 

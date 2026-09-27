@@ -40,6 +40,10 @@ export interface Organization {
   onboarded_by: string | null;
   notes: string | null;
   is_demo: boolean;
+  /** Short org code (2–6 of A–Z/0–9, e.g. BND) — prefix of unallocated-stock SKUs. */
+  org_code: string | null;
+  /** Default barcode-label print layout (Inventory Phase 2C). */
+  label_settings: Record<string, unknown> | null;
   created_at: string;
   last_modified_at: string;
   deleted_at: string | null;

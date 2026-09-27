@@ -9,5 +9,9 @@ export interface InventoryCategory extends SyncMeta {
   organization_id: string;
   store_id: string;
   name: string;
+  /** SKU category segment (SAR). Assigned/normalised server-side so one name ↔ one code
+   * across the org (the inventory_categories_assign_code trigger); the client sends its best
+   * suggestion. Optional only for rows cached before Phase 2A. */
+  code?: string;
   next_sequence: number;
 }
