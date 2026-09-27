@@ -4,7 +4,7 @@
 **Parent docs:** `schema.md` §2 (the platform/organization/store RBAC mechanism this all
 runs on), `constitution.md` §2.IX/§3/§5, `franchise-settlement.md`,
 `../roadmap/future/ai-studio.md`
-**Version:** 1.3.0
+**Version:** 1.4.0
 
 ---
 
@@ -116,6 +116,13 @@ by exception rather than reordering — see §7's 2026-08-27 entry. `staff.invit
 demo-scoped UI (§7's 2026-08-28 entry) is the same kind of narrow exception, not a
 signal that the real store-staff-invite screen is next in the sequence.
 
+**Membership scope (fixed 2026-09-28).** A store membership row also carries its store's
+`organization_id`. The org-level branches of `has_org_permission` and `has_store_permission`
+used to match on `organization_id` alone, so a store role's permissions applied to **every store
+of the org** (and to org-scoped checks). Since `20260927222039_fix_permission_scope` an org-level
+membership is one with `store_id IS NULL`: store roles act only in their own store. Store staff
+read the stock rooms attached to their store through `warehouse_serves_readable_store()`.
+
 ## 6. Proposed `store_manager` role (not built — the deferred follow-up)
 
 Flagged for when store-level staff assignment gets built (explicitly deferred after
@@ -133,6 +140,12 @@ stay org-level-only (`org_owner`/`org_accountant`)? Drafted leaning toward "no" 
 now, symmetric with `org_manager` not having `settlement.read` — flag if that's wrong.
 
 ## 7. Changelog
+
+- **2026-09-28 — Store memberships no longer count as org-level.** `has_org_permission` /
+  `has_store_permission` now require `store_id IS NULL` for the org branch (see §5). Verified
+  live in rolled-back runs: owners' visibility unchanged; a Kadapa sales person went from all 38
+  stock locations / 8 categories of the org to their own store's. `inventory.manage` now also gates
+  Finalize, labels and dispatch; `inventory.write` gates store receive and place/move.
 
 - **2026-08-31 — `organizations` write policies aligned with §4.** New migration
   `20260831010000_organizations_crud_permission_matrix.sql`: UPDATE on `organizations`

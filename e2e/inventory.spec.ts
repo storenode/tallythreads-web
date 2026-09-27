@@ -2,7 +2,7 @@ import { expect, test } from "./support/fixtures";
 
 // Inventory entry points (specs/roadmap/inventory.md §2): the org console has an
 // "Inventory" menu item for org roles (inventory.manage) that opens the org Inventory page
-// (Ready for inventory · Categories).
+// (Ready for inventory · Stock & dispatch · Categories).
 
 test("org owner reaches Inventory from the left menu", async ({ ownerPage: page, demoOrg }) => {
   await page.goto(`/org/${demoOrg.id}`);
@@ -16,6 +16,11 @@ test("org owner reaches Inventory from the left menu", async ({ ownerPage: page,
   await expect(page.getByRole("tab", { name: "Ready for inventory" })).toBeVisible();
   // A fresh org has nothing waiting — the empty state points at Deliveries.
   await expect(page.getByText("Nothing is waiting.")).toBeVisible();
+
+  // Nothing finalized yet: no stock at the org, no dispatches.
+  await page.getByRole("tab", { name: "Stock & dispatch" }).click();
+  await expect(page.getByText("No dispatches yet.")).toBeVisible();
+  await expect(page.getByText("0 pcs").first()).toBeVisible();
 
   await page.getByRole("tab", { name: "Categories" }).click();
   await expect(page.getByText("No categories yet.")).toBeVisible();

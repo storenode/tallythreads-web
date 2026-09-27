@@ -3,7 +3,7 @@
 **Status:** Living reference. **Verified against the live Supabase database**
 (`gmmeaplomgotqtivevkg`, `public` schema) on 2026-09-05 — the live DB is authoritative;
 this doc is kept to match it, not the other way round.
-**Version:** 3.8.0
+**Version:** 3.9.0
 **Related:** `../constitution.md` (§6 architecture rules, §2.IX store models),
 `roles-and-permissions.md` (role/permission catalog), `franchise-settlement.md`
 (the settlement engine — proposed M1d, see §4).
@@ -496,6 +496,36 @@ drafts only; SKU/status are set only on the Finalize RPC path (session flag
 `category_code`/`color`/`size` are frozen (retire + reissue instead). Offline-first (Dexie v12,
 pushed after categories/locations). Migration `20260927195747_inventory_items`.
 
+### Inventory distribution (Phases 2C–2E, live 2026-09-28)
+Migration `20260927222247_inventory_distribution`. Spec: `../roadmap/inventory.md` §5, §8.
+
+- **`sku_counters`** — `(organization_id, scope, category_code)` PK, `next_seq`; `scope` = a store
+  id or `'UNA'`. Written only by `next_inventory_sku()` (upsert = row lock, so numbers never
+  collide); select for `inventory.manage`. Supersedes `inventory_categories.next_sequence`.
+- **`stock_transfers`** — dispatch org → store: `organization_id`, `to_store_id`, `status`
+  (`dispatched`/`received`), `note`, `dispatched_at/by`, `received_at/by`, `last_modified_at`,
+  `deleted_at`. **`stock_transfer_items`** — `transfer_id`, `item_id`, `qty_sent` > 0,
+  `qty_received` ≥ 0. Select: the org (`inventory.manage`) or the receiving store
+  (`inventory.read`). **No client write policies** — written by the RPCs only.
+- **`stock_movements`** — the **append-only** stock log: `item_id`, `quantity` > 0, `kind`
+  (`finalize`/`reissue`/`dispatch`/`receive`/`shortage`/`excess`/`place`/`move`/`adjust`), a
+  from side and a to side, each `kind` ∈ `org`/`transit`/`store` + `store_id` / `warehouse_id` /
+  `location_id`, `transfer_id`, `reason`, `member_id`, `created_at`. CHECKs keep sides coherent.
+  RLS: select for the org or `has_store_permission(coalesce(to_store_id, from_store_id),
+  'inventory.read')`; insert/update for the org, or store staff with `inventory.write` for
+  `place`/`move` **within one store**. Triggers: `stock_movements_immutable` (rows never change;
+  an identical re-push is allowed) and `stock_movements_validate` (locations must belong to the
+  store — `stock_location_in_store()`). Client: Dexie v13, **push-only** (never pulled).
+- **`stock_levels`** (view, `security_invoker`) — on-hand per `(item, loc_kind, store, warehouse,
+  location)`, summed from movements; zero rows dropped. Callers see what their movement RLS allows.
+- **RPCs (SECURITY DEFINER, `authenticated` only, permission-checked inside):**
+  `finalize_inventory_items(uuid[])` → setof `inventory_items` (SKU, store category, `finalize`
+  movement into org holding); `dispatch_stock(store, jsonb lines, note)` → `{transfer_id,
+  reissued[]}` (UNA → new store-SKU item, UNA retired when fully moved); `receive_transfer(transfer,
+  jsonb lines, warehouse?, location?)`; `store_stock(store)` (price-free); `store_incoming(store)`
+  (jsonb, price-free). Helpers: `sku_segment(text)`, `next_inventory_sku(...)` (no API execute),
+  `stock_location_in_store(...)`.
+
 ---
 
 ## 4. Demo & QA (admin-only tooling)
@@ -550,35 +580,33 @@ decision later on whether `registration_type` should be relaxed to informational
 **RLS/entitlement helpers (SECURITY DEFINER):** `is_platform_admin()`,
 `has_org_permission(target_organization_id, permission_key)`,
 `has_store_permission(target_store_id, permission_key)`,
-`has_incoming_visibility(target_org)` (gates the `incoming_stock` view — §3A).
+`has_incoming_visibility(target_org)` (gates the `incoming_stock` view — §3A),
+`warehouse_serves_readable_store(warehouse_id)` (store staff read their attached stock rooms).
+**Scope rule (fixed 2026-09-28):** the org-level branch of `has_org_permission` /
+`has_store_permission` matches only memberships with `store_id IS NULL`. A store membership
+also carries its store's `organization_id`, and before `20260927222039_fix_permission_scope`
+it was wrongly treated as org-level (store staff got their role in every store of the org).
 
 **RPCs (write paths, all permission-gated):** `provision_organization_with_contacts`,
 `invite_organization_member`, `invite_store_member`, `update_member_profile`,
 `accept_pending_invitations`, `archive_store`, `restore_store`, `hard_delete_store`,
 `hard_delete_organization` (extended 2026-09-18 to purge warehouses + warehouse_stores +
-warehouse-owned stock_locations).
+warehouse-owned stock_locations). Inventory: `finalize_inventory_items`, `dispatch_stock`,
+`receive_transfer`, `store_stock`, `store_incoming` (§3D).
 
 ---
 
 ## 7. Not yet in schema (forward pointers)
 
-- **`stock_transfers`** — central stock **movement** (godown → store / store → store, M1c).
-  Designed in `franchise-settlement.md` / constitution §6; not migrated. (`stock_locations` and
-  now **`warehouses`/`warehouse_stores`** are live — see §3B/§3C; the transfer flow that *moves*
-  stock between them is the remaining piece, deferred to the transfer/intake spec.)
+- **Store → store `stock_transfers`** (M1c). Org → store dispatch is live (§3D); store-to-store
+  moves reuse the same tables once designed.
 - **`settlement_statements`** — computed monthly settlements (M1d). Not migrated.
 - **`settlement_rules.plugin_id`** + one-source check — the hybrid engine (M1d). Not migrated.
 - **`shifts` / `petty_expenses`** — Shift & Store Operations Log (M10). Designed in
   `../roadmap/shift-store-ops-log.md`; not migrated. Feeds M1d's `deduct_expenses`.
-- **Inventory Phase 2** (spec `../roadmap/inventory.md` §10) — `inventory_items` is **live** (§3D
-  above); **not yet migrated**: the price-free `store_inventory` view (2E), `sku_counters` (server-assigned SKU sequence; supersedes the unused
-  `inventory_categories.next_sequence`), `stock_transfers` + `stock_transfer_items` (dispatch),
-  append-only `stock_movements` with trigger-derived `stock_levels`, `label_prints`; new columns
-  `organizations.org_code` / `label_settings` and `inventory_categories.code`; RPCs
-  `finalize_inventory_items` / `reissue_inventory_item`. (Replaces the earlier `inventory` master +
-  `sku_template` sketch.)
-  (Phase 2A — `org_code`, `label_settings`, category `code`, `inventory.manage` — is **live**, see
-  §2 / §3D.)
+- **Inventory Phase 2** (spec `../roadmap/inventory.md` §10) — 2A–2E are **live** (§3D). **Not yet
+  migrated:** `label_prints` (print audit), `reissue_inventory_item` (retire/reissue after
+  finalize), store → store transfers, adjustments / stock count (2F).
 - **`store_knowledge`** (pgvector embeddings) + the `store-agent` edge function — the **Assistant**
   (store chat / RAG + tool-use). Designed in `../roadmap/assistant.md`; not migrated (needs the
   `vector` extension). Invoices / GST — M5. `content_items` (AI Studio) — see
@@ -596,6 +624,15 @@ data model and the diagram.
 ---
 
 ## 8. Changelog
+
+- **v3.9.0 (2026-09-28)** — **Inventory distribution live** (`20260927222247_inventory_distribution`):
+  `sku_counters`, `stock_transfers` + `stock_transfer_items`, append-only `stock_movements`,
+  `stock_levels` view, RPCs `finalize_inventory_items` / `dispatch_stock` / `receive_transfer` /
+  `store_stock` / `store_incoming`. **Security fix** (`20260927222039_fix_permission_scope`):
+  `has_org_permission` / `has_store_permission` counted store memberships as org-level, so store
+  staff could read and write every store's rows in their org (verified live: a Kadapa sales
+  person saw all 38 stock locations). Now org-level means `store_id IS NULL`; new
+  `warehouse_serves_readable_store()` + policy lets staff read stock rooms attached to their store.
 
 - **v3.8.0 (2026-09-27)** — **`inventory_items` live** (Inventory Phase 2B; migration
   `20260927195747_inventory_items`): org-only RLS on `inventory.manage`, SKU unique per org,

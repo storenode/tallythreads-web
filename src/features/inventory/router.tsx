@@ -15,4 +15,11 @@ export const inventoryRoutes: RouteObject[] = [
       Component: (await import("./pages/CataloguePage")).default,
     }),
   },
+  {
+    // Barcode labels for finalized items (Phase 2C); ?items=id:qty,… preselects.
+    path: "inventory/labels",
+    lazy: async () => ({
+      Component: (await import("./pages/LabelsPage")).default,
+    }),
+  },
 ];

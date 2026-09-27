@@ -1,8 +1,9 @@
 # M3 — Inventory: catalogue, pricing, SKU/barcode labels, distribution & store stock
 
 **Status:** Phase 1 (categories) **Built & live** (2026-09-26). Phase 2 **spec final** (2026-09-27).
-**Phase 2A built & live** (2026-09-27). Next: Phase 2B.
-**Version:** 2.2.0
+**Phases 2A–2E built & live** (2026-09-27/28): catalogue → price → Finalize (SKUs) → labels →
+dispatch → receive → stock on hand → place/move. Next: the §7 change rules after finalize, then 2F.
+**Version:** 2.3.0
 **Est:** see §11 (M3 is 36h in constitution §5 and needs revising; this spec's phases total ~50h)
 **Tracking:** [storenode/tallythreads-web#30](https://github.com/storenode/tallythreads-web/issues/30)
 **Builds on:** Deliveries (`deliveries.md`) → Stock Placement (`stock-placement.md`) → Warehouses /
@@ -264,6 +265,11 @@ adjustments.
   layout, but MRP and the barcode are always on.
 - Every print is logged (who, when, how many, layout), so reprints are traceable.
 
+**As built (2C):** thermal 50×25 and 60×40 mm (38 mm dropped: a full SKU in Code 128 is too dense
+for 203-dpi heads), A4 24- and 65-up, custom A4 grid (columns × rows; label size derived). The
+default layout is remembered per org on the device; the print log is a `labels_printed` count for
+now (`label_prints` is still to do).
+
 ---
 
 ## 10. Data model (proposed, not migrated; the live DB stays the source of truth)
@@ -280,7 +286,7 @@ integer **paise** for money, RLS on, Dexie mirror + outbox (constitution §6).
 | `sku_counters` | server-side running numbers | `(organization_id, scope, category_code)` unique, `next_seq`; `scope` = store_id or `UNA`. (Supersedes the unused `inventory_categories.next_sequence`.) |
 | `stock_transfers` + `stock_transfer_items` | dispatch org → store (and later store → store) | status `draft`/`dispatched`/`received`, `to_store_id`, per-item `qty_sent`, `qty_received`, note. (Name aligned with constitution §6.) |
 | `stock_movements` | append-only log | `item_id`, `qty`, `kind`, from/to location, `transfer_id`, `reason`, `member_id`, `created_at` |
-| `stock_levels` | derived on-hand per item × location | maintained by trigger from `stock_movements`; read-only to clients |
+| `stock_levels` | derived on-hand per item × location | **built as a view** over `stock_movements` (security_invoker), not a trigger table |
 | `label_prints` | print audit | `item_id`, `qty`, `layout`, `member_id`, `printed_at` |
 | `store_inventory` *(view)* | price-free store feed | item fields **minus** `landed_unit_cost_paise`; store-scoped (like `incoming_stock`) |
 
@@ -352,24 +358,59 @@ Each phase ships on its own with tests, is verified offline where relevant, and 
       (`20260927195843`).
 - [ ] E2E: Ready for Inventory → catalogue → allocate (needs the migration live).
 
-### Phase 2C: Finalize + labels (~12h)
-- [ ] `sku_counters` + `finalize_inventory_items` RPC + SQL tests for concurrency / uniqueness.
-- [ ] SKU normalisation helpers (colour/size) with unit tests.
-- [ ] Label print: layouts (thermal / A4 / custom), start-at-N, org default, `label_prints` log.
-- [ ] Change rules (§7): retire / reissue, reprint, qty up/down; old-label scan resolves.
-- [ ] E2E: finalize → SKU format asserted → print preview renders N labels.
+### Phase 2C: Finalize + labels — **built & live 2026-09-28**
+- [x] Migration `20260927222247_inventory_distribution.sql` (dry-run verified as org owner and as
+      a store sales person, then applied): `sku_segment()`, `sku_counters`,
+      `next_inventory_sku()` (counter upsert = row lock, so concurrent finalizes can't share a
+      number; SKU also unique per org), `finalize_inventory_items(uuid[])` (online only; checks
+      `inventory.manage`, the store's category by code, the store / org code; writes a
+      `finalize` movement into org holding). Verified: `BND-KDP-STR-BLACK-XL-0001`,
+      `BND-UNA-STR-SKYBLU-FREE-0001`.
+- [x] Catalogue **Finalize & labels** card: pushes pending edits first, then the RPC; blocks on
+      zero MRP / missing store category / missing store code. Finalized rows show the SKU and
+      lock everything except MRP.
+- [x] **Labels page** `/org/:orgId/inventory/labels` (`?items=id:qty,…` for reprints and
+      reissues): Code 128 (JsBarcode) + name, colour · size, "MRP ₹499 · incl. of all taxes";
+      layouts thermal 50×25 / 60×40 mm, A4 24-up and 65-up, custom A4 grid; start-at-N for used
+      sheets; any printer via `react-to-print`; layout remembered per org **on the device**;
+      "They printed — mark done" bumps `labels_printed`. Layout maths unit-tested
+      (`labels.test.ts`).
+- [ ] Change rules (§7) after finalize: retire / reissue for store·category·colour·size edits,
+      qty up/down, un-finalize before first print, old-label scan → new SKU. (Today: MRP and name
+      stay editable → reprint; the rest is locked, and the only reissue is UNA → store at
+      dispatch.)
+- [ ] `label_prints` audit log + `organizations.label_settings` (org-wide default).
+- [ ] E2E: finalize → SKU format → print preview (needs `E2E_ADMIN_JWT`; the live RPCs were
+      verified by rolled-back SQL runs instead).
 
-### Phase 2D: Dispatch & receive (~12h)
-- [ ] `stock_transfers` (+ items), `stock_movements`, `stock_levels` trigger.
-- [ ] Org: dispatch builder (by store; `UNA` → pick store → reissue → reprint gate).
-- [ ] Store: incoming dispatches → **Receive** by scanning (shortage/excess, like Deliveries).
-- [ ] E2E: dispatch → store receives by typed SKU → levels correct on the server.
+### Phase 2D: Dispatch & receive — **built & live 2026-09-28**
+- [x] `stock_transfers` + `stock_transfer_items` (readable by the org or the receiving store;
+      written only by RPCs), `stock_movements` (append-only: immutable trigger; location-in-store
+      validation trigger), `stock_levels` **view** (security_invoker, derived — no trigger table).
+- [x] `dispatch_stock(store, lines, note)`: checks org holding; UNA lines are **reissued** as a
+      new store-SKU item (UNA retired when fully moved, `replaced_by_item_id`), then org →
+      transit movements. Org **Stock & dispatch** tab: overview (at org / MRP value / in transit /
+      in stores), builder (store → qty per SKU, "All", scan +1, note), reissue result with
+      **Print the new labels →**, recent dispatches with received x/y.
+- [x] `receive_transfer(transfer, lines, warehouse?, location?)`: transit → store movements,
+      `shortage` / `excess` rows. Store **Receive** page `/ops/:storeId/inventory/receive/:id`:
+      scan (keyboard-wedge scanner, typed, or phone camera via `BarcodeDetector`), ± per SKU,
+      "Everything arrived", destination (default: first stock room), short/extra summary.
+- [x] `store_incoming(store)` (dispatched + received in the last 7 days, price-free).
+- [ ] Reprint **gate** before dispatch (§7): the dispatch completes immediately and links to the
+      reprint instead. Revisit if stores receive un-relabelled UNA stock.
+- [ ] E2E: dispatch → receive by typed SKU (needs `E2E_ADMIN_JWT`; verified by SQL dry run).
 
-### Phase 2E: Store stock (~6h)
-- [ ] Store **Inventory** tab (`/ops/:storeId/inventory`, today a stub): stock on hand, price-free,
-      search / scan.
-- [ ] **Place** received stock; **Move** stock room ↔ display (scan · pick "to" · done), offline.
-- [ ] E2E: move offline → reconnect → movement + level synced.
+### Phase 2E: Store stock — **built & live 2026-09-28**
+- [x] `store_stock(store)` RPC (price-free: no landed cost; MRP shown as on the label).
+- [x] Store **Inventory** tab: Incoming (→ Receive), **Stock on hand** by slot (stock room ·
+      location / display · location / unplaced), find by SKU or name (scan), last good result
+      cached per store for offline.
+- [x] **Place / Move** dialog: `stock_movements` row (`place` from unplaced, else `move`) through
+      Dexie v13 + outbox (push-only table), overlaid on the last stock until synced. RLS: store
+      staff may insert only place/move within their own store (cross-store blocked, verified).
+      Overlay maths unit-tested (`distribution.test.ts`).
+- [ ] E2E: move offline → reconnect → movement synced (needs `E2E_ADMIN_JWT`).
 
 ### Phase 2F: Adjustments & stock count (~4h)
 - [ ] Adjustments with reasons + approval threshold; stock count by location.
@@ -422,6 +463,12 @@ Each store defines its own **categories/departments** (Sarees, Dress Material, K
 ---
 
 ## Changelog
+- **v2.3.0 (2026-09-28)**: Phases 2C–2E built and applied live (`inventory_distribution`): SKU
+  counters + Finalize RPC, labels page (any printer), dispatch with UNA reissue, store receive by
+  scan, stock on hand, offline place/move. `stock_levels` is a view. Also fixed live
+  (`fix_permission_scope`): store memberships were counted as org-level in
+  `has_org_permission` / `has_store_permission`, so store staff could read and write every store
+  of their org; staff may now read only the stock rooms attached to their store.
 - **v2.2.0 (2026-09-27)**: Phase 2B built (pricing engine + tests, `inventory_items` migration
   written and dry-run verified but not applied, catalogue screen). GST MRP boundary is ₹2,625
   (inclusive), not ₹2,500.

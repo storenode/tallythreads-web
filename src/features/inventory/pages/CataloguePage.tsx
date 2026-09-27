@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Plus, Trash2 } from "lucide-react";
+import { Lock, Plus, Printer, Trash2 } from "lucide-react";
 import type { InventoryItem, PurchaseInvoice } from "@/db";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -29,12 +29,14 @@ import {
   useItemsForLines,
 } from "../items";
 import { useReadyForInventory, type ReadyLine } from "../readyForInventory";
+import { finalizeItems } from "../distribution";
 
 /**
  * Catalogue one Ready-for-Inventory invoice (specs/roadmap/inventory.md §3 A–C, §4, §6):
  * split each received line into items (name · category · colour · size · qty · MRP · store),
  * price them from landed cost, and watch the lot forecast. Org-only (inventory.manage).
- * Items stay drafts here; Finalize (SKUs) and labels are Phase 2C.
+ * Finalize (Phase 2C) asks the server to number SKUs; after that an item's store, category,
+ * colour and size are fixed (MRP stays editable — reprint the label) and labels can be printed.
  */
 
 const ROUNDING_KEY = (orgId: string) => `tt:mrp-rounding:${orgId}`;
@@ -203,6 +205,8 @@ export default function CataloguePage() {
         </div>
       </Card>
 
+      <FinalizeCard orgId={orgId} items={items} ctx={ctx} />
+
       {entry.lines.map((line) => (
         <LineCard
           key={line.item._localId}
@@ -225,10 +229,82 @@ export default function CataloguePage() {
       ))}
 
       <p className="text-xs text-fg-muted">
-        Items are drafts until Finalize, which generates SKUs and unlocks label printing (next
-        step). Everything here saves as you go and works offline.
+        Items are drafts until Finalize, which generates SKUs and unlocks label printing. Drafts
+        save as you go and work offline; Finalize needs a connection.
       </p>
     </div>
+  );
+}
+
+/**
+ * Finalize drafts → server-numbered SKUs. Blocks on anything the server would reject (missing
+ * store category, zero MRP) so the owner fixes it here instead of reading an error.
+ */
+function FinalizeCard({ orgId, items, ctx }: { orgId: string; items: InventoryItem[]; ctx: RowContext }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const drafts = items.filter((i) => i.status === "draft");
+  const finalized = items.filter((i) => i.status === "finalized");
+  const problems = drafts.flatMap((i) => {
+    const out: string[] = [];
+    if (i.mrp_paise <= 0) out.push(`${i.name} ${i.color} ${i.size}: set an MRP`);
+    if (i.store_id && !ctx.storeCategoryId.get(`${i.store_id}|${i.category_code}`)) {
+      const store = ctx.stores.find((s) => s.id === i.store_id)?.name ?? "The store";
+      out.push(`${store} has no “${ctx.categoryNameByCode.get(i.category_code) ?? i.category_code}” category`);
+    }
+    if (i.store_id && !ctx.stores.find((s) => s.id === i.store_id)?.store_code) {
+      out.push(`${ctx.stores.find((s) => s.id === i.store_id)?.name ?? "The store"} has no store code`);
+    }
+    return out;
+  });
+  const uniqueProblems = [...new Set(problems)];
+  const pieces = drafts.reduce((n, i) => n + i.quantity, 0);
+  const labelsLink = `/org/${orgId}/inventory/labels?items=${finalized.map((i) => `${i.id}:${i.quantity}`).join(",")}`;
+
+  const finalize = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await finalizeItems(drafts);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card
+      title="Finalize & labels"
+      desc="Finalize numbers each item's SKU (store · category · colour · size · sequence). After that only the MRP can change."
+    >
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="button" onClick={finalize} disabled={busy || drafts.length === 0 || uniqueProblems.length > 0}>
+          <Lock size={16} />
+          {busy
+            ? "Finalizing…"
+            : drafts.length
+              ? `Finalize ${drafts.length} item${drafts.length === 1 ? "" : "s"} · ${pieces} pcs`
+              : "All items finalized"}
+        </Button>
+        {finalized.length > 0 && (
+          <Link
+            to={labelsLink}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-5 text-sm font-semibold text-fg hover:bg-surface-2"
+          >
+            <Printer size={16} /> Print labels ({finalized.reduce((n, i) => n + i.quantity, 0)})
+          </Link>
+        )}
+      </div>
+      {uniqueProblems.length > 0 && (
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-warning-text">
+          {uniqueProblems.map((p) => (
+            <li key={p}>{p}</li>
+          ))}
+        </ul>
+      )}
+      {error && <p className="mt-3 text-sm text-error-text">{error}</p>}
+    </Card>
   );
 }
 
@@ -400,6 +476,13 @@ function ItemRow({ item, ctx }: { item: InventoryItem; ctx: RowContext }) {
 
   return (
     <div className="rounded-lg border border-border bg-bg-elevated p-3">
+      {item.sku && (
+        <p className="mb-2 flex items-center gap-2 text-xs text-fg-muted">
+          <Lock size={12} />
+          <span className="font-mono text-sm text-fg">{item.sku}</span>
+          {item.labels_printed > 0 && <span>· {item.labels_printed} labels printed</span>}
+        </p>
+      )}
       {/* Phones: 2 columns. Tablets: 4. Desktop: one row of 12 (qty/MRP wide enough to read). */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-12">
         <div className="col-span-2 sm:col-span-2 lg:col-span-2">

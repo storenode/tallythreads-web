@@ -38,7 +38,13 @@ const PUSH_ORDER = [
   "stock_locations",
   // Inventory items reference invoice lines, stores and categories (all above).
   "inventory_items",
+  // Store place/move log rows (reference items and store locations, all above). Push-only.
+  "stock_movements",
 ] as const;
+
+/** Tables this engine pushes but never pulls: the store reads derived stock (store_stock RPC),
+ * not the raw append-only log, which would otherwise grow without bound on every device. */
+const PUSH_ONLY: ReadonlySet<PushTable> = new Set(["stock_movements"]);
 
 type PushTable = (typeof PUSH_ORDER)[number];
 
@@ -55,6 +61,7 @@ const DEXIE_TABLE = {
   inventory_categories: db.inventory_categories,
   stock_locations: db.stock_locations,
   inventory_items: db.inventory_items,
+  stock_movements: db.stock_movements,
 } as const;
 
 /** Local-only bookkeeping columns that must never reach the server. */
@@ -237,6 +244,7 @@ export async function runSync(): Promise<void> {
   try {
     await drainOutbox();
     for (const tableName of PUSH_ORDER) {
+      if (PUSH_ONLY.has(tableName)) continue;
       await pullTable(tableName);
     }
     status = { syncing: false, lastSyncAt: Date.now(), lastError: null };

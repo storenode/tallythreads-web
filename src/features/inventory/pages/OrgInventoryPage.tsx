@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { PackageCheck, Tags } from "lucide-react";
+import { PackageCheck, Printer, Tags, Truck } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { Tabs, type TabItem } from "@/components/ui/tabs/Tabs";
@@ -11,13 +11,14 @@ import { formatInr } from "@/lib/money";
 import { useCategoriesByOrg } from "../categories";
 import { useReadyForInventory } from "../readyForInventory";
 import { cataloguedByLine, useItemsForLines } from "../items";
+import { StockDispatchTab } from "./StockDispatchTab";
 
 /**
  * Organization Inventory (`/org/:orgId/inventory`, specs/roadmap/inventory.md §2–§3).
  * Org roles only (`inventory.manage`): this is where Deliveries' "Ready for Inventory" stock is
- * processed at the organization — catalogued, priced, SKU'd, labelled and dispatched. Phase 2A
- * shows the incoming queue (with landed cost) and the org-wide category codes; cataloguing and
- * MRP pricing land in Phase 2B.
+ * processed at the organization — catalogued, priced, finalized (SKUs), labelled and dispatched
+ * to stores. Tabs: the Ready-for-Inventory queue (→ Catalogue), Stock & dispatch, and the
+ * org-wide category codes.
  */
 export default function OrgInventoryPage() {
   const { orgId } = useParams<{ orgId: string }>();
@@ -46,6 +47,12 @@ export default function OrgInventoryPage() {
       content: <ReadyForInventoryTab orgId={orgId!} />,
     },
     {
+      id: "stock",
+      label: "Stock & dispatch",
+      icon: <Truck size={18} />,
+      content: <StockDispatchTab orgId={orgId!} />,
+    },
+    {
       id: "categories",
       label: "Categories",
       icon: <Tags size={18} />,
@@ -55,7 +62,18 @@ export default function OrgInventoryPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeading>Inventory</PageHeading>
+      <PageHeading
+        action={
+          <Link
+            to={`/org/${orgId}/inventory/labels`}
+            className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-fg"
+          >
+            <Printer size={16} /> Labels
+          </Link>
+        }
+      >
+        Inventory
+      </PageHeading>
       <Tabs items={tabs} defaultActiveId="ready" />
     </div>
   );

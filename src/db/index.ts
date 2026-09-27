@@ -15,6 +15,7 @@ import type { Warehouse } from "./warehouses";
 import type { WarehouseStore } from "./warehouseStores";
 import type { InventoryCategory } from "./inventoryCategories";
 import type { InventoryItem } from "./inventoryItems";
+import type { StockMovement } from "./stockMovements";
 
 // Re-export entity types so external code keeps importing from `@/db`.
 export type { SyncMeta } from "./types";
@@ -43,6 +44,7 @@ export type { Warehouse, WarehouseType } from "./warehouses";
 export type { WarehouseStore } from "./warehouseStores";
 export type { InventoryCategory } from "./inventoryCategories";
 export type { InventoryItem, InventoryItemStatus } from "./inventoryItems";
+export type { StockMovement, StockMovementKind, StockSideKind } from "./stockMovements";
 
 export const db = new Dexie("tallythreads") as Dexie & {
   products: EntityTable<Product, "_localId">;
@@ -61,6 +63,7 @@ export const db = new Dexie("tallythreads") as Dexie & {
   warehouse_stores: EntityTable<WarehouseStore, "_localId">;
   inventory_categories: EntityTable<InventoryCategory, "_localId">;
   inventory_items: EntityTable<InventoryItem, "_localId">;
+  stock_movements: EntityTable<StockMovement, "_localId">;
 };
 
 // ─── Migration history ───────────────────────────────────────────────
@@ -157,4 +160,12 @@ db.version(11).stores({
 db.version(12).stores({
   inventory_items:
     "_localId, id, organization_id, source_invoice_item_id, store_id, status, _dirty, last_modified_at",
+});
+
+// v13 (Inventory Phase 2E): stock_movements — the append-only stock log. Only place/move rows are
+// written locally (store staff moving stock between stock room and display, offline-safe); they
+// push through the outbox and are never pulled back (see db/stockMovements.ts).
+db.version(13).stores({
+  stock_movements:
+    "_localId, id, organization_id, item_id, from_store_id, to_store_id, _dirty, last_modified_at",
 });

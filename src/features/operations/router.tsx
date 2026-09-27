@@ -39,6 +39,13 @@ export const operationsRoutes: RouteObject[] = [
                     }),
                   },
                   {
+                    // Receive one org → store dispatch (Inventory Phase 2D).
+                    path: "inventory/receive/:transferId",
+                    lazy: async () => ({
+                      Component: (await import("./pages/ReceivePage")).default,
+                    }),
+                  },
+                  {
                     path: "incoming",
                     lazy: async () => ({
                       Component: (await import("./pages/IncomingStockPage"))
