@@ -19,6 +19,7 @@ import {
 import { seedDemoPurchaseTrips } from "./purchaseTrips.demo";
 import { seedDemoWarehouses } from "./warehouses.demo";
 import { seedDemoStoreCategories } from "./categories.demo";
+import { demoManagerFor } from "./demoMembers";
 import {
   createStorePlacements,
   demoPlacementFor,
@@ -73,6 +74,9 @@ export interface MemberDraft {
 export interface FranchiseStoreDraft {
   store: CreateStoreInput;
   salesStaff: MemberDraft;
+  /** The store's owner (`store_manager`) — required by the wizard's Go-live gate.
+   * Prefilled from salesStaff on the defaults below and by newFranchiseStore(); treat as present. */
+  manager?: MemberDraft;
   /** ISO yyyy-mm-dd, required. */
   agreementStart: string;
   /** "" = active (no end date). */
@@ -274,12 +278,13 @@ export const FRANCHISE_DEMO_DEFAULTS: FranchiseDemoInput = {
 // Prefill each default store's placement by its index (Kadapa=flat zones, Nellore=brand
 // sections, Tirupati=odd codes, Anantapur=empty), reusing the shared templates.
 FRANCHISE_DEMO_DEFAULTS.stores.forEach((s, i) => {
+  s.manager = demoManagerFor(s.salesStaff);
   s.placement = demoPlacementFor("franchise", i);
 });
 
 /** A fresh, prefilled franchised store for the "Add store" button (no empty boxes). */
 export function newFranchiseStore(): FranchiseStoreDraft {
-  return {
+  const draft: FranchiseStoreDraft = {
     store: {
       name: "Bandrip — New Branch",
       store_code: "BND-NEW",
@@ -314,6 +319,8 @@ export function newFranchiseStore(): FranchiseStoreDraft {
     agreementEnd: "",
     placement: [],
   };
+  draft.manager = demoManagerFor(draft.salesStaff);
+  return draft;
 }
 
 export const LEGAL_ENTITY_OPTIONS: { value: LegalEntityType; label: string }[] = [
@@ -444,6 +451,12 @@ export function useCreateFranchiseDemo() {
           s.agreementStart,
           s.agreementEnd || null,
         );
+        const manager = s.manager ?? demoManagerFor(s.salesStaff);
+        await inviteStoreMember(store.id, {
+          ...memberProfile(manager),
+          email: manager.email.trim(),
+          role_name: "store_manager",
+        });
         await inviteStoreMember(store.id, {
           ...memberProfile(s.salesStaff),
           email: s.salesStaff.email.trim(),

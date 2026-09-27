@@ -15,6 +15,7 @@ import {
 import { seedDemoPurchaseTrips } from "./purchaseTrips.demo";
 import { seedDemoWarehouses } from "./warehouses.demo";
 import { seedDemoStoreCategories } from "./categories.demo";
+import { demoManagerFor } from "./demoMembers";
 import {
   createStorePlacements,
   demoPlacementFor,
@@ -69,6 +70,9 @@ export interface MemberDraft {
 export interface ChainStoreDraft {
   store: CreateStoreInput;
   salesStaff: MemberDraft;
+  /** The store's owner (`store_manager`) — required by the wizard's Go-live gate.
+   * Prefilled from salesStaff on the defaults below and by newChainStore(); treat as present. */
+  manager?: MemberDraft;
   /** Prefilled placement tree, editable in the form; created on submit. Treat as present. */
   placement?: DemoPlacementNode[];
 }
@@ -190,12 +194,13 @@ export const CHAIN_DEMO_DEFAULTS: ChainDemoInput = {
 // Prefill each default store's placement by its index (Proddatur=multi-floor, Kadapa=flat
 // racks, New Branch=empty), reusing the shared templates.
 CHAIN_DEMO_DEFAULTS.stores.forEach((s, i) => {
+  s.manager = demoManagerFor(s.salesStaff);
   s.placement = demoPlacementFor("chain", i);
 });
 
 /** A fresh, prefilled store row for the "Add store" button (no empty boxes). */
 export function newChainStore(): ChainStoreDraft {
-  return {
+  const draft: ChainStoreDraft = {
     store: {
       name: "Sri Lakshmi Textiles — New Branch",
       store_code: "SLT-NEW",
@@ -228,6 +233,8 @@ export function newChainStore(): ChainStoreDraft {
     },
     placement: [],
   };
+  draft.manager = demoManagerFor(draft.salesStaff);
+  return draft;
 }
 
 export const LEGAL_ENTITY_OPTIONS: { value: LegalEntityType; label: string }[] = [
@@ -349,6 +356,12 @@ export function useCreateChainDemo() {
       const createdStores = [];
       for (const s of input.stores) {
         const store = await createStore(org.id, s.store);
+        const manager = s.manager ?? demoManagerFor(s.salesStaff);
+        await inviteStoreMember(store.id, {
+          ...memberProfile(manager),
+          email: manager.email.trim(),
+          role_name: "store_manager",
+        });
         await inviteStoreMember(store.id, {
           ...memberProfile(s.salesStaff),
           email: s.salesStaff.email.trim(),

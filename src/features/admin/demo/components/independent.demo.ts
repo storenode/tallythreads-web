@@ -269,6 +269,14 @@ export function useCreateIndependentDemo() {
         is_primary_contact: true,
       });
 
+      // Single-owner shop: the org owner is also the store's manager (the wizard's
+      // "Owner manages this store"), which the Go-live gate requires.
+      await inviteStoreMember(store.id, {
+        ...memberProfile(input.owner),
+        email: input.owner.email.trim(),
+        role_name: "store_manager",
+      });
+
       await inviteStoreMember(store.id, {
         ...memberProfile(input.salesStaff),
         email: input.salesStaff.email.trim(),

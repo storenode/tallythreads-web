@@ -6,6 +6,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { SingleSelect } from "@/components/ui/SingleSelect";
 import type { CreateStoreInput } from "@/features/stores/storesAdmin";
 import { DemoPlacementEditor } from "./DemoPlacementEditor";
+import { demoManagerFor } from "./demoMembers";
 import type { DemoPlacementNode } from "./demoPlacement";
 import {
   FRANCHISE_DEMO_DEFAULTS,
@@ -195,6 +196,18 @@ export function CreateFranchiseForm({ onDone }: { onDone?: () => void } = {}) {
       ),
     );
 
+  const setManagerField = (index: number, key: keyof MemberDraft, value: string) =>
+    setStores((list) =>
+      list.map((s, i) =>
+        i === index
+          ? {
+              ...s,
+              manager: { ...(s.manager ?? demoManagerFor(s.salesStaff)), [key]: value },
+            }
+          : s,
+      ),
+    );
+
   const setAgreementField = (
     index: number,
     key: "agreementStart" | "agreementEnd",
@@ -219,7 +232,10 @@ export function CreateFranchiseForm({ onDone }: { onDone?: () => void } = {}) {
     EMAIL_RE.test(owner.email.trim()) &&
     stores.length > 0 &&
     stores.every(
-      (s) => EMAIL_RE.test(s.salesStaff.email.trim()) && s.agreementStart !== "",
+      (s) =>
+        EMAIL_RE.test(s.salesStaff.email.trim()) &&
+        EMAIL_RE.test((s.manager ?? demoManagerFor(s.salesStaff)).email.trim()) &&
+        s.agreementStart !== "",
     );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -362,6 +378,15 @@ export function CreateFranchiseForm({ onDone }: { onDone?: () => void } = {}) {
               onChange={(e) =>
                 setAgreementField(index, "agreementEnd", e.target.value)
               }
+            />
+          </Section>
+          <Section
+            icon={<User size={16} />}
+            title={`Store ${index + 1} manager · store_manager`}
+          >
+            <MemberFields
+              member={s.manager ?? demoManagerFor(s.salesStaff)}
+              onChange={(key, value) => setManagerField(index, key, value)}
             />
           </Section>
           <Section

@@ -18,6 +18,7 @@ import {
   type ChainDemoInput,
 } from "./chain.demo";
 import { DemoPlacementEditor } from "./DemoPlacementEditor";
+import { demoManagerFor } from "./demoMembers";
 import type { DemoPlacementNode } from "./demoPlacement";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -196,6 +197,18 @@ export function CreateChainForm({ onDone }: { onDone?: () => void } = {}) {
       ),
     );
 
+  const setManagerField = (index: number, key: keyof MemberDraft, value: string) =>
+    setStores((list) =>
+      list.map((s, i) =>
+        i === index
+          ? {
+              ...s,
+              manager: { ...(s.manager ?? demoManagerFor(s.salesStaff)), [key]: value },
+            }
+          : s,
+      ),
+    );
+
   const setPlacement = (index: number, nodes: DemoPlacementNode[]) =>
     setStores((list) =>
       list.map((s, i) => (i === index ? { ...s, placement: nodes } : s)),
@@ -209,7 +222,11 @@ export function CreateChainForm({ onDone }: { onDone?: () => void } = {}) {
     org.name.trim() !== "" &&
     EMAIL_RE.test(owner.email.trim()) &&
     stores.length > 0 &&
-    stores.every((s) => EMAIL_RE.test(s.salesStaff.email.trim()));
+    stores.every(
+      (s) =>
+        EMAIL_RE.test(s.salesStaff.email.trim()) &&
+        EMAIL_RE.test((s.manager ?? demoManagerFor(s.salesStaff)).email.trim()),
+    );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -327,6 +344,15 @@ export function CreateChainForm({ onDone }: { onDone?: () => void } = {}) {
             <StoreFields
               store={s.store}
               onChange={(key, value) => setStoreField(index, key, value)}
+            />
+          </Section>
+          <Section
+            icon={<User size={16} />}
+            title={`Store ${index + 1} manager · store_manager`}
+          >
+            <MemberFields
+              member={s.manager ?? demoManagerFor(s.salesStaff)}
+              onChange={(key, value) => setManagerField(index, key, value)}
             />
           </Section>
           <Section
