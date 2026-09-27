@@ -3,7 +3,7 @@
 **Status:** Living reference. **Verified against the live Supabase database**
 (`gmmeaplomgotqtivevkg`, `public` schema) on 2026-09-05 — the live DB is authoritative;
 this doc is kept to match it, not the other way round.
-**Version:** 3.7.0
+**Version:** 3.8.0
 **Related:** `../constitution.md` (§6 architecture rules, §2.IX store models),
 `roles-and-permissions.md` (role/permission catalog), `franchise-settlement.md`
 (the settlement engine — proposed M1d, see §4).
@@ -479,6 +479,25 @@ FK `on delete cascade` from org/store, so `hard_delete_organization` clears it.
 
 ---
 
+### `inventory_items` — one row per SKU (Inventory Phase 2B, live 2026-09-27)
+A Ready-for-Inventory invoice line split by colour × size × store, catalogued and priced at the
+org. `id`, `organization_id` FK (cascade), `source_invoice_item_id` FK → `purchase_invoice_items`
+(set null), `store_id` FK (set null; **NULL = unallocated**), `category_id` FK →
+`inventory_categories` (set null), `category_code` (CHECK `^[A-Z0-9]{2,6}$`), `name`, `color`,
+`size` (non-blank), `quantity` int > 0, `mrp_paise` bigint ≥ 0 (tax-**inclusive**),
+`landed_unit_cost_paise` bigint ≥ 0 (**cost**), `status` (`draft`/`finalized`/`retired`, default
+draft), `sku` (**unique per org** where set; present exactly when not draft — CHECK),
+`replaced_by_item_id` (self FK), `finalized_at`, `labels_printed` int ≥ 0, `created_by` FK →
+members (set null), `last_modified_at`, `deleted_at`. **Org-only RLS** (select/insert/update:
+`is_platform_admin()` or `has_org_permission(org, 'inventory.manage')`), because rows carry
+cost; stores get a price-free view in Phase 2E. **`inventory_items_guard`** trigger: clients insert
+drafts only; SKU/status are set only on the Finalize RPC path (session flag
+`tallythreads.inventory_rpc`, Phase 2C); once finalized, `sku`/`status`/`store_id`/
+`category_code`/`color`/`size` are frozen (retire + reissue instead). Offline-first (Dexie v12,
+pushed after categories/locations). Migration `20260927195747_inventory_items`.
+
+---
+
 ## 4. Demo & QA (admin-only tooling)
 
 ### `demo_scenarios` — investor/demo narratives attached to a demo org.
@@ -551,9 +570,8 @@ warehouse-owned stock_locations).
 - **`settlement_rules.plugin_id`** + one-source check — the hybrid engine (M1d). Not migrated.
 - **`shifts` / `petty_expenses`** — Shift & Store Operations Log (M10). Designed in
   `../roadmap/shift-store-ops-log.md`; not migrated. Feeds M1d's `deduct_expenses`.
-- **Inventory Phase 2** (spec final 2026-09-27, `../roadmap/inventory.md` v2.0.0 §10) — **not yet
-  migrated**: `inventory_items` (one row per SKU; cost column hidden from stores via a price-free
-  `store_inventory` view), `sku_counters` (server-assigned SKU sequence; supersedes the unused
+- **Inventory Phase 2** (spec `../roadmap/inventory.md` §10) — `inventory_items` is **live** (§3D
+  above); **not yet migrated**: the price-free `store_inventory` view (2E), `sku_counters` (server-assigned SKU sequence; supersedes the unused
   `inventory_categories.next_sequence`), `stock_transfers` + `stock_transfer_items` (dispatch),
   append-only `stock_movements` with trigger-derived `stock_levels`, `label_prints`; new columns
   `organizations.org_code` / `label_settings` and `inventory_categories.code`; RPCs
@@ -579,6 +597,11 @@ data model and the diagram.
 
 ## 8. Changelog
 
+- **v3.8.0 (2026-09-27)** — **`inventory_items` live** (Inventory Phase 2B; migration
+  `20260927195747_inventory_items`): org-only RLS on `inventory.manage`, SKU unique per org,
+  `inventory_items_guard` trigger. Plus `20260927195843_inventory_trigger_fn_revoke_execute`,
+  which revokes API EXECUTE on the three inventory trigger functions (Supabase security advisor
+  flagged the SECURITY DEFINER `inventory_categories_propagate_code`); triggers verified still firing.
 - **v3.7.0 (2026-09-27)** — **Inventory Phase 2A, live** (migration
   `20260927191604_inventory_phase2a_codes`): `organizations.org_code` (backfilled: VCS, BND) +
   `label_settings`; `inventory_categories.code` (backfilled: MEN, WOM, KID, DRE, REA, SAR, ACC, STR)

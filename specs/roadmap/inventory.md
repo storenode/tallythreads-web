@@ -330,13 +330,13 @@ Each phase ships on its own with tests, is verified offline where relevant, and 
         lives (display locations + attached stock rooms), store categories with codes.
       - E2E `e2e/inventory.spec.ts`: an org owner reaches Inventory from the left menu.
 
-### Phase 2B: Catalogue & pricing (~12h) — **built 2026-09-27, migration NOT yet applied**
+### Phase 2B: Catalogue & pricing (~12h) — **built & live 2026-09-27**
 - [x] `lib/mrpPricing.ts` + 15 golden tests, written **before any UI**: rounding (always up:
       ends-99 / 49-or-99 / next ₹10), suggested MRP via `purchaseMargin`, GST inside an inclusive
       MRP (₹2,625 boundary, taxable + GST always reconciles), lot forecast net of GST (golden lot
       from the real Burrabazar numbers).
-- [x] Migration `20260927200000_inventory_items.sql` (written, **dry-run verified** in a
-      rolled-back transaction; **not applied**): `inventory_items` (org-only RLS on
+- [x] Migration `20260927195747_inventory_items.sql` (**dry-run verified**, then **applied** to the
+      live DB): `inventory_items` (org-only RLS on
       `inventory.manage`; SKU unique per org; `inventory_items_guard` trigger: drafts only from
       clients, SKU/status set only by the Finalize RPC path, SKU-encoded fields frozen once
       finalized).
@@ -347,7 +347,9 @@ Each phase ships on its own with tests, is verified offline where relevant, and 
       (suggested MRP, remaining qty, category guessed from the name); "store has no X category ·
       Add it"; "18% GST" and "Below landed cost" tags; lot forecast card; MRP rounding
       (remembered per org on the device) + "Round all MRPs". Checked at 1280px and 375px.
-- [ ] **Apply the migration** (founder go-ahead), then update `schema.md`.
+- [x] **Applied** (founder go-ahead) and verified (RLS on, 3 policies, guard trigger); `schema.md`
+      v3.8.0. Security advisor: the trigger functions' API EXECUTE was revoked
+      (`20260927195843`).
 - [ ] E2E: Ready for Inventory → catalogue → allocate (needs the migration live).
 
 ### Phase 2C: Finalize + labels (~12h)
