@@ -4,7 +4,7 @@
 not started. Build begins with Phase 2A on the founder's go-ahead.
 **Version:** 2.0.0
 **Est:** see §11 (M3 is 36h in constitution §5 and needs revising; this spec's phases total ~50h)
-**Tracking:** GitHub issue linked when Phase 2A starts (see `workflow.md`).
+**Tracking:** [storenode/tallythreads-web#30](https://github.com/storenode/tallythreads-web/issues/30)
 **Builds on:** Deliveries (`deliveries.md`) → Stock Placement (`stock-placement.md`) → Warehouses /
 stock rooms (`warehouses.md`) → Categories (Phase 1 below). Schema: `../reference/schema.md` §3B–§3D.
 
