@@ -2,7 +2,7 @@
 
 **Status:** Phase 1 (categories) **Built & live** (2026-09-26). Phase 2 **spec final** (2026-09-27).
 **Phase 2A built & live** (2026-09-27). Next: Phase 2B.
-**Version:** 2.1.0
+**Version:** 2.2.0
 **Est:** see §11 (M3 is 36h in constitution §5 and needs revising; this spec's phases total ~50h)
 **Tracking:** [storenode/tallythreads-web#30](https://github.com/storenode/tallythreads-web/issues/30)
 **Builds on:** Deliveries (`deliveries.md`) → Stock Placement (`stock-placement.md`) → Warehouses /
@@ -184,8 +184,11 @@ Shown per item on the org's Catalogue screen:
   - *Nearest ₹10 (up)*: ₹1,261 → ₹1,270.
 - **Lot forecast** (updates live as MRPs change): expected revenue `Σ qty × MRP`, landed cost
   `Σ qty × landed`, margin ₹ and %. **MRP includes GST**, so the forecast shows margin **net of
-  GST** using `lib/gstCalc.ts` (apparel slab per piece: ≤ ₹2,500 → 5%, > ₹2,500 → 18%). A
-  warning appears when an MRP crosses the ₹2,500 slab ("GST jumps 5% → 18% at this price").
+  GST**. The apparel slab is decided on the value **excluding** GST (≤ ₹2,500 → 5%, above → 18%,
+  `lib/gstCalc.ts`); an MRP **includes** GST, so the MRP boundary is ₹2,500 × 1.05 = **₹2,625**
+  (MRP ≤ ₹2,625.00 → 5%, above → 18%). This is the usual retail reading, as with the old
+  ₹1,000 / ₹1,050 rule; **confirm with the CA before Billing (M5)**. Items above ₹2,625 get an
+  "18% GST" tag.
 - **Visibility:** cost/margin/forecast on org screens only. Stores and labels show MRP only.
 - **New pure module `lib/mrpPricing.ts`** (rounding + forecast), **TDD with golden tests**,
   including the slab boundary (₹2,500.00 exactly vs ₹2,500.01) and the rounding edge cases.
@@ -327,13 +330,25 @@ Each phase ships on its own with tests, is verified offline where relevant, and 
         lives (display locations + attached stock rooms), store categories with codes.
       - E2E `e2e/inventory.spec.ts`: an org owner reaches Inventory from the left menu.
 
-### Phase 2B: Catalogue & pricing (~12h)
-- [ ] `lib/mrpPricing.ts` + golden tests (rounding, forecast, GST slab boundary): **before any UI**.
-- [ ] `inventory_items` table + RLS + Dexie mirror + sync.
-- [ ] Org **Inventory** nav → "Ready for Inventory" list → Catalogue screen per invoice line
-      (split into items, received-qty balance, MRP with suggestion / rounding / forecast).
-- [ ] Allocation per item (a store or Unallocated).
-- [ ] E2E: Ready for Inventory → catalogue → allocate (desktop + 375px).
+### Phase 2B: Catalogue & pricing (~12h) — **built 2026-09-27, migration NOT yet applied**
+- [x] `lib/mrpPricing.ts` + 15 golden tests, written **before any UI**: rounding (always up:
+      ends-99 / 49-or-99 / next ₹10), suggested MRP via `purchaseMargin`, GST inside an inclusive
+      MRP (₹2,625 boundary, taxable + GST always reconciles), lot forecast net of GST (golden lot
+      from the real Burrabazar numbers).
+- [x] Migration `20260927200000_inventory_items.sql` (written, **dry-run verified** in a
+      rolled-back transaction; **not applied**): `inventory_items` (org-only RLS on
+      `inventory.manage`; SKU unique per org; `inventory_items_guard` trigger: drafts only from
+      clients, SKU/status set only by the Finalize RPC path, SKU-encoded fields frozen once
+      finalized).
+- [x] Dexie v12 mirror + sync (pushed after categories/locations); data layer `items.ts`.
+- [x] **Catalogue screen** `/org/:orgId/inventory/invoices/:invoiceLocalId` (the "Catalogue →"
+      button on Ready for inventory, with progress): per line "N of M catalogued"; item rows
+      (name · category · colour · size · qty · MRP · store/Unallocated), prefilled from the line
+      (suggested MRP, remaining qty, category guessed from the name); "store has no X category ·
+      Add it"; "18% GST" and "Below landed cost" tags; lot forecast card; MRP rounding
+      (remembered per org on the device) + "Round all MRPs". Checked at 1280px and 375px.
+- [ ] **Apply the migration** (founder go-ahead), then update `schema.md`.
+- [ ] E2E: Ready for Inventory → catalogue → allocate (needs the migration live).
 
 ### Phase 2C: Finalize + labels (~12h)
 - [ ] `sku_counters` + `finalize_inventory_items` RPC + SQL tests for concurrency / uniqueness.
@@ -405,6 +420,9 @@ Each store defines its own **categories/departments** (Sarees, Dress Material, K
 ---
 
 ## Changelog
+- **v2.2.0 (2026-09-27)**: Phase 2B built (pricing engine + tests, `inventory_items` migration
+  written and dry-run verified but not applied, catalogue screen). GST MRP boundary is ₹2,625
+  (inclusive), not ₹2,500.
 - **v2.1.0 (2026-09-27)**: Phase 2A built (migration written and dry-run verified, **not
   applied**). `org_code` is not globally unique (SKUs are org-scoped). Category codes are enforced
   server-side by triggers (assign/normalise + org-wide propagation).

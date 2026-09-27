@@ -36,6 +36,8 @@ const PUSH_ORDER = [
   // (above), and nests via parent_id — a parent row is queued before its child, so
   // queued_at ordering within the table already pushes parents first.
   "stock_locations",
+  // Inventory items reference invoice lines, stores and categories (all above).
+  "inventory_items",
 ] as const;
 
 type PushTable = (typeof PUSH_ORDER)[number];
@@ -52,6 +54,7 @@ const DEXIE_TABLE = {
   warehouse_stores: db.warehouse_stores,
   inventory_categories: db.inventory_categories,
   stock_locations: db.stock_locations,
+  inventory_items: db.inventory_items,
 } as const;
 
 /** Local-only bookkeeping columns that must never reach the server. */

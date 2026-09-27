@@ -10,6 +10,7 @@ import { useStoresByOrg } from "@/features/stores/stores";
 import { formatInr } from "@/lib/money";
 import { useCategoriesByOrg } from "../categories";
 import { useReadyForInventory } from "../readyForInventory";
+import { cataloguedByLine, useItemsForLines } from "../items";
 
 /**
  * Organization Inventory (`/org/:orgId/inventory`, specs/roadmap/inventory.md §2–§3).
@@ -62,6 +63,14 @@ export default function OrgInventoryPage() {
 
 function ReadyForInventoryTab({ orgId }: { orgId: string }) {
   const ready = useReadyForInventory(orgId);
+  const lineIds = useMemo(
+    () =>
+      (ready ?? [])
+        .flatMap((r) => r.lines.map((l) => l.item.id))
+        .filter((x): x is string => !!x),
+    [ready],
+  );
+  const catalogued = cataloguedByLine(useItemsForLines(lineIds) ?? []);
 
   if (ready === undefined) {
     return <p className="text-sm text-fg-muted">Loading…</p>;
@@ -89,9 +98,9 @@ function ReadyForInventoryTab({ orgId }: { orgId: string }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-fg-muted">
-        {ready.length} invoice{ready.length === 1 ? "" : "s"} · {totalPieces} pieces waiting to be
-        catalogued. Next step (coming soon): split each line into items (colour · size · qty), set
-        MRP, allocate to stores, then generate SKUs and print labels.
+        {ready.length} invoice{ready.length === 1 ? "" : "s"} · {totalPieces} pieces to catalogue.
+        Open an invoice to split each line into items (colour · size · qty), set MRP and allocate
+        to stores. SKUs and labels come after.
       </p>
       {ready.map(({ invoice, tripTitle, lines }) => (
         <Card key={invoice._localId}>
@@ -104,9 +113,18 @@ function ReadyForInventoryTab({ orgId }: { orgId: string }) {
                 {invoice.approved_at ? ` · approved ${invoice.approved_at.slice(0, 10)}` : ""}
               </p>
             </div>
-            <span className="rounded-full bg-tt-green-600/15 px-2 py-0.5 text-xs font-medium text-tt-green-700">
-              ✅ Ready for Inventory
-            </span>
+            {(() => {
+              const received = lines.reduce((t, l) => t + l.receivedQty, 0);
+              const done = lines.reduce((t, l) => t + (catalogued.get(l.item.id ?? "") ?? 0), 0);
+              return (
+                <Link
+                  to={`/org/${orgId}/inventory/invoices/${invoice._localId}`}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-fg hover:border-fg-muted"
+                >
+                  {done === 0 ? "Catalogue" : `Catalogue · ${done}/${received}`} →
+                </Link>
+              );
+            })()}
           </div>
 
           {/* Stacked rows (no wide table) — reads the same on a phone and a desktop. */}

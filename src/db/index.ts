@@ -14,6 +14,7 @@ import type { StockLocation } from "./stockLocations";
 import type { Warehouse } from "./warehouses";
 import type { WarehouseStore } from "./warehouseStores";
 import type { InventoryCategory } from "./inventoryCategories";
+import type { InventoryItem } from "./inventoryItems";
 
 // Re-export entity types so external code keeps importing from `@/db`.
 export type { SyncMeta } from "./types";
@@ -41,6 +42,7 @@ export type {
 export type { Warehouse, WarehouseType } from "./warehouses";
 export type { WarehouseStore } from "./warehouseStores";
 export type { InventoryCategory } from "./inventoryCategories";
+export type { InventoryItem, InventoryItemStatus } from "./inventoryItems";
 
 export const db = new Dexie("tallythreads") as Dexie & {
   products: EntityTable<Product, "_localId">;
@@ -58,6 +60,7 @@ export const db = new Dexie("tallythreads") as Dexie & {
   warehouses: EntityTable<Warehouse, "_localId">;
   warehouse_stores: EntityTable<WarehouseStore, "_localId">;
   inventory_categories: EntityTable<InventoryCategory, "_localId">;
+  inventory_items: EntityTable<InventoryItem, "_localId">;
 };
 
 // ─── Migration history ───────────────────────────────────────────────
@@ -147,4 +150,11 @@ db.version(11).stores({
     "_localId, id, organization_id, store_id, _dirty, last_modified_at",
   stock_locations:
     "_localId, id, store_id, warehouse_id, parent_id, category_id, _dirty, last_modified_at",
+});
+
+// v12 (Inventory Phase 2B): inventory_items — one row per future SKU, catalogued from
+// Ready-for-Inventory invoice lines at the org (org-only: carries landed cost).
+db.version(12).stores({
+  inventory_items:
+    "_localId, id, organization_id, source_invoice_item_id, store_id, status, _dirty, last_modified_at",
 });
