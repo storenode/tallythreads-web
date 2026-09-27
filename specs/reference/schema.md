@@ -3,7 +3,7 @@
 **Status:** Living reference. **Verified against the live Supabase database**
 (`gmmeaplomgotqtivevkg`, `public` schema) on 2026-09-05 — the live DB is authoritative;
 this doc is kept to match it, not the other way round.
-**Version:** 3.5.0
+**Version:** 3.7.0
 **Related:** `../constitution.md` (§6 architecture rules, §2.IX store models),
 `roles-and-permissions.md` (role/permission catalog), `franchise-settlement.md`
 (the settlement engine — proposed M1d, see §4).
@@ -262,6 +262,8 @@ cached in Dexie keyed by `member_id` (offline-capable). Edge functions:
 | `registration_type` | text, CHECK (`independent`,`chain`,`franchise`), nullable | **Declared at provisioning** (via `provision_organization_with_contacts`). See §5 for how this relates to the *derived* per-store model. |
 | `status` | text, CHECK (`trial`,`active`,`suspended`,`churned`), default `active` | |
 | `is_demo` | boolean, default false | demo orgs from the admin Demo module |
+| `org_code` | text, nullable, CHECK `^[A-Z0-9]{2,6}$` | short org code (e.g. `BND`), prefix of unallocated-stock SKUs (`BND-UNA-…`). Not globally unique (SKUs are org-scoped). Backfilled 2026-09-27 from the shared store-code prefix, else initials |
+| `label_settings` | jsonb, nullable | default barcode-label print layout (Inventory Phase 2C) |
 | `legal_name`/`legal_entity_type`(CHECK proprietorship/partnership/llp/private_limited/huf/other)/`gstin`/`pan` | text | business registration |
 | `address_line1`/`line2`/`city`/`state`/`pincode`/`country`(default India) | text | |
 | `primary_contact_phone`/`primary_contact_member_id`(FK)/`website`/`logo_url` | | |
@@ -462,8 +464,14 @@ Set up per store in the wizard's Stores step; a `stock_locations` row can be tag
 
 ### `inventory_categories` — a store's product category/department
 `id`, `organization_id` FK, `store_id` FK, `name` (**unique per store** among non-deleted),
-`next_sequence` int default 1 (**reserved** — the per-`(store, category)` running counter for the
-later SKU phase `STORE-CATEGORY-COLOR-SIZE-SEQ`), `last_modified_at`, `deleted_at`. Store-scoped RLS
+**`code`** text not null, CHECK `^[A-Z0-9]{2,6}$`, unique per store among non-deleted — the SKU
+`{CAT}` segment (Sarees → `SAR`). **One name ↔ one code across the org**, enforced by triggers:
+`inventory_categories_assign_code` (BEFORE insert/update: reuses the org's code for the name, else a
+valid supplied code, else `inventory_category_code_for()` — first 3 letters, suffixed on a clash;
+corrects rather than rejects, and bumps `last_modified_at` so devices re-pull) and
+`inventory_categories_propagate_code` (AFTER update of code, security definer: a code edit applies to
+that name in every store of the org). `next_sequence` int default 1 (**unused**; superseded by the
+planned `sku_counters`, Phase 2C), `last_modified_at`, `deleted_at`. Store-scoped RLS
 via `has_store_permission()` (which cascades org_owner/org_manager): **read** = `inventory.read`,
 **write** (insert/update, incl. soft-delete) = `inventory.write`; hard DELETE platform-admin-only.
 Offline-first (Dexie + outbox), pushed **before** `stock_locations` (a location may reference it).
@@ -551,11 +559,8 @@ warehouse-owned stock_locations).
   `organizations.org_code` / `label_settings` and `inventory_categories.code`; RPCs
   `finalize_inventory_items` / `reissue_inventory_item`. (Replaces the earlier `inventory` master +
   `sku_template` sketch.)
-  **Phase 2A migration written, not applied** (`20260927100000_inventory_phase2a_codes.sql`):
-  `organizations.org_code` + `label_settings`, `inventory_categories.code` with the
-  `inventory_categories_assign_code` / `inventory_categories_propagate_code` triggers and
-  `inventory_category_code_for()`, plus the `inventory.manage` permission. Move into §2/§3D once
-  applied.
+  (Phase 2A — `org_code`, `label_settings`, category `code`, `inventory.manage` — is **live**, see
+  §2 / §3D.)
 - **`store_knowledge`** (pgvector embeddings) + the `store-agent` edge function — the **Assistant**
   (store chat / RAG + tool-use). Designed in `../roadmap/assistant.md`; not migrated (needs the
   `vector` extension). Invoices / GST — M5. `content_items` (AI Studio) — see
@@ -574,6 +579,12 @@ data model and the diagram.
 
 ## 8. Changelog
 
+- **v3.7.0 (2026-09-27)** — **Inventory Phase 2A, live** (migration
+  `20260927191604_inventory_phase2a_codes`): `organizations.org_code` (backfilled: VCS, BND) +
+  `label_settings`; `inventory_categories.code` (backfilled: MEN, WOM, KID, DRE, REA, SAR, ACC, STR)
+  with the assign/normalise + org-wide propagation triggers and `inventory_category_code_for()`;
+  permission `inventory.manage` → `org_owner`, `org_manager`. Dry-run verified in rolled-back
+  transactions before applying. Spec: `../roadmap/inventory.md` v2.1.0.
 - **v3.6.0 (2026-09-26)** — **Inventory categories (Inventory phase 1), live.** New store-scoped
   **`inventory_categories`** table (§3D: each store defines its own departments; `next_sequence`
   reserved for SKUs) and a nullable **`stock_locations.category_id`** FK (§3B) so a placement node

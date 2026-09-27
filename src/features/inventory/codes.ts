@@ -34,7 +34,7 @@ export function normalizeStoreCode(input: string): string {
 /**
  * Suggested org short code: the prefix every store code already shares (BND-KDP, BND-NLR →
  * BND), else the name's initials (Vasavi Cloth Store → VCS), else its first letters.
- * Mirrors the backfill in 20260927100000_inventory_phase2a_codes.sql.
+ * Mirrors the backfill in 20260927191604_inventory_phase2a_codes.sql.
  */
 export function suggestOrgCode(name: string, storeCodes: (string | null)[] = []): string {
   const prefixes = new Set(

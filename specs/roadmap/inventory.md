@@ -1,7 +1,7 @@
 # M3 — Inventory: catalogue, pricing, SKU/barcode labels, distribution & store stock
 
 **Status:** Phase 1 (categories) **Built & live** (2026-09-26). Phase 2 **spec final** (2026-09-27).
-**Phase 2A built** (2026-09-27), migration written but **not yet applied** to the live DB.
+**Phase 2A built & live** (2026-09-27). Next: Phase 2B.
 **Version:** 2.1.0
 **Est:** see §11 (M3 is 36h in constitution §5 and needs revising; this spec's phases total ~50h)
 **Tracking:** [storenode/tallythreads-web#30](https://github.com/storenode/tallythreads-web/issues/30)
@@ -297,8 +297,8 @@ SKUs), receive, place, move and adjustments write to Dexie first.
 Each phase ships on its own with tests, is verified offline where relevant, and is checked at
 375px (constitution §7).
 
-### Phase 2A: Foundations (~4h) — **built 2026-09-27, migration NOT yet applied**
-- [x] Migration `20260927100000_inventory_phase2a_codes.sql`: `organizations.org_code` (+ backfill:
+### Phase 2A: Foundations (~4h) — **built & live 2026-09-27**
+- [x] Migration `20260927191604_inventory_phase2a_codes.sql`: `organizations.org_code` (+ backfill:
       shared store-code prefix, else initials) and `label_settings`; `inventory_categories.code`
       (+ backfill); the `inventory_categories_assign_code` trigger (one name ↔ one code per org;
       corrects offline writes instead of rejecting them and bumps `last_modified_at` so devices
@@ -306,8 +306,9 @@ Each phase ships on its own with tests, is verified offline where relevant, and 
       store of the org); `inventory.manage` → `org_owner`, `org_manager`. **Dry-run verified**
       twice against the live DB inside rolled-back transactions (VCS / BND backfill,
       MEN/WOM/KID/…, collision → `SAR2`, org-wide recode, rejection of another name's code).
-- [ ] **Apply the migration to the live DB** (founder go-ahead), then update `schema.md` §2/§3D +
-      changelog, and `roles-and-permissions.md` (`inventory.manage` → Live).
+- [x] **Applied to the live DB** (2026-09-27, version `20260927191604`) and verified: VCS / BND,
+      all categories coded, both triggers, `inventory.manage` on org_owner/org_manager.
+      `schema.md` v3.7.0 + `roles-and-permissions.md` updated.
 - [x] Org form (create + edit, wizard Organization step): **Short code**, suggested from the name /
       store codes until typed (`OrganizationCoreFields`, component-tested).
 - [x] Store code **required** and normalised (uppercase) in every store form (wizard, org Store

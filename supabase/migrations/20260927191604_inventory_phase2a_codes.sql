@@ -112,7 +112,7 @@ $$;
 
 comment on function public.inventory_category_code_for(uuid, text, uuid) is
   'The SKU category code an org uses for a category name (org-wide name↔code consistency). '
-  'See 20260927100000_inventory_phase2a_codes.sql.';
+  'See 20260927191604_inventory_phase2a_codes.sql.';
 
 alter table public.inventory_categories add column code text;
 
