@@ -2,8 +2,10 @@
 
 **Status:** Phase 1 (categories) **Built & live** (2026-09-26). Phase 2 **spec final** (2026-09-27).
 **Phases 2A–2E built & live** (2026-09-27/28): catalogue → price → Finalize (SKUs) → labels →
-dispatch → receive → stock on hand → place/move. Next: the §7 change rules after finalize, then 2F.
-**Version:** 2.3.0
+dispatch → receive → stock on hand → place/move. Catalogue screen reworked 2026-09-28 (§11
+"Catalogue UI rework"). **Next: Phase 2G — dispatch from the Catalogue with shipment details**
+(planned, §11), then the §7 change rules after finalize, then 2F.
+**Version:** 2.4.0
 **Est:** see §11 (M3 is 36h in constitution §5 and needs revising; this spec's phases total ~50h)
 **Tracking:** [storenode/tallythreads-web#30](https://github.com/storenode/tallythreads-web/issues/30)
 **Builds on:** Deliveries (`deliveries.md`) → Stock Placement (`stock-placement.md`) → Warehouses /
@@ -191,6 +193,10 @@ Shown per item on the org's Catalogue screen:
   ₹1,000 / ₹1,050 rule; **confirm with the CA before Billing (M5)**. Items above ₹2,625 get an
   "18% GST" tag.
 - **Visibility:** cost/margin/forecast on org screens only. Stores and labels show MRP only.
+- **UI status (2026-09-28, founder):** the lot forecast card and the rounding picker / "Round all
+  MRPs" were **removed from the Catalogue screen for now**. Suggested MRPs always round up to the
+  next …99 (the old default); admins edit any MRP freely. `lotForecast` / `roundMrpPaise` and
+  their golden tests stay in `lib/mrpPricing.ts`, ready to bring back.
 - **New pure module `lib/mrpPricing.ts`** (rounding + forecast), **TDD with golden tests**,
   including the slab boundary (₹2,500.00 exactly vs ₹2,500.01) and the rounding edge cases.
   Required before Phase 2B ships.
@@ -383,6 +389,69 @@ Each phase ships on its own with tests, is verified offline where relevant, and 
 - [ ] E2E: finalize → SKU format → print preview (needs `E2E_ADMIN_JWT`; the live RPCs were
       verified by rolled-back SQL runs instead).
 
+### Catalogue UI rework — **built 2026-09-28** (client only, no DB change)
+- [x] Each line's items are a **TanStack table** (checkbox + Name pinned left, horizontal scroll
+      inside the card; stacked cards below `sm`). Columns: Name · Category · Colour · Size · Qty ·
+      MRP (18% GST / below-landed tags) · Store (missing-category "Add it") · Status (Draft /
+      Finalized) · Label (SKU, "N printed", **Barcode** preview, **Print N** / **Reprint N**).
+- [x] Row selection (select-all + per row) only changes what the action buttons act on:
+      **Finalize selected** (ticked drafts) and **Print selected** (ticked finalized rows).
+- [x] Per line: **+ Add item** (left) and Finalize / **Print labels** (right) in one row above the
+      table; "All finalized" pill next to "N of M catalogued". Print labels is enabled only when
+      the line is all finalized or finalized rows are ticked.
+- [x] **Direct printing** — no trip to the Labels page from the Catalogue: the browser print
+      dialog opens with the labels still outstanding (or a full reprint), using the org's
+      last-used layout; "Printed OK? Mark done" then bumps `labels_printed`. Label rendering is
+      shared (`features/inventory/LabelPrint.tsx`); the Labels page stays for Inventory → Labels
+      and layout choice.
+- [x] Removed: lot forecast card, MRP rounding card (§6), the page-level "Finalize & labels" card.
+
+### Phase 2G: Dispatch from the Catalogue with shipment details — **planned (founder-approved plan, 2026-09-28; not started)**
+Goal: dispatch straight from each Catalogue line and record **how** stock travels (courier AWB,
+bus/travels parcel LR, lorry, hand delivery), who pays the freight, and a photo of the LR/receipt.
+The org **Stock & dispatch** tab is then **removed**.
+
+**Decisions (founder):** freight is recorded with **who pays** — organization or store (to-pay on
+delivery), no landed-cost change; ticked rows for several stores → **one dispatch per store**,
+each with its own shipment details; **no modal** — Dispatch swaps the line's table for a dispatch
+form with **← Back to items** (URL `?dispatch=<line>` so the phone back button works); capture a
+**photo of the LR / courier receipt**.
+
+**DB (one migration; show the SQL to the founder before applying live):**
+- `stock_transfers` + nullable columns: `transport_mode` (CHECK courier/bus/lorry/hand/other),
+  `carrier_name`, `tracking_no` (AWB / docket / LR), `vehicle_no`, `contact_name`,
+  `contact_phone`, `packages` (> 0), `expected_at` date, `freight_paise` (≥ 0),
+  `freight_paid_by` (CHECK org/store; required when freight is set), `receipt_path`.
+- Private bucket `dispatch-receipts` (`{org_id}/{transfer_id}/…`, images ≤ 5 MB, compressed
+  client-side): org `inventory.manage` read/write; receiving store `inventory.read` read.
+- `dispatch_stock(store, lines, note, p_shipment jsonb default null)` (drop + recreate; the
+  server validates mode, tracking no. required for courier/bus/lorry, freight needs a payer).
+- New `update_transfer_shipment(transfer, shipment)` — edit details / attach the photo while
+  `dispatched`; locked once received.
+- `store_incoming` returns the shipment summary; `freight_paise` **only when the store pays**
+  (stores never see org costs).
+
+**UI:**
+- Catalogue table gets a **Dispatch** column: "25 at org · Dispatch" → "In transit → Nellore" →
+  "Received 25/25" (from `stock_levels`, via `useOrgStockLevels` + `orgHoldings`); drafts "—".
+- **Dispatch selected** next to Print selected. The dispatch form groups lines by store: pieces
+  per SKU, mode-specific fields, boxes, contact, expected date, freight ₹ + paid by, receipt
+  photo, note. UNA rows pick a store; after dispatch the form offers **Print new labels**
+  (direct print). Online only (like Finalize).
+- Per-invoice **Dispatches** list under the line cards (store, shipment summary, 📷, In transit /
+  Received x/y, **Edit shipment** — same form with ← Back).
+- Store **Receive** page shows "KPN Travels · LR 4471 · 3 boxes · expected 30 Sep", "To pay
+  ₹350" when store-paid, and the receipt photo.
+- Old tab's pieces: builder → Catalogue form; recent dispatches → per-invoice list; at-org /
+  in-transit / in-stores counts → per-invoice counts on the **Ready for inventory** tab; SKU
+  scan-to-dispatch dropped (ask the founder if it's missed). Delete `StockDispatchTab.tsx`.
+
+**Tests:** vitest golden tests for `validateShipment` / `shipmentSummary` (incl. freight payer
+visibility); one live dispatch on a demo org checked from both org and store side.
+**Order:** migration + bucket + RPCs → types + `schema.md` → helpers + tests → Catalogue column /
+form / selection / Dispatches list → Receive page, Ready-tab counts, remove the old tab → docs +
+journal. Add "store-paid freight in franchise settlement" to `backlog.md`.
+
 ### Phase 2D: Dispatch & receive — **built & live 2026-09-28**
 - [x] `stock_transfers` + `stock_transfer_items` (readable by the org or the receiving store;
       written only by RPCs), `stock_movements` (append-only: immutable trigger; location-in-store
@@ -463,6 +532,10 @@ Each store defines its own **categories/departments** (Sarees, Dress Material, K
 ---
 
 ## Changelog
+- **v2.4.0 (2026-09-28)**: Catalogue UI rework (TanStack table, row selection, direct label
+  printing, barcode preview; lot forecast and rounding picker removed from the screen). Phase 2G
+  (dispatch from the Catalogue with shipment details, LR photo, freight payer; retire the Stock &
+  dispatch tab) planned with the founder.
 - **v2.3.0 (2026-09-28)**: Phases 2C–2E built and applied live (`inventory_distribution`): SKU
   counters + Finalize RPC, labels page (any printer), dispatch with UNA reissue, store receive by
   scan, stock on hand, offline place/move. `stock_levels` is a view. Also fixed live

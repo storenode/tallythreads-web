@@ -136,3 +136,10 @@ export function writeLayoutPref(orgId: string, v: { id: LabelLayoutId; cols: num
     /* ignore */
   }
 }
+
+/** The org's last-used label layout (chosen on the Labels page), for one-click printing. */
+export function layoutFromPref(orgId: string): LabelLayout {
+  const pref = readLayoutPref(orgId);
+  if (pref.id === "a4-custom") return customA4Layout(pref.cols || 1, pref.rows || 1);
+  return LABEL_LAYOUTS.find((l) => l.id === pref.id) ?? LABEL_LAYOUTS[0];
+}
