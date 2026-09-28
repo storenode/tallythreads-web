@@ -88,7 +88,11 @@ export function CameraScanner({ onScan }: { onScan: (sku: string) => void }) {
       try {
         const detector = await getCode128Detector();
         if (stopped) return;
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        // Ask for HD: iPhone Safari defaults to 640×480, where a full-length SKU label's bars are
+        // ~1 px wide and don't decode. 1280×720 and up read reliably.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+        });
         if (stopped || !videoRef.current) {
           stream.getTracks().forEach((t) => t.stop()); // closed while the permission prompt was up
           return;
@@ -130,7 +134,12 @@ export function CameraScanner({ onScan }: { onScan: (sku: string) => void }) {
       {error ? (
         <p className="p-3 text-sm text-white">{error}</p>
       ) : (
-        <video ref={videoRef} muted playsInline className="block max-h-56 w-full object-cover" />
+        <>
+          <video ref={videoRef} muted playsInline className="block max-h-56 w-full object-cover" />
+          <p className="bg-surface px-3 py-1.5 text-xs text-fg-muted">
+            Hold the label flat, filling most of the frame.
+          </p>
+        </>
       )}
     </div>
   );
