@@ -1,25 +1,19 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { useParams } from "react-router-dom";
-import { useLiveQuery } from "dexie-react-hooks";
+import { useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ScanBarcode } from "lucide-react";
-import { db } from "@/db";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { formatInr } from "@/lib/money";
-import { useMember } from "@/features/auth/useMember";
-import { useStoresByOrg } from "@/features/stores/stores";
+import { supabase } from "@/lib/supabaseClient";
 import { parseSku, type ParsedSku } from "./codes";
-import { normalizeSku, useOrgStockLevels, useStoreStock } from "./distribution";
+import { normalizeSku } from "./distribution";
 import { ScanInput } from "./ScanInput";
 
 /**
- * Header quick-scan (every header, the public home page included): scan a label and see what it
- * is. Read-only — it never writes. What it can show depends on who is looking:
- *   - anyone: what the barcode itself encodes (store, category, colour, size, label number);
- *   - in a store (/ops/:storeId): the item and where it sits in this store (store_stock, price-free,
- *     cached for offline);
- *   - in the org back-office (/org/:orgId): the catalogued item and its stock at the org, in
- *     transit and per store. Never the landed cost.
+ * Header quick-scan, in every header (the public home page included): anyone — customer,
+ * salesperson, owner, signed in or not — scans a price tag and sees what it is. Read-only.
+ * Details come from the public, price-free `lookup_sku` RPC (name, colour, size, category, MRP,
+ * store, pieces per store for the same product); offline, what the barcode itself encodes.
  */
 export function ScanButton({ className = "" }: { className?: string }) {
   const [open, setOpen] = useState(false);
@@ -56,142 +50,112 @@ function BarcodeLookupDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function SkuResult({ raw }: { raw: string }) {
-  const { storeId, orgId } = useParams<{ storeId?: string; orgId?: string }>();
-  const { isSignedIn } = useMember();
-  const parsed = parseSku(raw);
+/** One `lookup_sku` match (see supabase/migrations/20260928192617_public_sku_lookup.sql). */
+export interface SkuLookup {
+  sku: string;
+  name: string;
+  color: string;
+  size: string;
+  category_code: string;
+  category_name: string | null;
+  mrp_paise: number;
+  retired: boolean;
+  organization_name: string;
+  store_name: string | null;
+  stores: { name: string; city: string | null; quantity: number }[];
+}
 
-  if (!parsed) {
-    return (
-      <div className="space-y-1">
-        <p className="break-all font-mono text-sm text-fg">{normalizeSku(raw) || raw}</p>
-        <p className="text-sm text-fg-muted">This isn&apos;t a TallyThreads label.</p>
-      </div>
-    );
-  }
+function useSkuLookup(sku: string) {
+  return useQuery({
+    queryKey: ["inventory", "lookup-sku", sku],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("lookup_sku", { p_sku: sku });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as SkuLookup[];
+    },
+    retry: false,
+  });
+}
+
+function SkuResult({ raw }: { raw: string }) {
+  const sku = normalizeSku(raw) || raw;
+  const parsed = parseSku(sku);
+  const lookup = useSkuLookup(sku);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="break-all font-mono text-base font-semibold text-fg">{parsed.sku}</p>
-        <p className="mt-0.5 text-xs text-fg-muted">From the barcode</p>
-        <Facts
-          rows={[
-            parsed.unallocated
-              ? ["Stock", `Unallocated · ${parsed.orgCode}`]
-              : ["Store code", parsed.storeCode],
-            ["Category", parsed.category],
-            ["Colour", parsed.color],
-            ["Size", parsed.size],
-            ["Label no.", String(parsed.sequence)],
-          ]}
-        />
-      </div>
-      {!isSignedIn ? (
-        <p className="text-sm text-fg-muted">Sign in to see the item name, MRP and stock.</p>
-      ) : storeId ? (
-        <StoreDetails storeId={storeId} sku={parsed.sku} />
-      ) : orgId ? (
-        <OrgDetails orgId={orgId} parsed={parsed} />
+    <div className="space-y-3">
+      <p className="break-all font-mono text-base font-semibold text-fg">{sku}</p>
+      {lookup.isLoading ? (
+        <p className="text-sm text-fg-muted">Looking it up…</p>
+      ) : lookup.data?.length ? (
+        lookup.data.map((m) => <ItemCard key={`${m.organization_name}-${m.sku}`} item={m} />)
       ) : (
-        <p className="text-sm text-fg-muted">Open a store or organization to see its stock.</p>
+        <>
+          <p className="text-sm text-fg-muted">
+            {lookup.error
+              ? "Couldn't reach TallyThreads — showing what the label says."
+              : parsed
+                ? "No item with this barcode yet. The label says:"
+                : "This isn't a TallyThreads label."}
+          </p>
+          {parsed && <DecodedCard parsed={parsed} />}
+        </>
       )}
     </div>
   );
 }
 
-function StoreDetails({ storeId, sku }: { storeId: string; sku: string }) {
-  const stock = useStoreStock(storeId);
-  const rows = useMemo(() => (stock.data ?? []).filter((r) => r.sku === sku), [stock.data, sku]);
-
-  if (stock.isLoading) return <p className="text-sm text-fg-muted">Looking it up…</p>;
-  if (stock.error && !stock.data) {
-    return <p className="text-sm text-fg-muted">Couldn&apos;t load this store&apos;s stock — check the connection.</p>;
-  }
-  if (!rows.length) return <p className="text-sm text-fg-muted">Not in this store&apos;s stock right now.</p>;
-
-  const head = rows[0];
-  const total = rows.reduce((n, r) => n + r.quantity, 0);
+function ItemCard({ item }: { item: SkuLookup }) {
+  const total = item.stores.reduce((n, s) => n + s.quantity, 0);
   return (
-    <Section title={head.name}>
-      <Facts
-        rows={[
-          ["Colour", head.color],
-          ["Size", head.size],
-          ["Category", head.category_code],
-          ["MRP", formatInr(head.mrp_paise)],
-          ["In this store", `${total} pcs`],
-          ...rows.map(
-            (r): [string, string] => [
-              r.warehouse_id
-                ? `${r.warehouse_name ?? "Stock room"}${r.location_code ? ` · ${r.location_code}` : ""}`
-                : r.location_code
-                  ? `Display · ${r.location_code}`
-                  : "Not yet placed",
-              `${r.quantity} pcs`,
-            ],
-          ),
-        ]}
-      />
-    </Section>
-  );
-}
-
-function OrgDetails({ orgId, parsed }: { orgId: string; parsed: ParsedSku }) {
-  const item = useLiveQuery(
-    () =>
-      db.inventory_items
-        .where("organization_id")
-        .equals(orgId)
-        .filter((i) => i.sku === parsed.sku && !i.deleted_at)
-        .first(),
-    [orgId, parsed.sku],
-  );
-  const levels = useOrgStockLevels(orgId);
-  const { data: stores } = useStoresByOrg(orgId);
-
-  if (item === undefined && levels.isLoading) return <p className="text-sm text-fg-muted">Looking it up…</p>;
-  if (!item) return <p className="text-sm text-fg-muted">Not in this organization&apos;s catalogue.</p>;
-
-  const storeName = (id: string | null) => (id ? (stores?.find((s) => s.id === id)?.name ?? "Store") : "Unallocated");
-  const mine = (levels.data ?? []).filter((l) => l.item_id === item.id);
-  const atOrg = mine.filter((l) => l.loc_kind === "org").reduce((n, l) => n + l.quantity, 0);
-  const inTransit = mine.filter((l) => l.loc_kind === "transit").reduce((n, l) => n + l.quantity, 0);
-  const byStore = new Map<string, number>();
-  for (const l of mine) {
-    if (l.loc_kind === "store" && l.store_id) byStore.set(l.store_id, (byStore.get(l.store_id) ?? 0) + l.quantity);
-  }
-
-  return (
-    <Section title={item.name}>
+    <Section title={item.name} subtitle={item.store_name ?? item.organization_name}>
       <Facts
         rows={[
           ["Colour", item.color],
           ["Size", item.size],
-          ["Category", item.category_code],
+          ["Category", item.category_name ?? item.category_code],
           ["MRP", formatInr(item.mrp_paise)],
-          ["Allocated to", storeName(item.store_id)],
-          ["Status", item.status === "retired" ? "Retired (reissued)" : "Active"],
-          ...(levels.data
-            ? ([
-                ["At the organization", `${atOrg} pcs`],
-                ["In transit", `${inTransit} pcs`],
-                ...[...byStore].map(([id, n]): [string, string] => [storeName(id), `${n} pcs`]),
-              ] as [string, string][])
-            : []),
         ]}
       />
-      {levels.error && !levels.data && (
-        <p className="mt-2 text-xs text-fg-muted">Stock levels need a connection.</p>
+      <p className="mt-3 text-xs font-medium uppercase tracking-wide text-fg-muted">Availability</p>
+      {total === 0 ? (
+        <p className="mt-1 text-sm text-fg">Not in any store right now.</p>
+      ) : (
+        <Facts
+          rows={item.stores.map((s): [string, string] => [
+            s.city ? `${s.name} · ${s.city}` : s.name,
+            `${s.quantity} pcs`,
+          ])}
+        />
+      )}
+      {item.retired && (
+        <p className="mt-2 text-xs text-fg-muted">This label was replaced by a newer one.</p>
       )}
     </Section>
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function DecodedCard({ parsed }: { parsed: ParsedSku }) {
+  return (
+    <Section title="From the barcode">
+      <Facts
+        rows={[
+          parsed.unallocated ? ["Stock", `Unallocated · ${parsed.orgCode}`] : ["Store code", parsed.storeCode],
+          ["Category", parsed.category],
+          ["Colour", parsed.color],
+          ["Size", parsed.size],
+          ["Label no.", String(parsed.sequence)],
+        ]}
+      />
+    </Section>
+  );
+}
+
+function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-bg-elevated p-3">
       <p className="text-sm font-semibold text-fg">{title}</p>
+      {subtitle && <p className="text-xs text-fg-muted">{subtitle}</p>}
       {children}
     </div>
   );

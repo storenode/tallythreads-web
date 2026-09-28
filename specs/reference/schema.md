@@ -5,7 +5,7 @@
 indexes, FK delete rules, RLS policies, triggers, functions and the migration history were
 re-read from the catalog. The live DB is authoritative; this doc is kept to match it, not the
 other way round. The ER diagram below is kept identical to `supabase/schema.mmd`.
-**Version:** 3.9.1
+**Version:** 3.10.0
 **Related:** `../constitution.md` (§6 architecture rules, §2.IX store models),
 `roles-and-permissions.md` (role/permission catalog), `franchise-settlement.md`
 (the settlement engine — proposed M1d, see §4).
@@ -662,7 +662,11 @@ Migration `20260927222247_inventory_distribution`. Spec: `../roadmap/inventory.m
   movement into org holding); `dispatch_stock(store, jsonb lines, note)` → `{transfer_id,
   reissued[]}` (UNA → new store-SKU item, UNA retired when fully moved); `receive_transfer(transfer,
   jsonb lines, warehouse?, location?)`; `store_stock(store)` (price-free); `store_incoming(store)`
-  (jsonb, price-free). Helpers: `sku_segment(text)`, `next_inventory_sku(...)` (no API execute),
+  (jsonb, price-free). **Public (`anon` + `authenticated`):** `lookup_sku(sku)` → jsonb list of
+  matches (SKUs are unique per org only): name, colour, size, category, MRP, org + allocated store,
+  and pieces per store for the same product (siblings = same invoice line, colour, size); never
+  cost, org or in-transit quantities; drafts/deleted excluded. Backs the header Scan button.
+  Helpers: `sku_segment(text)`, `next_inventory_sku(...)` (no API execute),
   `stock_location_in_store(...)`.
 
 ---
@@ -775,6 +779,11 @@ in `stock_transfers`.
 ---
 
 ## 8. Changelog
+
+- **v3.10.0 (2026-09-28)** — **`lookup_sku(text)` live** (`20260928192617_public_sku_lookup`):
+  public, price-free, read-only barcode lookup (SECURITY DEFINER, EXECUTE granted to `anon` and
+  `authenticated`) for the header Scan button. Verified as `anon`: a hit returns details, a miss
+  or null returns `[]`; direct `inventory_items` reads stay blocked by RLS.
 
 - **v3.9.1 (2026-09-28)** — **Full re-verification against the live DB** (catalog queries: 30
   tables + 3 views, CHECKs, unique indexes, FK delete rules, 88 policies, 5 triggers, 28 functions,
