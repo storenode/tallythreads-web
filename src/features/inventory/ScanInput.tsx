@@ -72,6 +72,8 @@ export function ScanInput({
 export function CameraScanner({ onScan }: { onScan: (sku: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
+  // Shown under the preview so a failing phone can be diagnosed from a screenshot.
+  const [status, setStatus] = useState<{ size: string; readError: string | null }>({ size: "", readError: null });
   const onScanRef = useRef(onScan);
   useEffect(() => {
     onScanRef.current = onScan;
@@ -99,10 +101,24 @@ export function CameraScanner({ onScan }: { onScan: (sku: string) => void }) {
         }
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
+        // Grab frames onto a plain canvas and hand the decoder ImageData: the ponyfill's own
+        // video path (OffscreenCanvas / createImageBitmap) is unreliable on iPhone WebKit.
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        let failures = 0;
         const tick = async () => {
-          if (stopped || !videoRef.current) return;
+          const video = videoRef.current;
+          if (stopped || !video) return;
           try {
-            const codes = await detector.detect(videoRef.current);
+            if (!ctx || video.readyState < 2 || !video.videoWidth) throw new Error("frame not ready");
+            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              setStatus((st) => ({ ...st, size: `${canvas.width}×${canvas.height}` }));
+            }
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const codes = await detector.detect(ctx.getImageData(0, 0, canvas.width, canvas.height));
+            failures = 0;
             const v = codes[0]?.rawValue;
             // Same label held in view: count it once every 1.5 s, not every frame.
             if (v && (v !== last || Date.now() - lastAt > 1500)) {
@@ -111,8 +127,11 @@ export function CameraScanner({ onScan }: { onScan: (sku: string) => void }) {
               navigator.vibrate?.(40);
               onScanRef.current(v);
             }
-          } catch {
-            /* frame not ready */
+          } catch (err) {
+            // A frame or two before the video starts is normal; a steady failure is a bug to show.
+            if (++failures === 8) {
+              setStatus((st) => ({ ...st, readError: err instanceof Error ? err.message : String(err) }));
+            }
           }
           timer = window.setTimeout(tick, 250);
         };
@@ -138,7 +157,11 @@ export function CameraScanner({ onScan }: { onScan: (sku: string) => void }) {
           <video ref={videoRef} muted playsInline className="block max-h-56 w-full object-cover" />
           <p className="bg-surface px-3 py-1.5 text-xs text-fg-muted">
             Hold the label flat, filling most of the frame.
+            {status.size && <span className="float-right">{status.size}</span>}
           </p>
+          {status.readError && (
+            <p className="bg-surface px-3 pb-1.5 text-xs text-fg-muted">Scanner error: {status.readError}</p>
+          )}
         </>
       )}
     </div>

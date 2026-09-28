@@ -10,7 +10,7 @@ export interface DetectedBarcode {
 }
 
 export interface Code128Detector {
-  detect(source: HTMLVideoElement): Promise<DetectedBarcode[]>;
+  detect(source: ImageData): Promise<DetectedBarcode[]>;
 }
 
 type DetectorCtor = {
