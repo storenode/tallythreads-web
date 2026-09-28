@@ -1,10 +1,11 @@
 import { type ReactNode, type Ref, useEffect, useMemo, useRef, useState } from "react";
-import JsBarcode from "jsbarcode";
+import qrcode from "qrcode-generator";
 import { useReactToPrint } from "react-to-print";
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import type { InventoryItem } from "@/db";
+import { skuLookupUrl } from "./codes";
 import { markLabelsPrinted } from "./distribution";
 import {
   labelMrp,
@@ -73,10 +74,17 @@ export function LabelSheet({
   );
 }
 
-/** One label, sized in mm, inline-styled so it prints the same in the print iframe. */
+/**
+ * One label, sized in mm, inline-styled so it prints the same in the print iframe. A QR code on
+ * the left, text on the right. The QR holds the public lookup link (…/s/{SKU}): any phone camera
+ * opens the item's details, and the in-app scanner reads it too. It replaced a Code 128 barcode,
+ * which for a full SKU (~310 bars) on a 50 mm label is ~0.14 mm a bar — too dense to print at
+ * 203/300 dpi or to scan.
+ */
 export function Label({ data, w, h }: { data: LabelData; w: number; h: number }) {
   const pt = Math.min(Math.max(h * 0.27, 5), 9); // base font in pt, scaled to the label height
   const pad = Math.min(1.5, h * 0.06);
+  const qr = Math.min(h - 2 * pad, w * 0.45); // square, as tall as the label allows
   return (
     <div
       style={{
@@ -85,46 +93,53 @@ export function Label({ data, w, h }: { data: LabelData; w: number; h: number })
         height: `${h}mm`,
         padding: `${pad}mm ${pad * 1.4}mm`,
         display: "flex",
-        flexDirection: "column",
+        alignItems: "center",
+        gap: `${pad}mm`,
         fontFamily: "Arial, Helvetica, sans-serif",
         color: "#000",
-        lineHeight: 1.1,
+        lineHeight: 1.15,
       }}
     >
-      <div style={{ fontSize: `${pt}pt`, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-        {data.name}
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "1mm", fontSize: `${pt * 0.9}pt` }}>
-        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+      <QrCode value={skuLookupUrl(data.sku, window.location.origin)} sizeMm={qr} />
+      <div style={{ minWidth: 0, flex: "1 1 0", display: "flex", flexDirection: "column", gap: "0.4mm" }}>
+        <div style={{ fontSize: `${pt}pt`, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {data.name}
+        </div>
+        <div style={{ fontSize: `${pt * 0.9}pt`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {data.color} · {data.size}
-        </span>
-        <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>MRP {labelMrp(data.mrpPaise)}</span>
-      </div>
-      <Barcode value={data.sku} />
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: `${pt * 0.72}pt` }}>
-        <span style={{ fontFamily: "monospace", whiteSpace: "nowrap" }}>{data.sku}</span>
-        <span style={{ whiteSpace: "nowrap" }}>incl. of all taxes</span>
+        </div>
+        <div style={{ fontSize: `${pt * 1.05}pt`, fontWeight: 700, whiteSpace: "nowrap" }}>
+          MRP {labelMrp(data.mrpPaise)}
+        </div>
+        <div style={{ fontSize: `${pt * 0.62}pt`, fontFamily: "monospace", overflowWrap: "anywhere" }}>{data.sku}</div>
+        <div style={{ fontSize: `${pt * 0.62}pt`, whiteSpace: "nowrap" }}>incl. of all taxes</div>
       </div>
     </div>
   );
 }
 
-function Barcode({ value }: { value: string }) {
-  const ref = useRef<SVGSVGElement>(null);
-  useEffect(() => {
-    if (!ref.current) return;
-    try {
-      JsBarcode(ref.current, value, { format: "CODE128", displayValue: false, margin: 0, height: 40, width: 2 });
-    } catch {
-      /* invalid value — leave blank */
+/** QR code as crisp SVG squares (with its 4-module quiet zone), `sizeMm` square. */
+function QrCode({ value, sizeMm }: { value: string; sizeMm: number }) {
+  const { n, path } = useMemo(() => {
+    const code = qrcode(0, "M");
+    code.addData(value);
+    code.make();
+    const count = code.getModuleCount();
+    let d = "";
+    for (let r = 0; r < count; r++) {
+      for (let c = 0; c < count; c++) if (code.isDark(r, c)) d += `M${c + 4} ${r + 4}h1v1h-1z`;
     }
+    return { n: count + 8, path: d };
   }, [value]);
   return (
     <svg
-      ref={ref}
-      preserveAspectRatio="none"
-      style={{ display: "block", width: "100%", flex: "1 1 0", minHeight: 0, margin: "0.4mm 0" }}
-    />
+      viewBox={`0 0 ${n} ${n}`}
+      shapeRendering="crispEdges"
+      style={{ display: "block", flex: "none", width: `${sizeMm}mm`, height: `${sizeMm}mm` }}
+    >
+      <rect width={n} height={n} fill="#fff" />
+      <path d={path} fill="#000" />
+    </svg>
   );
 }
 

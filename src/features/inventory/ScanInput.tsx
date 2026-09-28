@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from "react";
-import { Camera, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Camera, Loader2, Video, X } from "lucide-react";
 import { Input } from "@/components/ui/Input";
-import { normalizeSku } from "./distribution";
-import { cameraScanSupported, getCode128Detector } from "./barcodeDetector";
+import { skuFromScan } from "./codes";
+import { cameraScanSupported, decodeImageFile, getBarcodeDetector } from "./barcodeDetector";
 
 /**
  * SKU entry for scanning. USB / Bluetooth barcode scanners type like a keyboard and press Enter,
- * so a focused input is all they need. On phones (Android and iPhone), a camera button scans
- * Code 128 labels directly — no app or hardware required.
+ * so a focused input is all they need. Phones can also read labels (QR, or Code 128) with no app or
+ * hardware: a photo button on every phone (iPhone's native camera, full resolution), and a live
+ * camera view where the browser supports it well (Android).
  */
 export function ScanInput({
   label = "Scan or type a SKU",
@@ -18,17 +19,33 @@ export function ScanInput({
   label?: string;
   onScan: (sku: string) => void;
   autoFocus?: boolean;
-  /** Open with the camera already running (the header's quick scan). */
+  /** Quick-scan mode (the header): start the live camera, or on iPhone lead with the photo button. */
   startWithCamera?: boolean;
 }) {
   const [value, setValue] = useState("");
-  const cameraSupported = cameraScanSupported();
-  const [camera, setCamera] = useState(startWithCamera && cameraSupported);
+  const liveSupported = cameraScanSupported();
+  const [camera, setCamera] = useState(startWithCamera && liveSupported);
+  const [photo, setPhoto] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
 
   const submit = (raw: string) => {
-    const sku = normalizeSku(raw);
+    const sku = skuFromScan(raw);
     if (sku) onScan(sku);
     setValue("");
+  };
+
+  const readPhoto = async (file: File) => {
+    setPhoto({ busy: true, error: null });
+    try {
+      const code = await decodeImageFile(file);
+      if (code) {
+        setPhoto({ busy: false, error: null });
+        submit(code);
+      } else {
+        setPhoto({ busy: false, error: "No barcode found — take the photo closer, with the whole label in view." });
+      }
+    } catch {
+      setPhoto({ busy: false, error: "Couldn't read that photo — try again, or type the SKU." });
+    }
   };
 
   return (
@@ -52,23 +69,70 @@ export function ScanInput({
             onChange={(e) => setValue(e.target.value)}
           />
         </div>
-        {cameraSupported && (
+        {liveSupported && (
           <button
             type="button"
             onClick={() => setCamera((c) => !c)}
             aria-label={camera ? "Close camera" : "Scan with camera"}
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-border text-fg hover:bg-surface-2"
           >
-            {camera ? <X size={18} /> : <Camera size={18} />}
+            {camera ? <X size={18} /> : <Video size={18} />}
           </button>
         )}
+        <PhotoPicker
+          onFile={readPhoto}
+          aria-label="Scan from a photo"
+          className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border text-fg hover:bg-surface-2"
+        >
+          {photo.busy ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+        </PhotoPicker>
       </form>
+      {startWithCamera && !liveSupported && (
+        <PhotoPicker
+          onFile={readPhoto}
+          className="mt-3 flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-tt-green-500 px-4 text-base font-semibold text-white"
+        >
+          {photo.busy ? <Loader2 size={20} className="animate-spin" /> : <Camera size={20} />}
+          {photo.busy ? "Reading the barcode…" : "Take a photo of the label"}
+        </PhotoPicker>
+      )}
+      {photo.error && <p className="mt-2 text-sm text-fg-muted">{photo.error}</p>}
       {camera && <CameraScanner onScan={submit} />}
     </div>
   );
 }
 
-/** Live camera view that calls `onScan` with each Code 128 value it reads. */
+/** A label that opens the phone's camera (or photo picker) and hands back the chosen image. */
+function PhotoPicker({
+  onFile,
+  className,
+  children,
+  "aria-label": ariaLabel,
+}: {
+  onFile: (file: File) => void;
+  className: string;
+  children: ReactNode;
+  "aria-label"?: string;
+}) {
+  return (
+    <label className={className} aria-label={ariaLabel}>
+      {children}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = ""; // the same label can be photographed again
+          if (file) onFile(file);
+        }}
+      />
+    </label>
+  );
+}
+
+/** Live camera view that calls `onScan` with each label code (QR or Code 128) it reads. */
 export function CameraScanner({ onScan }: { onScan: (sku: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +152,7 @@ export function CameraScanner({ onScan }: { onScan: (sku: string) => void }) {
 
     (async () => {
       try {
-        const detector = await getCode128Detector();
+        const detector = await getBarcodeDetector();
         if (stopped) return;
         // Ask for HD: iPhone Safari defaults to 640×480, where a full-length SKU label's bars are
         // ~1 px wide and don't decode. 1280×720 and up read reliably.

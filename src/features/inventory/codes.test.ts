@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   CODE_RE,
   parseSku,
+  skuFromScan,
+  skuLookupUrl,
   STORE_CODE_RE,
   categoryCodeFor,
   normalizeCode,
@@ -100,5 +102,18 @@ describe("parseSku", () => {
     expect(parseSku("SAR-RED-M-0001")).toBeNull(); // no store code
     expect(parseSku("BND-KDP-SAR-RED-M-12")).toBeNull(); // sequence is at least 4 digits
     expect(parseSku("BND-KDP-SAREES-EXTRALONG-M-0001")).toBeNull(); // colour segment over 6
+  });
+});
+
+describe("skuLookupUrl / skuFromScan", () => {
+  it("round-trips a SKU through the label's QR link", () => {
+    const url = skuLookupUrl("BND-NLR-ACC-FREE-FREE-0001", "https://tallythreads.vercel.app/");
+    expect(url).toBe("https://tallythreads.vercel.app/s/BND-NLR-ACC-FREE-FREE-0001");
+    expect(skuFromScan(url)).toBe("BND-NLR-ACC-FREE-FREE-0001");
+  });
+
+  it("passes a plain barcode or typed SKU through, normalised", () => {
+    expect(skuFromScan(" bnd-kdp-sar-red-m-0042 ")).toBe("BND-KDP-SAR-RED-M-0042");
+    expect(skuFromScan("http://localhost:5173/s/bnd-una-sar-red-xl-0007?x=1")).toBe("BND-UNA-SAR-RED-XL-0007");
   });
 });

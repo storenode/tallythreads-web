@@ -167,9 +167,14 @@ Required and **only** these: **name, category, colour, size, quantity, MRP.**
   org's own app).
 
 ### 5.2 Barcode
-Value = the SKU string, rendered as **Code128** (JsBarcode, already in the stack). One value
-works for a Bluetooth/USB scanner (keyboard wedge), the Android camera, or **typing the SKU by
-hand**, so a salesperson is never blocked.
+**Changed 2026-09-28: labels carry a QR code, not Code128.** The QR holds the public lookup link
+`{origin}/s/{SKU}` (`skuLookupUrl`, `features/inventory/codes.ts`): any phone's own camera app
+opens the item page (`/s/:sku`, public `lookup_sku` RPC), and the in-app scanner reads it and takes
+the SKU back out (`skuFromScan`); the SKU is also printed as text for **typing by hand**. Why:
+a full SKU is ~310 Code128 modules, ~0.14 mm each on a 50 mm label (1.2 dots at 203 dpi); it
+didn't decode even from a clean 203/300-dpi raster, or from a real iPhone photo. A QR code for the
+link is a 33×33 grid, ~0.5 mm a module. The scanners still read Code128 for older labels. Trade-off:
+a keyboard-wedge USB scanner must be a 2D (QR) model.
 
 ### 5.3 Categories stay store-scoped
 Phase 1 is unchanged: each store defines its own categories. The org sees them **grouped by
@@ -283,7 +288,7 @@ adjustments.
   - Thermal roll: 50×25 mm, 38×25 mm, 2-up.
   - A4 sheet: 24 / 40 / 65 per sheet, with **"start at label N"** so a half-used sheet isn't wasted.
   - Custom: width × height (mm) and columns.
-- **Label content:** Code128 barcode, SKU text, short name, size / colour,
+- **Label content:** QR code (was Code128, see §5.2), SKU text, short name, size / colour,
   **"MRP ₹1,299 (incl. of all taxes)"** (Legal Metrology wording). Fields can be toggled per
   layout, but MRP and the barcode are always on.
 - Every print is logged (who, when, how many, layout), so reprints are traceable.

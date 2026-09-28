@@ -132,3 +132,19 @@ export function parseSku(raw: string): ParsedSku | null {
     sequence: Number(seq),
   };
 }
+
+/** Public page a label's QR code opens: anyone's phone camera lands on the item's details. */
+export const SKU_PATH_PREFIX = "/s/";
+
+export const skuLookupUrl = (sku: string, origin: string) =>
+  `${origin.replace(/\/+$/, "")}${SKU_PATH_PREFIX}${encodeURIComponent(sku)}`;
+
+/**
+ * The SKU in a scan: a label's QR code carries the lookup URL (…/s/BND-KDP-SAR-RED-M-0042), a
+ * Code 128 barcode or a typed entry is the SKU itself.
+ */
+export function skuFromScan(raw: string): string {
+  const m = raw.trim().match(/\/s\/([^/?#\s]+)/i);
+  const sku = m ? decodeURIComponent(m[1]) : raw;
+  return sku.trim().toUpperCase().replace(/\s+/g, "");
+}

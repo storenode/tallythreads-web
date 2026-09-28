@@ -1055,7 +1055,7 @@ function BarcodeButton({ item, ctx }: { item: InventoryItem; ctx: RowContext }) 
         <Barcode size={14} /> {action.busy ? "Generating…" : item.sku ? "Barcode" : "Generate barcode"}
       </button>
       {action.error && <span className="basis-full text-xs text-error-text">{action.error}</span>}
-      <Modal open={open} onClose={() => setOpen(false)} title="Barcode label">
+      <Modal open={open} onClose={() => setOpen(false)} title="Label">
         <div className="flex justify-center rounded-lg bg-surface-2 p-4">
           {/* Labels are printed black-on-white, so the preview stays white in dark mode too. */}
           <div
@@ -1079,7 +1079,7 @@ function BarcodeButton({ item, ctx }: { item: InventoryItem; ctx: RowContext }) 
         </div>
         <p className="mt-3 text-center font-mono text-sm text-fg">{item.sku}</p>
         <p className="text-center text-xs text-fg-muted">
-          Code 128 · {layout.name} · {item.labels_printed} of {item.quantity} printed
+          QR code · {layout.name} · {item.labels_printed} of {item.quantity} printed
         </p>
         <div className="mt-4 flex justify-center">
           <RowPrintButton item={item} ctx={ctx} />

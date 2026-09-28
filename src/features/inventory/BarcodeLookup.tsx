@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { formatInr } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
-import { parseSku, type ParsedSku } from "./codes";
-import { normalizeSku } from "./distribution";
+import { parseSku, skuFromScan, type ParsedSku } from "./codes";
 import { ScanInput } from "./ScanInput";
 
 /**
@@ -77,8 +76,9 @@ function useSkuLookup(sku: string) {
   });
 }
 
-function SkuResult({ raw }: { raw: string }) {
-  const sku = normalizeSku(raw) || raw;
+/** Item details for a scanned or typed SKU (or a label's QR link). Also the /s/:sku page. */
+export function SkuResult({ raw }: { raw: string }) {
+  const sku = skuFromScan(raw) || raw;
   const parsed = parseSku(sku);
   const lookup = useSkuLookup(sku);
 

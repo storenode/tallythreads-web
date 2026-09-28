@@ -261,7 +261,7 @@ founder direction alone, not a real AI Studio customer request yet.
 | Routing | React Router v6 | MIT |
 | Forms/validation | React Hook Form + Zod | MIT |
 | Backend | Supabase (Postgres, Auth, Storage, Edge Functions) | Apache 2.0 |
-| Barcode generation | JsBarcode (Code128) | MIT |
+| Label codes | `qrcode-generator` (QR, lookup link) · reading: `barcode-detector` / `zxing-wasm` (QR + Code128) | MIT / MIT / Apache 2.0 |
 | Receipt print (fallback) | `react-to-print` (browser print dialog) | MIT |
 | Receipt print (direct) | `esc-pos-encoder` + Web Bluetooth API | MIT |
 | Icons | Lucide React | ISC |
@@ -475,7 +475,7 @@ This constitution may be amended, but not casually. An amendment requires:
   - It allocates each item to a store (or leaves it **unallocated**), then **finalizes**: SKUs
     `{store_code}-{CAT}-{COLOR}-{SIZE}-{SEQ}` are assigned **server-side** (Finalize needs
     internet), with `{org_code}-UNA-…` for unallocated stock, re-issued at dispatch.
-  - It prints Code128 labels on **any printer** through the browser, and dispatches.
+  - It prints QR-code labels on **any printer** through the browser, and dispatches.
   - **Stores** only receive (scan), place (stock room / display) and move stock.
   - The same flow for every org type (§2.IX); an independent shop is one org with one store.
 

@@ -7,4 +7,11 @@ export const homeRoutes: RouteObject[] = [
       Component: (await import("./HomePage")).default,
     }),
   },
+  {
+    // Public item page a label's QR code opens (features/inventory/codes.ts → skuLookupUrl).
+    path: "/s/:sku",
+    lazy: async () => ({
+      Component: (await import("./SkuPage")).default,
+    }),
+  },
 ];
