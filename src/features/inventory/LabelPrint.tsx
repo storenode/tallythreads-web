@@ -1,14 +1,23 @@
-import { type Ref, useEffect, useRef } from "react";
+import { type ReactNode, type Ref, useEffect, useMemo, useRef, useState } from "react";
 import JsBarcode from "jsbarcode";
+import { useReactToPrint } from "react-to-print";
+import { Lock } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import type { InventoryItem } from "@/db";
+import { markLabelsPrinted } from "./distribution";
 import {
   labelMrp,
+  layoutFromPref,
+  paginateLabels,
   type LabelData,
   type LabelLayout,
   type LabelPage,
 } from "./labels";
 
 /**
- * Label rendering shared by the Labels page and the Catalogue table's per-row Print
+ * Label rendering + direct printing for the Catalogue (per row, per line, selection, and new
+ * labels after a UNA reissue on dispatch)
  * (specs/roadmap/inventory.md §7). Inline mm styles so it prints the same in the print iframe.
  */
 
@@ -116,5 +125,139 @@ function Barcode({ value }: { value: string }) {
       preserveAspectRatio="none"
       style={{ display: "block", width: "100%", flex: "1 1 0", minHeight: 0, margin: "0.4mm 0" }}
     />
+  );
+}
+
+export type PrintEntry = { item: InventoryItem; copies: number };
+
+/**
+ * Print labels straight to the browser's print dialog (no Labels screen), with the org's
+ * last-used layout. The browser can't tell a real print from a cancelled dialog, so the owner
+ * confirms before labels_printed goes up. Disabled when there's nothing to print.
+ */
+export function PrintLabelsButton({
+  orgId,
+  entries,
+  prepare,
+  disabled,
+  className,
+  title,
+  children,
+}: {
+  orgId: string;
+  /** What to print right away (items that already have SKUs). */
+  entries: PrintEntry[];
+  /**
+   * Optional step before printing that returns the final entries — the Catalogue uses it to
+   * create SKUs for draft items on first use. Errors are shown next to the button.
+   */
+  prepare?: () => Promise<PrintEntry[]>;
+  disabled?: boolean;
+  className: string;
+  title?: string;
+  children: ReactNode;
+}) {
+  const [phase, setPhase] = useState<"idle" | "preparing" | "printing" | "confirm">("idle");
+  const [error, setError] = useState<string | null>(null);
+  // Freeze what was sent to the printer: the counts shift once "Mark done" updates items.
+  const [printed, setPrinted] = useState<PrintEntry[]>([]);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const layout = useMemo(() => layoutFromPref(orgId), [orgId]);
+  const print = useReactToPrint({
+    contentRef: sheetRef,
+    documentTitle: "Labels",
+    pageStyle: `@page { size: ${layout.pageW}mm ${layout.pageH}mm; margin: 0 } html, body { margin: 0; padding: 0 }`,
+    onAfterPrint: () => setPhase("confirm"),
+  });
+  // Only render the (barcode-heavy) sheet while printing; print once it has mounted.
+  useEffect(() => {
+    if (phase === "printing") print();
+  }, [phase, print]);
+
+  const pieces = printed.reduce((n, e) => n + e.copies, 0);
+  const itemCount = new Set(printed.map((e) => e.item._localId)).size;
+
+  return (
+    <>
+      <button
+        type="button"
+        className={className}
+        title={title}
+        disabled={disabled || (!prepare && entries.length === 0) || phase !== "idle"}
+        onClick={async () => {
+          setError(null);
+          let next = entries;
+          if (prepare) {
+            setPhase("preparing");
+            try {
+              next = await prepare();
+            } catch (e) {
+              setError(e instanceof Error ? e.message : String(e));
+              setPhase("idle");
+              return;
+            }
+          }
+          if (!next.length) {
+            setPhase("idle");
+            return;
+          }
+          setPrinted(next);
+          setPhase("printing");
+        }}
+      >
+        {phase === "preparing" ? "Creating SKUs…" : phase === "printing" ? "Printing…" : children}
+      </button>
+      {error && <span className="basis-full text-xs text-error-text">{error}</span>}
+      {/* The browser can't tell a real print from a cancelled dialog, so ask — and don't let
+          it be skipped: "Yes" locks the items (the stickers go on the packets). */}
+      <Modal
+        open={phase === "confirm"}
+        onClose={() => undefined}
+        dismissible={false}
+        title="Did the labels print?"
+      >
+        <p className="text-sm text-fg">
+          {pieces} label{pieces === 1 ? "" : "s"} for {itemCount} item{itemCount === 1 ? "" : "s"}.
+        </p>
+        <p className="mt-2 text-sm text-fg-muted">
+          Once you confirm, {itemCount === 1 ? "this item is" : "these items are"} <b>locked</b> — the
+          stickers go on the packets, so the record must match them. To fix a mistake later, use
+          &ldquo;Unlock to correct&rdquo; (with a reason) and print new labels.
+        </p>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={() => setPhase("idle")}>
+            No, nothing printed
+          </Button>
+          <Button
+            type="button"
+            onClick={async () => {
+              await markLabelsPrinted(printed.map((e) => ({ item: e.item, labels: e.copies })));
+              setPhase("idle");
+            }}
+          >
+            <Lock size={16} /> Yes, printed — lock
+          </Button>
+        </div>
+      </Modal>
+      {phase === "printing" && (
+        <LabelSheet
+          sheetRef={sheetRef}
+          layout={layout}
+          pages={paginateLabels(
+            printed.map((e) => ({
+              copies: e.copies,
+              label: {
+                sku: e.item.sku!,
+                name: e.item.name,
+                color: e.item.color,
+                size: e.item.size,
+                mrpPaise: e.item.mrp_paise,
+              },
+            })),
+            layout,
+          )}
+        />
+      )}
+    </>
   );
 }

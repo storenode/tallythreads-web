@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { PackageCheck, Printer, Tags, Truck } from "lucide-react";
+import { PackageCheck, Tags } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { Tabs, type TabItem } from "@/components/ui/tabs/Tabs";
@@ -11,14 +11,14 @@ import { formatInr } from "@/lib/money";
 import { useCategoriesByOrg } from "../categories";
 import { useReadyForInventory } from "../readyForInventory";
 import { cataloguedByLine, useItemsForLines } from "../items";
-import { StockDispatchTab } from "./StockDispatchTab";
+import { orgHoldings, useOrgStockLevels } from "../distribution";
 
 /**
  * Organization Inventory (`/org/:orgId/inventory`, specs/roadmap/inventory.md §2–§3).
  * Org roles only (`inventory.manage`): this is where Deliveries' "Ready for Inventory" stock is
  * processed at the organization — catalogued, priced, finalized (SKUs), labelled and dispatched
- * to stores. Tabs: the Ready-for-Inventory queue (→ Catalogue), Stock & dispatch, and the
- * org-wide category codes.
+ * to stores. Tabs: the Ready-for-Inventory queue (→ Catalogue, where items are also dispatched —
+ * Phase 2G retired the separate Stock & dispatch tab) and the org-wide category codes.
  */
 export default function OrgInventoryPage() {
   const { orgId } = useParams<{ orgId: string }>();
@@ -47,12 +47,6 @@ export default function OrgInventoryPage() {
       content: <ReadyForInventoryTab orgId={orgId!} />,
     },
     {
-      id: "stock",
-      label: "Stock & dispatch",
-      icon: <Truck size={18} />,
-      content: <StockDispatchTab orgId={orgId!} />,
-    },
-    {
       id: "categories",
       label: "Categories",
       icon: <Tags size={18} />,
@@ -62,18 +56,7 @@ export default function OrgInventoryPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeading
-        action={
-          <Link
-            to={`/org/${orgId}/inventory/labels`}
-            className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-fg"
-          >
-            <Printer size={16} /> Labels
-          </Link>
-        }
-      >
-        Inventory
-      </PageHeading>
+      <PageHeading>Inventory</PageHeading>
       <Tabs items={tabs} defaultActiveId="ready" />
     </div>
   );
@@ -88,7 +71,26 @@ function ReadyForInventoryTab({ orgId }: { orgId: string }) {
         .filter((x): x is string => !!x),
     [ready],
   );
-  const catalogued = cataloguedByLine(useItemsForLines(lineIds) ?? []);
+  const lineItems = useItemsForLines(lineIds);
+  const catalogued = cataloguedByLine(lineItems ?? []);
+  // Where each invoice's stock is (server read; hidden offline).
+  const levels = useOrgStockLevels(orgId);
+  const holdings = useMemo(
+    () => (levels.data && lineItems ? orgHoldings(levels.data, lineItems) : null),
+    [levels.data, lineItems],
+  );
+  const stockFor = (lineIdSet: Set<string>) =>
+    (holdings ?? [])
+      .filter((h) => lineIdSet.has(h.item.source_invoice_item_id ?? ""))
+      .reduce(
+        (t, h) => ({
+          org: t.org + h.atOrg,
+          transit: t.transit + h.inTransit,
+          stores: t.stores + h.inStores,
+          value: t.value + h.atOrg * h.item.mrp_paise,
+        }),
+        { org: 0, transit: 0, stores: 0, value: 0 },
+      );
 
   if (ready === undefined) {
     return <p className="text-sm text-fg-muted">Loading…</p>;
@@ -118,8 +120,19 @@ function ReadyForInventoryTab({ orgId }: { orgId: string }) {
       <p className="text-sm text-fg-muted">
         {ready.length} invoice{ready.length === 1 ? "" : "s"} · {totalPieces} pieces to catalogue.
         Open an invoice to split each line into items (colour · size · qty), set MRP and allocate
-        to stores. SKUs and labels come after.
+        to stores, then finalize, print labels and dispatch.
       </p>
+      {holdings && (() => {
+        const all = stockFor(new Set(lineIds));
+        return (
+          <dl className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-surface p-4 text-sm sm:grid-cols-4">
+            <Stat label="At organization" value={`${all.org} pcs`} />
+            <Stat label="MRP value at org" value={formatInr(all.value)} />
+            <Stat label="In transit" value={`${all.transit} pcs`} />
+            <Stat label="In stores" value={`${all.stores} pcs`} />
+          </dl>
+        );
+      })()}
       {ready.map(({ invoice, tripTitle, lines }) => (
         <Card key={invoice._localId}>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -130,6 +143,16 @@ function ReadyForInventoryTab({ orgId }: { orgId: string }) {
                 {invoice.supplier_invoice_no ? ` · #${invoice.supplier_invoice_no}` : ""}
                 {invoice.approved_at ? ` · approved ${invoice.approved_at.slice(0, 10)}` : ""}
               </p>
+              {holdings &&
+                (() => {
+                  const st = stockFor(new Set(lines.map((l) => l.item.id ?? "")));
+                  if (st.org + st.transit + st.stores === 0) return null;
+                  return (
+                    <p className="mt-1 text-xs text-fg-muted">
+                      {st.org} at org · {st.transit} in transit · {st.stores} in stores
+                    </p>
+                  );
+                })()}
             </div>
             {(() => {
               const received = lines.reduce((t, l) => t + l.receivedQty, 0);
@@ -225,5 +248,14 @@ function CategoriesTab({ orgId }: { orgId: string }) {
         </ul>
       )}
     </Card>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-fg-muted">{label}</dt>
+      <dd className="mt-1 font-medium text-fg">{value}</dd>
+    </div>
   );
 }

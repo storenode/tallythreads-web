@@ -370,7 +370,12 @@ this spec only fixes the access mechanism.
    franchisor supplies? (Matters once Bandrip has more than one store on TallyThreads.)
 4. Should a franchisee ever see the *formula*, or only their own resulting statement?
    (Affects what `access_grants`/UI expose back to the store owner.)
-5. Where does `deduct_expenses` read the store's monthly expenses from? (§4.4 treats them
+5. **GST on settlement (added 2026-09-28):** if dispatches to a franchise are invoiced as sales
+   (GST charged then), the settlement's stock share must not tax the same goods again; the royalty
+   is a service (18% GST). Also: does store-paid dispatch freight (`stock_transfers.freight_paid_by
+   = 'store'`) enter the settlement? Both wait for the CA — see `../roadmap/backlog.md` "GST across
+   the chain".
+6. Where does `deduct_expenses` read the store's monthly expenses from? (§4.4 treats them
    as a per-period input; the recording surface — Settings vs. a light bookkeeping screen
    — isn't decided, and touches the Operations roadmap discussion still to come.)
 

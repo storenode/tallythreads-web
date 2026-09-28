@@ -3,9 +3,11 @@
 **Status:** Phase 1 (categories) **Built & live** (2026-09-26). Phase 2 **spec final** (2026-09-27).
 **Phases 2A–2E built & live** (2026-09-27/28): catalogue → price → Finalize (SKUs) → labels →
 dispatch → receive → stock on hand → place/move. Catalogue screen reworked 2026-09-28 (§11
-"Catalogue UI rework"). **Next: Phase 2G — dispatch from the Catalogue with shipment details**
-(planned, §11), then the §7 change rules after finalize, then 2F.
-**Version:** 2.4.0
+"Catalogue UI rework"): one table grouped by invoice line, no Finalize button (SKU on first use),
+row stages with locks (§7). **Phase 2G (dispatch from the Catalogue with shipment details) is
+built client-side; its migration `20260928140000_dispatch_shipments` is written but NOT applied
+live** — dispatch, barcode reset and unlock fail until it is. Then 2F.
+**Version:** 2.5.0
 **Est:** see §11 (M3 is 36h in constitution §5 and needs revising; this spec's phases total ~50h)
 **Tracking:** [storenode/tallythreads-web#30](https://github.com/storenode/tallythreads-web/issues/30)
 **Builds on:** Deliveries (`deliveries.md`) → Stock Placement (`stock-placement.md`) → Warehouses /
@@ -98,12 +100,15 @@ Deliveries: invoice reaches "Ready for Inventory"          (stock physically at 
       │
       ▼  ORGANIZATION
  A. Catalogue   split each invoice line into items: name · category · colour · size · qty · MRP
- B. Price       MRP prefilled from landed cost + invoice margin → optional rounding → lot forecast
+ B. Price       MRP prefilled from landed cost + invoice margin (rounded up to …99)
  C. Allocate    per item: a store, or "unallocated" (stays at the org)
- D. Finalize    server assigns SKUs (needs internet) → items locked into the SKU rules (§7)
- E. Print       labels = quantity (one per sellable unit) → stick on packages
- F. Dispatch    to a store (unallocated items: pick the store now → SKU re-issued → reprint)
-      │         status: Dispatched → In transit
+ D. Barcode     "Generate barcode" (or Print / Dispatch) → server assigns the SKU (needs internet);
+                still editable — SKU fields / qty ask to reset the barcode (§7)
+ E. Print       labels = quantity (one per sellable unit) → confirm "printed" → row LOCKED (§7)
+                → stick on packages
+ F. Dispatch    from the Catalogue, one dispatch per store with shipment details (courier AWB /
+      │         bus-lorry LR / hand), freight + who pays, LR photo (unallocated: pick the store →
+      │         SKU re-issued → print new labels). Row locked for good. Dispatched → In transit
       ▼  STORE
  G. Receive     scan labels to confirm the count → shortage/excess flagged (as in Deliveries)
  H. Place       each package → the store's stock room OR a display location
@@ -203,27 +208,39 @@ Shown per item on the org's Catalogue screen:
 
 ---
 
-## 7. Changes after labels are printed (retail standard)
+## 7. Row stages and what can change (founder, 2026-09-28 — supersedes the v2.0 table)
 
-A printed SKU is **never edited or reused**. It is either kept or **retired**.
+There is **no Finalize button**. An item gets its SKU the first time it is used — **Generate
+barcode**, **Print** or **Dispatch** (the `finalize_inventory_items` RPC runs underneath). From
+then on it moves through four stages; the server enforces the same rules
+(`inventory_items_lock_rules` trigger), so an old client or a late offline sync can't bypass them.
 
-| What changes | SKU | Labels |
-|---|---|---|
-| Quantity up (more pieces found) | same | print the extra labels |
-| Quantity down (damaged / miscount) | same | remove extras; adjustment logged with a reason |
-| MRP or name | same | **reprint** (the label shows MRP; it must match what the customer sees) |
-| Store, category, colour or size | **old retired → new issued** | reprint the new label over the old one |
-| Label torn / lost | same | reprint only |
+| Stage | Meaning | Name · MRP | Store · category · colour · size · qty | Remove |
+|---|---|---|---|---|
+| **1. Draft** | no barcode yet | edit | edit | yes |
+| **2. Barcoded** | SKU generated, **no labels printed** | edit | edit **after "Reset this barcode?"** — the SKU is cancelled (`reset_item_sku`), the row goes back to draft, the next barcode gets the next number | after reset |
+| **3. Printed** | labels printed **and confirmed** ("Yes, printed — lock") | 🔒 | 🔒 | no |
+| **4. Dispatched** | any piece left the organization | 🔒 | 🔒 | no |
 
-- Store, category, colour and size are **encoded in the SKU text**; quantity, MRP and name are not.
-- A **retired** SKU is kept forever (`replaced_by`), and its number is never reused. Scanning an
-  old label resolves to the new SKU with a warning: *"This label was replaced, reprint it."*
-- Before printing, a finalized item may be **un-finalized** only if no label has ever been
-  printed (the SKU is then retired, not deleted).
+- **Why qty resets the barcode:** creating the SKU books the quantity into org stock (`finalize`
+  movement). `reset_item_sku` reverses it with an `adjust` movement (the log is append-only).
+- **Printing confirmation can't be skipped:** the browser can't tell a real print from a
+  cancelled dialog, so a non-dismissible dialog asks *"Did the labels print?"* — **Yes** locks the
+  rows (stage 3), **No** leaves them editable.
+- **Unlock to correct…** (stage 3 → 2, owners/managers, `inventory.manage`): a reason is required
+  (wrong size / colour / category / store / quantity / MRP / name / other), the user is told to
+  **remove the stickers**, and `unlock_item_labels` writes an audit row to
+  `inventory_item_unlocks` (item, old SKU, labels count, reason, who, when). Dispatched rows can't
+  be unlocked.
+- **More pieces found after printing:** add a **new row** (new barcode) — never raise a printed
+  row's qty.
+- **After dispatch** (fix at the store later): returns / adjustments are Phase 2F.
+- A cancelled SKU number is never reused (counters only go up). Old-label scan → new SKU
+  resolution (`replaced_by`) remains for the UNA → store reissue at dispatch.
 
 **Unallocated → store:** at dispatch the org picks the store → a store SKU is issued from that
-store's counter → the `UNA` SKU is retired and linked → **reprint** is required before the
-dispatch can be marked *Dispatched* (the app shows "3 packages need new labels").
+store's counter → the `UNA` item is retired (or, for a partial dispatch, shrinks by the
+reissued pieces) → the dispatch form offers **Print new labels**.
 
 ---
 
@@ -273,8 +290,14 @@ adjustments.
 
 **As built (2C):** thermal 50×25 and 60×40 mm (38 mm dropped: a full SKU in Code 128 is too dense
 for 203-dpi heads), A4 24- and 65-up, custom A4 grid (columns × rows; label size derived). The
-default layout is remembered per org on the device; the print log is a `labels_printed` count for
-now (`label_prints` is still to do).
+print log is a `labels_printed` count for now (`label_prints` is still to do).
+
+**Since 2026-09-28:** printing is **direct from the Catalogue** (row, line, selection, and new
+labels after a UNA reissue) — the browser print dialog opens straight away. The separate Labels
+page (`/org/:orgId/inventory/labels`) and its Inventory-header button were **removed** at the
+founder's request. ⚠️ That page was the only place to choose the layout: printing now uses the
+layout last saved on the device (`tt:label-layout:<org>`), else **thermal 50×25**. A layout picker
+(Catalogue, or `organizations.label_settings`) is in `backlog.md`.
 
 ---
 
@@ -372,10 +395,10 @@ Each phase ships on its own with tests, is verified offline where relevant, and 
       `inventory.manage`, the store's category by code, the store / org code; writes a
       `finalize` movement into org holding). Verified: `BND-KDP-STR-BLACK-XL-0001`,
       `BND-UNA-STR-SKYBLU-FREE-0001`.
-- [x] Catalogue **Finalize & labels** card: pushes pending edits first, then the RPC; blocks on
+- [x] *(Superseded 2026-09-28 — no Finalize button, SKU on first use, §7.)* Catalogue **Finalize & labels** card: pushes pending edits first, then the RPC; blocks on
       zero MRP / missing store category / missing store code. Finalized rows show the SKU and
       lock everything except MRP.
-- [x] **Labels page** `/org/:orgId/inventory/labels` (`?items=id:qty,…` for reprints and
+- [x] *(Page removed 2026-09-28 — direct printing from the Catalogue, §9.)* **Labels page** `/org/:orgId/inventory/labels` (`?items=id:qty,…` for reprints and
       reissues): Code 128 (JsBarcode) + name, colour · size, "MRP ₹499 · incl. of all taxes";
       layouts thermal 50×25 / 60×40 mm, A4 24-up and 65-up, custom A4 grid; start-at-N for used
       sheets; any printer via `react-to-print`; layout remembered per org **on the device**;
@@ -389,33 +412,43 @@ Each phase ships on its own with tests, is verified offline where relevant, and 
 - [ ] E2E: finalize → SKU format → print preview (needs `E2E_ADMIN_JWT`; the live RPCs were
       verified by rolled-back SQL runs instead).
 
-### Catalogue UI rework — **built 2026-09-28** (client only, no DB change)
-- [x] Each line's items are a **TanStack table** (checkbox + Name pinned left, horizontal scroll
-      inside the card; stacked cards below `sm`). Columns: Name · Category · Colour · Size · Qty ·
-      MRP (18% GST / below-landed tags) · Store (missing-category "Add it") · Status (Draft /
-      Finalized) · Label (SKU, "N printed", **Barcode** preview, **Print N** / **Reprint N**).
-- [x] Row selection (select-all + per row) only changes what the action buttons act on:
-      **Finalize selected** (ticked drafts) and **Print selected** (ticked finalized rows).
-- [x] Per line: **+ Add item** (left) and Finalize / **Print labels** (right) in one row above the
-      table; "All finalized" pill next to "N of M catalogued". Print labels is enabled only when
-      the line is all finalized or finalized rows are ticked.
-- [x] **Direct printing** — no trip to the Labels page from the Catalogue: the browser print
-      dialog opens with the labels still outstanding (or a full reprint), using the org's
-      last-used layout; "Printed OK? Mark done" then bumps `labels_printed`. Label rendering is
-      shared (`features/inventory/LabelPrint.tsx`); the Labels page stays for Inventory → Labels
-      and layout choice.
-- [x] Removed: lot forecast card, MRP rounding card (§6), the page-level "Finalize & labels" card.
+### Catalogue UI rework — **built 2026-09-28**
+- [x] **One TanStack table per invoice, grouped by invoice line** (all groups open by default):
+      group row = checkbox (ticks the line) · ▼ · "1) Line name [N of M catalogued]" · received /
+      landed / suggested MRP on the left; "🔒 All finalized" · **+ Add item** · **Print labels** on
+      the right (sized to the visible scroll width, sticky while columns scroll). Checkbox + Name
+      pinned; every cell `isolate`d so controls never paint over the pinned cells.
+- [x] Columns: Name · Category · Colour · Size · Qty · MRP (18% GST / below-landed tags) · Store
+      (missing-category "Add it") · **Dispatch** (—, Dispatch N, N in transit → store, Received x/y)
+      · **Label** (SKU / "No barcode yet", 🔒 N printed / 🔒 Dispatched, **Generate barcode** /
+      Barcode preview, **Print N** / Reprint N, **Unlock to correct…**) · 🗑.
+- [x] **Phones:** accordion, one section per line (open by default), item cards inside.
+- [x] **Selection** (across lines) only drives the buttons: **Dispatch selected**, **Print
+      selected** (both create missing SKUs first).
+- [x] **No Finalize button**; row stages + locks as in §7.
+- [x] **Direct printing** (§9) with the non-dismissible "Did the labels print?" confirmation.
+- [x] Removed: lot forecast card, MRP rounding card (§6), the "Finalize & labels" card, the
+      per-line cards, the Labels page, the Inventory **Stock & dispatch** tab.
 
-### Phase 2G: Dispatch from the Catalogue with shipment details — **planned (founder-approved plan, 2026-09-28; not started)**
+### Phase 2G: Dispatch from the Catalogue with shipment details — **client built 2026-09-28; migration written, NOT applied live**
 Goal: dispatch straight from each Catalogue line and record **how** stock travels (courier AWB,
 bus/travels parcel LR, lorry, hand delivery), who pays the freight, and a photo of the LR/receipt.
 The org **Stock & dispatch** tab is then **removed**.
 
 **Decisions (founder):** freight is recorded with **who pays** — organization or store (to-pay on
 delivery), no landed-cost change; ticked rows for several stores → **one dispatch per store**,
-each with its own shipment details; **no modal** — Dispatch swaps the line's table for a dispatch
-form with **← Back to items** (URL `?dispatch=<line>` so the phone back button works); capture a
+each with its own shipment details; **no modal** — Dispatch replaces the **whole table** with the
+dispatch form and **← Back to items** (URL `?dispatch=1`, `?ship=<transfer>` for Edit shipment, so
+the phone back button works; after a reload the form falls back to the whole invoice); capture a
 **photo of the LR / courier receipt**.
+
+**Status:** everything below is built (`shipment.ts` + tests, `DispatchPanel.tsx`, Catalogue,
+Receive page, Ready-tab counts, old tab deleted). The migration
+`supabase/migrations/20260928140000_dispatch_shipments.sql` also carries: the partial-UNA-reissue
+quantity fix, the §7 lock trigger, `reset_item_sku`, `unlock_item_labels` +
+`inventory_item_unlocks`, and `hard_delete_organization` clean-up of `dispatch-receipts`.
+**Next:** rolled-back dry run on the live DB → founder go-ahead → apply → rename the file to the
+recorded version → one real dispatch on a demo org (org + store side) → `schema.md`.
 
 **DB (one migration; show the SQL to the founder before applying live):**
 - `stock_transfers` + nullable columns: `transport_mode` (CHECK courier/bus/lorry/hand/other),
@@ -432,13 +465,15 @@ form with **← Back to items** (URL `?dispatch=<line>` so the phone back button
   (stores never see org costs).
 
 **UI:**
-- Catalogue table gets a **Dispatch** column: "25 at org · Dispatch" → "In transit → Nellore" →
-  "Received 25/25" (from `stock_levels`, via `useOrgStockLevels` + `orgHoldings`); drafts "—".
+- Catalogue table gets a **Dispatch** column (was "Status"; the per-row Draft/Finalized badge was
+  dropped — line status is in the group row): "Dispatch 25" → "25 in transit → Nellore" →
+  "Received 25/25" (from `stock_levels`, via `useOrgStockLevels` + `orgHoldings`). Drafts show
+  "Dispatch N" too (the SKU is created first); offline "—".
 - **Dispatch selected** next to Print selected. The dispatch form groups lines by store: pieces
   per SKU, mode-specific fields, boxes, contact, expected date, freight ₹ + paid by, receipt
   photo, note. UNA rows pick a store; after dispatch the form offers **Print new labels**
   (direct print). Online only (like Finalize).
-- Per-invoice **Dispatches** list under the line cards (store, shipment summary, 📷, In transit /
+- Per-invoice **Dispatches** list under the table (store, shipment summary, 📷, In transit /
   Received x/y, **Edit shipment** — same form with ← Back).
 - Store **Receive** page shows "KPN Travels · LR 4471 · 3 boxes · expected 30 Sep", "To pay
   ₹350" when store-paid, and the receipt photo.
@@ -458,7 +493,7 @@ journal. Add "store-paid freight in franchise settlement" to `backlog.md`.
       validation trigger), `stock_levels` **view** (security_invoker, derived — no trigger table).
 - [x] `dispatch_stock(store, lines, note)`: checks org holding; UNA lines are **reissued** as a
       new store-SKU item (UNA retired when fully moved, `replaced_by_item_id`), then org →
-      transit movements. Org **Stock & dispatch** tab: overview (at org / MRP value / in transit /
+      transit movements. *(Tab removed 2026-09-28 — dispatch lives on the Catalogue, Phase 2G.)* Org **Stock & dispatch** tab: overview (at org / MRP value / in transit /
       in stores), builder (store → qty per SKU, "All", scan +1, note), reissue result with
       **Print the new labels →**, recent dispatches with received x/y.
 - [x] `receive_transfer(transfer, lines, warehouse?, location?)`: transit → store movements,
@@ -532,6 +567,11 @@ Each store defines its own **categories/departments** (Sarees, Dress Material, K
 ---
 
 ## Changelog
+- **v2.5.0 (2026-09-28)**: Catalogue = one table grouped by invoice line (phone accordion); no
+  Finalize button — SKU on first use; row stages Draft → Barcoded → Printed → Dispatched with the
+  §7 lock rules (reset barcode, non-skippable print confirmation, unlock with a reason). Labels page
+  and Stock & dispatch tab removed; printing and dispatch live on the Catalogue. Phase 2G client
+  built; migration `20260928140000_dispatch_shipments` written, not applied. §7 rewritten.
 - **v2.4.0 (2026-09-28)**: Catalogue UI rework (TanStack table, row selection, direct label
   printing, barcode preview; lot forecast and rounding picker removed from the screen). Phase 2G
   (dispatch from the Catalogue with shipment details, LR photo, freight payer; retire the Stock &

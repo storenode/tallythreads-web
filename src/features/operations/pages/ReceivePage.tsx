@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { CheckCircle2, Minus, Plus } from "lucide-react";
+import { CheckCircle2, Minus, Plus, Truck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PageHeading } from "@/components/ui/PageHeading";
@@ -15,6 +15,8 @@ import {
   useStoreIncoming,
 } from "@/features/inventory/distribution";
 import { ScanInput } from "@/features/inventory/ScanInput";
+import { ReceiptLink } from "@/features/inventory/DispatchPanel";
+import { shipmentSummary } from "@/features/inventory/shipment";
 
 /**
  * Receive one dispatch at the store (`/ops/:storeId/inventory/receive/:transferId`,
@@ -122,6 +124,21 @@ export default function ReceivePage() {
         {transfer.items.length === 1 ? "" : "s"} · {sent} pcs
         {transfer.note ? ` · ${transfer.note}` : ""}
       </p>
+      {transfer.shipment?.transport_mode && (
+        <div className="-mt-3 flex flex-wrap items-center gap-x-3 text-sm text-fg">
+          <span className="inline-flex items-center gap-1.5">
+            <Truck size={16} className="text-fg-muted" />
+            {shipmentSummary(transfer.shipment, "store")}
+          </span>
+          {transfer.shipment.contact_phone && (
+            <a href={`tel:${transfer.shipment.contact_phone}`} className="inline-flex min-h-11 items-center text-brand hover:underline">
+              {transfer.shipment.contact_name ? `${transfer.shipment.contact_name} · ` : ""}
+              {transfer.shipment.contact_phone}
+            </a>
+          )}
+          {transfer.shipment.receipt_path && <ReceiptLink path={transfer.shipment.receipt_path} />}
+        </div>
+      )}
 
       {received ? (
         <Card>

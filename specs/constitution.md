@@ -1,6 +1,6 @@
 # TallyThreads — Project Constitution
 
-**Version:** 1.19.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-27 · **Status:** Active
+**Version:** 1.20.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-28 · **Status:** Active
 
 This document is the source of truth for how TallyThreads is built. Any human contributor
 or AI coding agent (Claude Code, etc.) working on this repo MUST read this file first and
@@ -289,7 +289,7 @@ founder direction alone, not a real AI Studio customer request yet.
 | M0 | Project foundation, PWA config, CI | 8 |
 | M1 | Identity, tenancy, franchise linkage & settlement engine, RLS — five sub-phases (M1a–M1e) fully speced in `M1-task-plan.md`. Covers: Google Sign-in + device-gated PIN (`M1-auth-google.md`, `M1a-identity-auth.md` — M1a Tasks 1–2 implemented, see §8); organizations/stores/roles/permissions/memberships/store_invitations/access_grants/channels, now with a platform/organization/store role model and a TDD-built entitlements function (`M1b-core-tenancy.md` v2.0.0); `stock_locations`/`stock_transfers` and `franchise_groups`/`franchise_memberships` plus the settlement rule engine (`M1-franchise-model.md`) — **franchise linkage now under active build, see §8's 2026-08-27 entry**; full column reference in `M1-schema-reference.md`; RLS across all of it, including the `stock_transfers` org/franchise-link validation (§8) | 115 |
 | M2 | **Offline sync engine** (Dexie ⇄ Supabase push/pull) | 62 |
-| M3 | Inventory, variant matrix, barcode. **Prerequisites (built first): Stock Placement** (`stock_locations` location tree, live) **→ Warehouses / stock rooms** (`warehouses`/`warehouse_stores`, org-owned storage spaces reusing the placement tree — speced `roadmap/warehouses.md`, build before intake) **→ Inventory phase 1: categories** (`inventory_categories`, store-scoped, live 2026-09-26). **Phase 2 spec final (2026-09-27):** org catalogues Ready-for-Inventory stock with MRP pricing, finalizes server-generated SKUs `{store_code}-{CAT}-{COLOR}-{SIZE}-{SEQ}`, prints labels and dispatches; stores receive/place/move — `roadmap/inventory.md` v2.0.0 (phases 2A–2F ≈ 50h; this 36h is to be reconciled when 2A starts) | 36 |
+| M3 | Inventory, variant matrix, barcode. **Prerequisites (built first): Stock Placement** (`stock_locations` location tree, live) **→ Warehouses / stock rooms** (`warehouses`/`warehouse_stores`, org-owned storage spaces reusing the placement tree — speced `roadmap/warehouses.md`, build before intake) **→ Inventory phase 1: categories** (`inventory_categories`, store-scoped, live 2026-09-26). **Phase 2 spec final (2026-09-27):** org catalogues Ready-for-Inventory stock with MRP pricing, finalizes server-generated SKUs `{store_code}-{CAT}-{COLOR}-{SIZE}-{SEQ}`, prints labels and dispatches; stores receive/place/move — `roadmap/inventory.md` v2.0.0 (phases 2A–2F ≈ 50h; this 36h is to be reconciled when 2A starts). **2026-09-28 (v1.20.0):** no Finalize step — SKU on first use; rows lock when labels are confirmed printed and for good at dispatch; dispatch with shipment details from the Catalogue (`inventory.md` v2.5.0, §7, Phase 2G) | 36 |
 | M4 | **Purchase-Trip module** (landed cost engine) | 52 |
 | M5 | Billing/POS, GST calc, printing | 58 |
 | M6 | GST reports, GSTR export | 24 |
@@ -452,7 +452,18 @@ This constitution may be amended, but not casually. An amendment requires:
 
 ### Changelog
 
-- **2026-09-27 (latest) — Inventory Phase 2 finalized: org-level cataloguing, SKU & labels, store
+- **2026-09-28 (latest) — Inventory: SKU on first use, lock at print / dispatch, dispatch from the
+  Catalogue; v1.20.0.** Evidence: walking the real flow with the founder — stickers go on the
+  packets right after printing, and mistakes (wrong size / colour / store) are found before
+  dispatch. A separate Finalize step added a click without protecting anything, while edits after
+  printing silently broke the match between record and sticker. Now: the SKU is created the first
+  time an item is used (Generate barcode / Print / Dispatch); until labels are printed anything can
+  change (SKU fields / qty reset the barcode after a confirmation); a confirmed print locks the row
+  (owner/manager "Unlock to correct" with a recorded reason); dispatch locks it for good. The
+  server enforces the same rules. Dispatch moves onto the Catalogue with shipment details
+  (courier / bus / lorry, freight + who pays, LR photo); the Labels page and the Stock & dispatch
+  tab are retired. Details: `roadmap/inventory.md` v2.5.0 §7 and §11 (Phase 2G).
+- **2026-09-27 — Inventory Phase 2 finalized: org-level cataloguing, SKU & labels, store
   receive/place/move; v1.19.0.** Evidence: designing Inventory with the founder against how Indian
   multi-store and franchise retailers actually run: the owner receives, prices and labels stock
   centrally, then distributes. Store staff never create items and must never see cost. Decisions

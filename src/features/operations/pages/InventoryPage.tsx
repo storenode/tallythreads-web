@@ -34,6 +34,7 @@ import {
   type StoreStockRow,
 } from "@/features/inventory/distribution";
 import { ScanInput } from "@/features/inventory/ScanInput";
+import { shipmentSummary } from "@/features/inventory/shipment";
 import { useMember } from "@/features/auth/useMember";
 import { hasPermission, useEntitlements } from "@/features/auth/entitlements";
 import { useCategoriesByStore } from "@/features/inventory/categories";
@@ -304,8 +305,9 @@ function IncomingCard({ storeId }: { storeId: string }) {
                   <p className="font-medium text-fg">
                     {t.items.length} SKU{t.items.length === 1 ? "" : "s"} · {sent} pcs
                   </p>
-                  <p className="truncate text-xs text-fg-muted">
+                  <p className="text-xs text-fg-muted">
                     Sent {t.dispatched_at.slice(0, 10)}
+                    {t.shipment?.transport_mode ? ` · ${shipmentSummary(t.shipment, "store")}` : ""}
                     {t.note ? ` · ${t.note}` : ""}
                     {t.status === "received" ? ` · received ${got}/${sent}` : ""}
                   </p>

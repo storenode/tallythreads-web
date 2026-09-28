@@ -11,6 +11,40 @@ first. (`Priority` line on each item is the source of truth if this order drifts
 
 # ▲ Medium priority
 
+## Inventory: label layout picker (after the Labels page was removed)
+
+**What:** A small "Label layout" choice (thermal 50×25 / 60×40, A4 24-up / 65-up, custom A4 grid,
+start-at-N for part-used sheets) — next to Print labels on the Catalogue, or as an org setting
+(`organizations.label_settings`, org-wide instead of per device).
+**Why parked:** the founder removed the Labels page (2026-09-28); printing now uses the layout last
+saved on the device, else thermal 50×25. Fine while every store prints on 50×25 rolls.
+**Priority:** Medium. **Trigger:** the first store / org that prints on A4 sticker sheets or a
+different roll size.
+
+## GST across the chain (purchase → dispatch → sale → franchise settlement)
+
+**What:** Write `reference/gst.md` with the CA and wire each module to it: (1) landed cost
+**excludes** supplier GST the org can claim as input tax credit; (2) dispatch document by store
+relationship — same GSTIN → delivery challan (no GST), other-state branch → tax invoice with IGST,
+franchise (own GSTIN) → tax invoice (a sale) — plus the **e-way bill no.** on consignments over
+₹50,000; (3) Billing (M5) extracts output GST from the tax-inclusive selling price, slab by the
+actual sale value; (4) settlement (M1d) — no second GST on goods already invoiced at dispatch,
+18% GST on royalty, and the open "gross with or without GST" question
+(`reference/franchise-settlement.md` §9).
+**Why parked:** needs the CA's answers first — org registration type (regular vs composition),
+which Bandrip stores share the org GSTIN vs are franchises, whether purchase unit costs are entered
+with or without GST, and whether franchise dispatch is a sale or consignment.
+**Priority:** Medium (blocks Billing M5 and Settlement M1d, not Inventory). **Trigger:** before M5
+or M1d starts; add the e-way bill field to the dispatch shipment sooner if a >₹50,000 inter-state
+consignment is dispatched.
+
+## Franchise settlement: store-paid freight
+
+**What:** When a dispatch's freight is paid by the store (`stock_transfers.freight_paid_by =
+'store'`), decide whether M1d's settlement credits it back / deducts it, and how.
+**Why parked:** Phase 2G only records freight + payer; settlement isn't built.
+**Priority:** Medium. **Trigger:** when M1d settlement is designed.
+
 ## Inventory: godown + quantity-vs-store distribution
 
 **What:** When a Purchase-Trip parcel is `ready_for_inventory`, let the owner **allocate each

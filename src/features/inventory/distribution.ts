@@ -6,6 +6,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { createRow } from "@/features/purchaseTrips/data/writeThrough";
 import { drainOutbox, runSync } from "@/sync/syncEngine";
 import { updateInventoryItem } from "./items";
+import { downscaleToBase64 } from "@/features/purchaseTrips/receiptImage";
+import { toShipmentPayload, type Shipment } from "./shipment";
 
 /**
  * Inventory Phases 2C–2E (specs/roadmap/inventory.md §5, §7, §8): Finalize → SKUs, dispatch
@@ -28,7 +30,7 @@ export async function finalizeItems(items: InventoryItem[]): Promise<InventoryIt
   const drafts = items.filter((i) => i.status === "draft" && !i.deleted_at && i.id);
   if (!drafts.length) return [];
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
-    throw new Error("Finalize needs a connection — SKUs are numbered by the server.");
+    throw new Error("Creating a barcode needs a connection — SKUs are numbered by the server.");
   }
   await drainOutbox();
   const localIds = new Set(drafts.map((d) => d._localId));
@@ -61,6 +63,42 @@ async function putServerItems(rows: (Omit<InventoryItem, keyof SyncMeta> & Parti
     }
   });
 }
+
+/**
+ * Run a server-side change on one item (reset / unlock): push its pending edits first so the
+ * server sees them, then write the returned row into Dexie. Needs a connection.
+ */
+async function itemRpc(
+  item: InventoryItem,
+  rpc: "reset_item_sku" | "unlock_item_labels",
+  args: Record<string, unknown>,
+  offlineMessage: string,
+): Promise<InventoryItem> {
+  if (!item.id) throw new Error("This item hasn't synced yet — try again in a moment.");
+  if (typeof navigator !== "undefined" && navigator.onLine === false) throw new Error(offlineMessage);
+  await drainOutbox();
+  const pending = (await db.outbox.toArray()).filter(
+    (e) => e.table === "inventory_items" && e.localId === item._localId,
+  );
+  if (pending.length) throw new Error("Some edits haven't synced yet — check the connection and try again.");
+  const { data, error } = await supabase.rpc(rpc, { p_item_id: item.id, ...args });
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as Omit<InventoryItem, keyof SyncMeta>[];
+  await putServerItems(rows);
+  return (await db.inventory_items.where("id").equals(item.id).first()) ?? item;
+}
+
+/**
+ * Cancel an item's barcode (SKU generated, no labels printed, not dispatched) so its store,
+ * category, colour, size or qty can change. It goes back to draft; the next barcode gets a new
+ * number.
+ */
+export const resetItemSku = (item: InventoryItem) =>
+  itemRpc(item, "reset_item_sku", {}, "Resetting a barcode needs a connection.");
+
+/** Unlock a printed (not dispatched) item to correct it; the reason is kept for the record. */
+export const unlockItemLabels = (item: InventoryItem, reason: string) =>
+  itemRpc(item, "unlock_item_labels", { p_reason: reason }, "Unlocking needs a connection.");
 
 /** Record that labels were printed for these items (count of physical labels). */
 export async function markLabelsPrinted(counts: { item: InventoryItem; labels: number }[]) {
@@ -148,11 +186,13 @@ export async function dispatchStock(
   storeId: string,
   lines: { item_id: string; qty: number }[],
   note: string,
+  shipment?: Shipment,
 ): Promise<DispatchResult> {
   const { data, error } = await supabase.rpc("dispatch_stock", {
     p_store_id: storeId,
     p_lines: lines.filter((l) => l.qty > 0),
     p_note: note || null,
+    p_shipment: shipment ? toShipmentPayload(shipment) : null,
   });
   if (error) throw new Error(error.message);
   const result = data as DispatchResult;
@@ -165,7 +205,40 @@ export async function dispatchStock(
   return result;
 }
 
-export interface TransferSummary {
+/** Replace a dispatch's shipment details (allowed until the store receives it). */
+export async function updateShipment(transferId: string, shipment: Shipment): Promise<void> {
+  const { error } = await supabase.rpc("update_transfer_shipment", {
+    p_transfer_id: transferId,
+    p_shipment: toShipmentPayload(shipment),
+  });
+  if (error) throw new Error(error.message);
+}
+
+const RECEIPTS_BUCKET = "dispatch-receipts";
+
+/**
+ * Upload a photo of the LR / courier receipt (downscaled JPEG) to the private
+ * `dispatch-receipts` bucket. Path `{orgId}/{transferId}/{uuid}.jpg` matches the bucket's RLS
+ * (the transfer must still be in transit). Returns the object path for `updateShipment`.
+ */
+export async function uploadDispatchReceipt(orgId: string, transferId: string, file: File): Promise<string> {
+  const { base64, mediaType } = await downscaleToBase64(file, 1600, 0.8);
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const path = `${orgId}/${transferId}/${crypto.randomUUID()}.jpg`;
+  const { error } = await supabase.storage
+    .from(RECEIPTS_BUCKET)
+    .upload(path, new Blob([bytes], { type: mediaType }), { contentType: mediaType });
+  if (error) throw new Error(`Receipt photo didn't upload: ${error.message}`);
+  return path;
+}
+
+/** Short-lived link to view a receipt photo (org, or the receiving store). */
+export async function dispatchReceiptUrl(path: string): Promise<string | null> {
+  const { data } = await supabase.storage.from(RECEIPTS_BUCKET).createSignedUrl(path, 60 * 10);
+  return data?.signedUrl ?? null;
+}
+
+export interface TransferSummary extends Shipment {
   id: string;
   to_store_id: string;
   status: "dispatched" | "received";
@@ -175,16 +248,19 @@ export interface TransferSummary {
   stock_transfer_items: { item_id: string; qty_sent: number; qty_received: number | null }[];
 }
 
+const SHIPMENT_COLUMNS =
+  "transport_mode, carrier_name, tracking_no, vehicle_no, contact_name, contact_phone, packages, expected_at, freight_paise, freight_paid_by, receipt_path";
+
 async function fetchOrgTransfers(orgId: string): Promise<TransferSummary[]> {
   const { data, error } = await supabase
     .from("stock_transfers")
     .select(
-      "id, to_store_id, status, note, dispatched_at, received_at, stock_transfer_items(item_id, qty_sent, qty_received)",
+      `id, to_store_id, status, note, dispatched_at, received_at, ${SHIPMENT_COLUMNS}, stock_transfer_items(item_id, qty_sent, qty_received)`,
     )
     .eq("organization_id", orgId)
     .is("deleted_at", null)
     .order("dispatched_at", { ascending: false })
-    .limit(50);
+    .limit(200);
   if (error) throw new Error(error.message);
   return (data ?? []) as TransferSummary[];
 }
@@ -195,16 +271,6 @@ export function useOrgTransfers(orgId: string | undefined) {
     queryFn: () => fetchOrgTransfers(orgId!),
     enabled: !!orgId,
   });
-}
-
-/** Live Dexie items for the org (for joining stock levels to names/SKUs). */
-export function useOrgItems(orgId: string | undefined) {
-  return useLiveQuery(async () => {
-    if (!orgId) return [] as InventoryItem[];
-    return (await db.inventory_items.where("organization_id").equals(orgId).toArray()).filter(
-      (i) => !i.deleted_at,
-    );
-  }, [orgId]);
 }
 
 export function useInvalidateInventory() {
@@ -229,6 +295,8 @@ export interface IncomingTransfer {
   id: string;
   status: "dispatched" | "received";
   note: string | null;
+  /** Shipment details; freight is present only when the store pays it (to-pay). */
+  shipment?: Partial<Shipment> | null;
   dispatched_at: string;
   received_at: string | null;
   items: IncomingItem[];

@@ -751,8 +751,23 @@ warehouse-owned stock_locations). Inventory: `finalize_inventory_items`, `dispat
 - **`shifts` / `petty_expenses`** — Shift & Store Operations Log (M10). Designed in
   `../roadmap/shift-store-ops-log.md`; not migrated. Feeds M1d's `deduct_expenses`.
 - **Inventory Phase 2** (spec `../roadmap/inventory.md` §10) — 2A–2E are **live** (§3D). **Not yet
-  migrated:** `label_prints` (print audit), `reissue_inventory_item` (retire/reissue after
-  finalize), store → store transfers, adjustments / stock count (2F).
+  migrated:** `label_prints` (print audit), store → store transfers, adjustments / stock count (2F).
+- **⚠️ Written, NOT applied — `supabase/migrations/20260928140000_dispatch_shipments.sql`**
+  (Phase 2G + the §7 row stages, `inventory.md` v2.5.0). This document describes the live DB, so
+  none of this is in §1–§6 yet; move it there once applied and re-verified:
+  - `stock_transfers` + shipment columns `transport_mode` (courier/bus/lorry/hand/other),
+    `carrier_name`, `tracking_no`, `vehicle_no`, `contact_name`, `contact_phone`, `packages`,
+    `expected_at`, `freight_paise`, `freight_paid_by` (org/store; required with freight),
+    `receipt_path`.
+  - New table `inventory_item_unlocks` (audit: item, sku, labels_printed, reason, member,
+    created_at; select for `inventory.manage`; written only by `unlock_item_labels`).
+  - Private bucket `dispatch-receipts` (`{org}/{transfer}/…`, images ≤ 5 MB) with policies via
+    `can_read_dispatch_receipt` / `can_write_dispatch_receipt`.
+  - RPCs: `dispatch_stock(store, lines, note, p_shipment)` (replaces the 3-arg version; also
+    shrinks a partially reissued UNA item), `update_transfer_shipment`, `reset_item_sku`,
+    `unlock_item_labels`; `store_incoming` adds `shipment` (freight only when the store pays);
+    internal `apply_transfer_shipment`; trigger `inventory_items_lock_rules`;
+    `hard_delete_organization` also clears `dispatch-receipts`.
 - **`store_knowledge`** (pgvector embeddings) + the `store-agent` edge function — the **Assistant**
   (store chat / RAG + tool-use). Designed in `../roadmap/assistant.md`; not migrated (needs the
   `vector` extension). Invoices / GST — M5. `content_items` (AI Studio) — see
@@ -768,7 +783,10 @@ or writes exists live — `devices`, `members`, `memberships`, `organizations`, 
 `purchase_*` / `trip_*` tables, `warehouses`, `warehouse_stores`, `stock_locations`,
 `inventory_categories`, `inventory_items`, `stock_transfers`, `stock_movements` (sync push), and the
 views `incoming_stock` / `stock_levels` — as do all 12 RPCs it calls and the `org-logos` /
-`receipts` buckets. Not yet used by the app: `access_grants`, `channels`, `settlement_rules`,
+`receipts` buckets. *(Since the Phase 2G client, 2026-09-28, the app
+also calls `update_transfer_shipment`, `reset_item_sku`, `unlock_item_labels`, the 4-arg
+`dispatch_stock` and the `dispatch-receipts` bucket — **not live until the pending migration
+above is applied**.)* Not yet used by the app: `access_grants`, `channels`, `settlement_rules`,
 `demo_scenarios`, `qa_test_cases` are admin/future tables; `stock_transfer_items` is read embedded
 in `stock_transfers`.
 
