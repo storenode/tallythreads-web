@@ -36,7 +36,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        // .wasm: the barcode reader for iPhone camera scanning (features/inventory/barcodeDetector.ts).
+        globPatterns: ["**/*.{js,css,html,svg,png,woff2,wasm}"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         navigateFallback: "/index.html",

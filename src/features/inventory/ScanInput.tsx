@@ -2,24 +2,28 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, X } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { normalizeSku } from "./distribution";
+import { cameraScanSupported, getCode128Detector } from "./barcodeDetector";
 
 /**
  * SKU entry for scanning. USB / Bluetooth barcode scanners type like a keyboard and press Enter,
- * so a focused input is all they need. On phones with the browser's BarcodeDetector (Chrome on
- * Android), a camera button scans Code 128 labels directly — no app or hardware required.
+ * so a focused input is all they need. On phones (Android and iPhone), a camera button scans
+ * Code 128 labels directly — no app or hardware required.
  */
 export function ScanInput({
   label = "Scan or type a SKU",
   onScan,
   autoFocus,
+  startWithCamera = false,
 }: {
   label?: string;
   onScan: (sku: string) => void;
   autoFocus?: boolean;
+  /** Open with the camera already running (the header's quick scan). */
+  startWithCamera?: boolean;
 }) {
   const [value, setValue] = useState("");
-  const [camera, setCamera] = useState(false);
-  const cameraSupported = typeof window !== "undefined" && "BarcodeDetector" in window;
+  const cameraSupported = cameraScanSupported();
+  const [camera, setCamera] = useState(startWithCamera && cameraSupported);
 
   const submit = (raw: string) => {
     const sku = normalizeSku(raw);
@@ -64,14 +68,8 @@ export function ScanInput({
   );
 }
 
-interface DetectedBarcode {
-  rawValue: string;
-}
-interface BarcodeDetectorLike {
-  detect(source: HTMLVideoElement): Promise<DetectedBarcode[]>;
-}
-
-function CameraScanner({ onScan }: { onScan: (sku: string) => void }) {
+/** Live camera view that calls `onScan` with each Code 128 value it reads. */
+export function CameraScanner({ onScan }: { onScan: (sku: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const onScanRef = useRef(onScan);
@@ -85,14 +83,16 @@ function CameraScanner({ onScan }: { onScan: (sku: string) => void }) {
     let last = "";
     let lastAt = 0;
     let stopped = false;
-    const Detector = (window as unknown as { BarcodeDetector: new (o: { formats: string[] }) => BarcodeDetectorLike })
-      .BarcodeDetector;
-    const detector = new Detector({ formats: ["code_128"] });
 
     (async () => {
       try {
+        const detector = await getCode128Detector();
+        if (stopped) return;
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        if (stopped || !videoRef.current) return;
+        if (stopped || !videoRef.current) {
+          stream.getTracks().forEach((t) => t.stop()); // closed while the permission prompt was up
+          return;
+        }
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         const tick = async () => {

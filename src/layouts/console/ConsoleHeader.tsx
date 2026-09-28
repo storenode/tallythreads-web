@@ -3,6 +3,7 @@ import { Menu, PanelLeft } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { AreaSwitcher } from "@/features/auth/AreaSwitcher";
 import { AccountMenu } from "@/features/auth/AccountMenu";
+import { ScanButton } from "@/features/inventory/BarcodeLookup";
 
 interface ConsoleHeaderProps {
   /** Desktop sidebar collapsed (hidden) — when true the header shows the Logo. */
@@ -46,6 +47,7 @@ export function ConsoleHeader({
       <Logo size="sm" className={collapsed ? "" : "lg:hidden"} />
 
       <div className="ml-auto flex items-center gap-3">
+        <ScanButton />
         {extra}
         <AreaSwitcher />
         <AccountMenu />
