@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowRightLeft,
@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { SingleSelect } from "@/components/ui/SingleSelect";
+import { Tabs } from "@/components/ui/tabs/Tabs";
+import { IncomingStockPanel } from "@/features/operations/IncomingStockPanel";
 import { formatInr } from "@/lib/money";
 import { getSyncStatus, subscribeSyncStatus } from "@/sync/syncEngine";
 import { useMyStores } from "@/features/operations/myStores";
@@ -41,11 +43,12 @@ import { useCategoriesByStore } from "@/features/inventory/categories";
 import { useStoreWarehouseLinks } from "@/features/warehouses/data";
 
 /**
- * Store Inventory (`/ops/:storeId/inventory`, specs/roadmap/inventory.md §2, §8). For store
- * managers and sales staff (`inventory.read`): the store never creates items or sees cost —
- * stock arrives already labelled from the organization, and the store receives, places and
- * moves it: incoming dispatches (→ Receive), stock on hand by location with offline Move, where
- * stock lives (display locations + stock rooms) and the store's categories.
+ * Store Inventory (`/ops/:storeId/inventory`, specs/roadmap/inventory.md §2, §8), two tabs:
+ * - **Inventory** (`inventory.read`): the store never creates items or sees cost — stock arrives
+ *   already labelled from the organization, and the store receives, places and moves it: incoming
+ *   dispatches (→ Receive), stock on hand by location with offline Move, where stock lives
+ *   (display locations + stock rooms) and the store's categories.
+ * - **Incoming Stock** (`?tab=incoming`, everyone): the price-free purchase-trip feed.
  */
 export default function InventoryPage() {
   const { storeId } = useParams<{ storeId: string }>();
@@ -53,23 +56,32 @@ export default function InventoryPage() {
   const { data: entitlements, isLoading } = useEntitlements(member?.id);
   const canRead = hasPermission(entitlements, "inventory.read", { storeId });
   const canWrite = hasPermission(entitlements, "inventory.write", { storeId });
+  const [params, setParams] = useSearchParams();
 
   if (isLoading || !entitlements) return null;
-  if (!canRead) {
-    return (
-      <Card>
-        <p className="text-sm text-fg-muted">You don&apos;t have access to this store&apos;s inventory.</p>
-      </Card>
-    );
-  }
+  const tab = params.get("tab") === "incoming" || !canRead ? "incoming" : "stock";
 
   return (
     <div className="space-y-6">
       <PageHeading>Inventory</PageHeading>
-      <IncomingCard storeId={storeId!} />
-      <StockOnHandCard storeId={storeId!} canWrite={canWrite} />
-      <WhereStockLivesCard storeId={storeId!} />
-      <CategoriesCard storeId={storeId!} />
+      <Tabs
+        activeId={tab}
+        onChange={(id) => setParams(id === "incoming" ? { tab: "incoming" } : {}, { replace: true })}
+        items={[
+          { id: "stock", label: "Inventory", disabled: !canRead },
+          { id: "incoming", label: "Incoming Stock" },
+        ]}
+      />
+      {tab === "incoming" ? (
+        <IncomingStockPanel />
+      ) : (
+        <>
+          <IncomingCard storeId={storeId!} />
+          <StockOnHandCard storeId={storeId!} canWrite={canWrite} />
+          <WhereStockLivesCard storeId={storeId!} />
+          <CategoriesCard storeId={storeId!} />
+        </>
+      )}
     </div>
   );
 }

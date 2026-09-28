@@ -1,7 +1,5 @@
 import { NavLink, useParams } from "react-router-dom";
 import { getOperationsNav } from "./nav";
-import { useMember } from "@/features/auth/useMember";
-import { hasPermission, useEntitlements } from "@/features/auth/entitlements";
 
 /**
  * Bottom tab bar — the operations shell has no sidebar (unlike ConsoleShell); this
@@ -11,11 +9,7 @@ import { hasPermission, useEntitlements } from "@/features/auth/entitlements";
  */
 export function OperationsTabBar() {
   const { storeId } = useParams<{ storeId: string }>();
-  const { member } = useMember();
-  const { data: entitlements } = useEntitlements(member?.id);
-  const nav = getOperationsNav(storeId ?? "", {
-    canViewInventory: hasPermission(entitlements, "inventory.read", { storeId }),
-  });
+  const nav = getOperationsNav(storeId ?? "");
 
   return (
     <nav className="sticky bottom-0 z-20 flex shrink-0 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">

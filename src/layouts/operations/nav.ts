@@ -1,11 +1,4 @@
-import {
-  Receipt,
-  Boxes,
-  Truck,
-  BarChart3,
-  Settings,
-  PackageOpen,
-} from "lucide-react";
+import { Receipt, Boxes, Bot, BarChart3, Settings } from "lucide-react";
 import type { ComponentType } from "react";
 
 export interface OperationsNavItem {
@@ -14,31 +7,18 @@ export interface OperationsNavItem {
   icon: ComponentType<{ className?: string }>;
 }
 
-// Footer tab bar items for the operations shell. A function, not a static list,
-// because every link needs to carry the current :storeId (2026-08-30, once /ops
-// became store-scoped). Pages are stubs for now — M2 (offline sync) hasn't started
-// and M3/M5 (Inventory/POS) aren't built yet, the same caveat the pre-cleanup /app
-// shell had. See M-role-permission-model.md for which roles (store_manager,
-// store_sales_staff, ...) land here.
+// Footer tab bar items for the operations shell (store sales staff and managers). A function,
+// not a static list, because every link carries the current :storeId.
 //
-// `perms` hides tabs the member can't use (defense-in-depth on top of the page/RLS checks).
-// Inventory needs `inventory.read` for this store — held by store_manager / sales / temp staff
-// and cascaded to org_owner / org_manager.
-export function getOperationsNav(
-  storeId: string,
-  perms: { canViewInventory?: boolean } = {},
-): OperationsNavItem[] {
+// 2026-09-28: Inventory and Incoming Stock merged into one tab (two in-page tabs, see
+// InventoryPage), Trips removed, Agent added (placeholder until the Assistant is built,
+// specs/roadmap/assistant.md). Inventory shows for everyone: its Inventory tab checks
+// `inventory.read`, its Incoming Stock tab needs none (the price-free feed it always was).
+export function getOperationsNav(storeId: string): OperationsNavItem[] {
   return [
     { label: "Billing", to: `/ops/${storeId}/billing`, icon: Receipt },
-    ...(perms.canViewInventory
-      ? [{ label: "Inventory", to: `/ops/${storeId}/inventory`, icon: Boxes }]
-      : []),
-    {
-      label: "Incoming Stock",
-      to: `/ops/${storeId}/incoming`,
-      icon: PackageOpen,
-    },
-    { label: "Trips", to: `/ops/${storeId}/trips`, icon: Truck },
+    { label: "Inventory", to: `/ops/${storeId}/inventory`, icon: Boxes },
+    { label: "Agent", to: `/ops/${storeId}/agent`, icon: Bot },
     { label: "Reports", to: `/ops/${storeId}/reports`, icon: BarChart3 },
     { label: "Settings", to: `/ops/${storeId}/settings`, icon: Settings },
   ];

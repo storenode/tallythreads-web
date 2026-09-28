@@ -46,16 +46,14 @@ export const operationsRoutes: RouteObject[] = [
                     }),
                   },
                   {
+                    // Merged into Inventory's "Incoming Stock" tab (2026-09-28); old links still work.
                     path: "incoming",
-                    lazy: async () => ({
-                      Component: (await import("./pages/IncomingStockPage"))
-                        .default,
-                    }),
+                    element: <Navigate to="../inventory?tab=incoming" replace />,
                   },
                   {
-                    path: "trips",
+                    path: "agent",
                     lazy: async () => ({
-                      Component: (await import("./pages/TripsPage")).default,
+                      Component: (await import("./pages/AgentPage")).default,
                     }),
                   },
                   {

@@ -54,9 +54,11 @@ Operations shell at `/ops/:storeId` (`src/features/operations/`) whose five tabs
 
 ---
 
-## 🔜 Next — Operations (Billing / Inventory / Trips / Reports / Settings)
+## 🔜 Next — Operations (Billing / Inventory / Agent / Reports / Settings)
 
-The `/ops` tabs are one-line placeholders. What actually sits behind them is the module
+Footer since 2026-09-28: Inventory holds two tabs (Inventory · Incoming Stock), Trips was removed,
+Agent is a placeholder until the Assistant (`assistant.md`) is built. Billing, Reports and Settings
+are still one-line placeholders. What actually sits behind them is the module
 roadmap below. **Sequencing rule (constitution §5): M2 offline-sync must be stable
 before M3/M4/M5 begin in earnest.**
 

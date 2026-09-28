@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { Card } from "@/components/ui/Card";
-import { PageHeading } from "@/components/ui/PageHeading";
 import {
   RECEIVING_BADGE,
   RECEIVING_ICON,
@@ -35,7 +34,8 @@ interface TripGroup {
   }[];
 }
 
-export default function IncomingStockPage() {
+/** Inventory → "Incoming Stock" tab (/ops/:storeId/inventory?tab=incoming). */
+export function IncomingStockPanel() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["incoming_stock"],
     queryFn: async (): Promise<IncomingRow[]> => {
@@ -70,7 +70,6 @@ export default function IncomingStockPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeading>Incoming Stock</PageHeading>
       <p className="text-sm text-fg-muted">
         New stock on its way — tell customers what to expect and when. Prices aren't shown
         here.
