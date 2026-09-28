@@ -86,3 +86,49 @@ export function categoryCodeFor(
   for (let n = 2; takenByOthers.has(candidate); n++) candidate = `${base}${n}`;
   return candidate;
 }
+
+/** What a SKU / barcode says on its own, read back from the format above. */
+export interface ParsedSku {
+  sku: string;
+  /** Store code for a store's SKU (BND-KDP), or `{org_code}-UNA` for unallocated stock. */
+  prefix: string;
+  /** Unallocated (`{org_code}-UNA-…`): catalogued at the organization, not yet a store's. */
+  unallocated: boolean;
+  /** Org short code — only knowable from an unallocated SKU. */
+  orgCode: string | null;
+  /** Store code — null for unallocated stock. */
+  storeCode: string | null;
+  category: string;
+  /** Colour and size as SKU segments (uppercased, A–Z/0–9, max 6 — see sku_segment()). */
+  color: string;
+  size: string;
+  sequence: number;
+}
+
+const SEGMENT_RE = /^[A-Z0-9]{1,6}$/;
+
+/**
+ * Split a scanned SKU into its parts, from the right: the store code may itself contain
+ * hyphens (BND-KDP), the four segments after it never do. Null when it isn't a TallyThreads SKU.
+ */
+export function parseSku(raw: string): ParsedSku | null {
+  const sku = raw.trim().toUpperCase().replace(/\s+/g, "");
+  const parts = sku.split("-");
+  if (parts.length < 5) return null;
+  const [category, color, size, seq] = parts.slice(-4);
+  const prefix = parts.slice(0, -4).join("-");
+  if (!CODE_RE.test(category) || !SEGMENT_RE.test(color) || !SEGMENT_RE.test(size)) return null;
+  if (!/^\d{4,}$/.test(seq) || !STORE_CODE_RE.test(prefix)) return null;
+  const unallocated = prefix.endsWith("-UNA");
+  return {
+    sku,
+    prefix,
+    unallocated,
+    orgCode: unallocated ? prefix.slice(0, -4) : null,
+    storeCode: unallocated ? null : prefix,
+    category,
+    color,
+    size,
+    sequence: Number(seq),
+  };
+}

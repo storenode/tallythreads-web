@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CODE_RE,
+  parseSku,
   STORE_CODE_RE,
   categoryCodeFor,
   normalizeCode,
@@ -67,5 +68,37 @@ describe("categoryCodeFor (mirrors the DB trigger)", () => {
 
   it("pads very short names to 2 characters", () => {
     expect(categoryCodeFor("K", [])).toBe("KX");
+  });
+});
+
+describe("parseSku", () => {
+  it("reads a store SKU whose store code has a hyphen", () => {
+    expect(parseSku("BND-NLR-ACC-FREE-FREE-0001")).toEqual({
+      sku: "BND-NLR-ACC-FREE-FREE-0001",
+      prefix: "BND-NLR",
+      unallocated: false,
+      orgCode: null,
+      storeCode: "BND-NLR",
+      category: "ACC",
+      color: "FREE",
+      size: "FREE",
+      sequence: 1,
+    });
+  });
+
+  it("reads an unallocated SKU", () => {
+    const p = parseSku(" bnd-una-sar-red-xl-0042 ");
+    expect(p).toMatchObject({ unallocated: true, orgCode: "BND", storeCode: null, color: "RED", size: "XL", sequence: 42 });
+  });
+
+  it("accepts a single-segment store code and sequences past 9999", () => {
+    expect(parseSku("KDP-SAR-MAROON-M-12345")).toMatchObject({ storeCode: "KDP", color: "MAROON", sequence: 12345 });
+  });
+
+  it("rejects anything that isn't a TallyThreads SKU", () => {
+    expect(parseSku("8901234567890")).toBeNull();
+    expect(parseSku("SAR-RED-M-0001")).toBeNull(); // no store code
+    expect(parseSku("BND-KDP-SAR-RED-M-12")).toBeNull(); // sequence is at least 4 digits
+    expect(parseSku("BND-KDP-SAREES-EXTRALONG-M-0001")).toBeNull(); // colour segment over 6
   });
 });

@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ScanButton } from "@/features/inventory/BarcodeLookup";
 import { GoogleSignInButton } from "@/features/home/components/GoogleSignInButton";
 import { useScrollY } from "@/hooks/useScrollY";
 
@@ -42,6 +43,7 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <ScanButton />
           <ThemeToggle />
           <div className="hidden sm:block">
             <Button variant="ghost" size="md" onClick={() => navigate("/login")}>
