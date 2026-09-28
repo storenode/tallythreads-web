@@ -7,7 +7,7 @@ dispatch → receive → stock on hand → place/move. Catalogue screen reworked
 row stages with locks (§7). **Phase 2G (dispatch from the Catalogue with shipment details) is
 built client-side; its migration `20260928140000_dispatch_shipments` is written but NOT applied
 live** — dispatch, barcode reset and unlock fail until it is. Then 2F.
-**Version:** 2.5.0
+**Version:** 2.6.0
 **Est:** see §11 (M3 is 36h in constitution §5 and needs revising; this spec's phases total ~50h)
 **Tracking:** [storenode/tallythreads-web#30](https://github.com/storenode/tallythreads-web/issues/30)
 **Builds on:** Deliveries (`deliveries.md`) → Stock Placement (`stock-placement.md`) → Warehouses /
@@ -175,6 +175,24 @@ a full SKU is ~310 Code128 modules, ~0.14 mm each on a 50 mm label (1.2 dots at 
 didn't decode even from a clean 203/300-dpi raster, or from a real iPhone photo. A QR code for the
 link is a 33×33 grid, ~0.5 mm a module. The scanners still read Code128 for older labels. Trade-off:
 a keyboard-wedge USB scanner must be a 2D (QR) model.
+
+**Decision (founder, 2026-09-28): keep QR.** Considered and rejected for now: Code128 carrying a
+short (~10-digit) number instead of the SKU. It decodes on a 50 mm label (90 modules, 4 dots a
+module at 203 dpi) and would allow cheaper 1D scanners, but needs a new per-item number column,
+and a phone's own camera app can't open an item from it.
+- **Cost:** none added. Same sticker, printer and roll; only the printed pattern changes. The one
+  cost difference is a future USB scanner, which must be a 2D (QR) model.
+- **Durability** (simulated on a 20 mm QR at 203 dpi vs that 10-digit Code128, same damage):
+  both read when new, with a torn corner (12% and 25%) and when faded or smudged. QR also read
+  through a 20% stain across the centre (its error correction; Code128 failed). Code128 read through
+  long scratches, but QR failed when they crossed its three corner finder squares. Error-correction
+  level M stays: Q read the same, and H failed the faded case (denser modules). Neither is clearly
+  more durable, so durability didn't decide it.
+- **Fallbacks for a damaged sticker:** the SKU is printed as text (type it), and any item's label
+  can be reprinted from the Catalogue.
+- **Old stock:** direct-thermal stickers fade with heat and light (often within 6–12 months) whatever
+  the code. For long-held stock, thermal-transfer (ribbon) labels last longer at a slightly higher
+  cost; stick labels where they aren't rubbed or in the light.
 
 ### 5.3 Categories stay store-scoped
 Phase 1 is unchanged: each store defines its own categories. The org sees them **grouped by
@@ -572,6 +590,9 @@ Each store defines its own **categories/departments** (Sarees, Dress Material, K
 ---
 
 ## Changelog
+- **v2.6.0 (2026-09-28)**: Labels print a **QR code** of the public lookup link instead of Code128
+  (full-SKU Code128 on 50 mm is too dense to scan); public item page `/s/:sku`; scanners read QR +
+  Code128; iPhone scans from a photo. §5.2 records the decision, cost and durability tests.
 - **v2.5.0 (2026-09-28)**: Catalogue = one table grouped by invoice line (phone accordion); no
   Finalize button — SKU on first use; row stages Draft → Barcoded → Printed → Dispatched with the
   §7 lock rules (reset barcode, non-skippable print confirmation, unlock with a reason). Labels page
