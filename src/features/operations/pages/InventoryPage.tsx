@@ -73,7 +73,7 @@ export default function InventoryPage() {
         ]}
       />
       {tab === "incoming" ? (
-        <IncomingStockPanel />
+        <IncomingStockPanel storeId={storeId!} />
       ) : (
         <>
           <IncomingCard storeId={storeId!} />

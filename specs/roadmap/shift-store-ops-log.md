@@ -1,7 +1,8 @@
 # M10 — Shift & Store Operations Log
 
-**Status:** Planned (design; not started)
-**Version:** 0.1.0
+**Status:** Planned (design; not started). A **static UI preview** of the quick expense form is
+live in the app (2026-09-28, see "UI preview" below) — it saves nothing.
+**Version:** 0.2.0
 **Est:** 24 hrs (constitution §5) — Phase 1 ~12h, Phase 2 ~4h, Phase 3 ~8h
 **Tracking:** open a GitHub issue when this moves to a scheduled build (see `workflow.md`)
 **Parent docs:** `../constitution.md` §2.VI/§3/§5/§8 (the 2026-09-05 amendment bringing this
@@ -126,10 +127,23 @@ test when both exist.
 - [ ] Approved petty-expense total for a period reconciles with M1d's `deduct_expenses`
       input for that store (integration test, once M1d exists).
 
+## UI preview (2026-09-28, founder — static, nothing saved)
+
+A floating **quick-actions** button (▦, bottom-right, on every organization and store page — not
+the platform admin; `src/features/quick-actions/`) opens a menu on hover / tap with **Expenses**
+and **Chat**. **Expenses** opens a chat-window style panel above the button with the quick form
+this module will need: category chips **Tea / coffee · Water can · Pooja items · Cleaning ·
+Transport · Other**, **Amount (₹)**, **Note** (required for Other), "Today · paid from the counter
+cash", and **Submit for approval** (store) / **Save expense** (org). Submitting only shows a
+"Preview only — not saved yet" confirmation. When Phase 1 is built this form writes
+`petty_expenses` (offline-first) instead. (**Chat** is a separate idea — `backlog.md`
+"Team chat".)
+
 ## Open questions
 
 1. **Offline timing:** online-first now + M2 retrofit, or wait for M2?
-2. **Expense categories:** fixed list (tea/coffee/water/puja/other) or free-form + tag?
+2. **Expense categories:** fixed list or free-form + tag? *(The UI preview uses a fixed list —
+   Tea / coffee, Water can, Pooja items, Cleaning, Transport, Other (+ note) — confirm or change.)*
    And a per-expense or per-day cap before approval is mandatory?
 3. **Who approves** — `org_owner`/`org_manager` only, or seed `store_manager` now so a
    branch has a local approver? (Ties to `roles-and-permissions.md` §6.)
@@ -139,6 +153,10 @@ test when both exist.
    Telugu↔English, or suggest structure? And which model/budget (see `claude-api` guidance)?
 
 ## Changelog
+
+- **v0.2.0 (2026-09-28)** — Static UI preview of the quick expense form (floating quick-actions
+  button → Expenses panel), with a proposed fixed category list. No data model / code for
+  storage yet.
 
 - **v0.1.0 (2026-09-05)** — Initial design, written the same session the module moved into
   scope (constitution §8's 2026-09-05 M10 entry). Design + phasing only; no code. Build

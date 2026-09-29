@@ -12,6 +12,8 @@ interface ConsoleShellProps {
    * for the org back-office. Left undefined for areas (like /admin) with nothing to
    * switch between. */
   headerExtra?: ReactNode;
+  /** Fixed-position extras (e.g. the org quick-actions button) — not shown in /admin. */
+  floating?: ReactNode;
 }
 
 /**
@@ -19,7 +21,7 @@ interface ConsoleShellProps {
  * Shared by the platform admin (/admin/*) and org (/org/*) route trees. The
  * customer-facing app (billing, inventory) gets its own AppShell instead.
  */
-export default function ConsoleShell({ nav, headerExtra }: ConsoleShellProps) {
+export default function ConsoleShell({ nav, headerExtra, floating }: ConsoleShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -40,10 +42,12 @@ export default function ConsoleShell({ nav, headerExtra }: ConsoleShellProps) {
           extra={headerExtra}
         />
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        {/* Extra bottom room when a floating button sits over the page. */}
+        <main className={`flex-1 px-4 pt-6 sm:px-6 lg:px-8 ${floating ? "pb-24" : "pb-6"}`}>
           <Outlet />
         </main>
       </div>
+      {floating}
     </div>
   );
 }

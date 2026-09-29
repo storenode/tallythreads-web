@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { Card } from "@/components/ui/Card";
+import { useMyStores } from "./myStores";
 import {
   RECEIVING_BADGE,
   RECEIVING_ICON,
@@ -34,16 +35,24 @@ interface TripGroup {
   }[];
 }
 
-/** Inventory → "Incoming Stock" tab (/ops/:storeId/inventory?tab=incoming). */
-export function IncomingStockPanel() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["incoming_stock"],
+/**
+ * Inventory → "Incoming Stock" tab (/ops/:storeId/inventory?tab=incoming). Only the current
+ * store's organization: the view returns every org the member can see (platform admins, and
+ * people who work for more than one org), so it must be filtered here.
+ */
+export function IncomingStockPanel({ storeId }: { storeId: string }) {
+  const { data: stores, isLoading: storeLoading } = useMyStores([storeId]);
+  const orgId = stores?.[0]?.organizationId;
+  const { data, isLoading: rowsLoading, error } = useQuery({
+    queryKey: ["incoming_stock", orgId],
     queryFn: async (): Promise<IncomingRow[]> => {
-      const { data, error } = await supabase.from("incoming_stock").select("*");
+      const { data, error } = await supabase.from("incoming_stock").select("*").eq("organization_id", orgId!);
       if (error) throw error;
       return (data ?? []) as IncomingRow[];
     },
+    enabled: !!orgId,
   });
+  const isLoading = storeLoading || (!!orgId && rowsLoading);
 
   const trips = useMemo<TripGroup[]>(() => {
     const byTrip = new Map<string, TripGroup>();

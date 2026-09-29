@@ -1,4 +1,5 @@
 import { useParams, type RouteObject } from "react-router-dom";
+import { QuickMenu } from "@/features/quick-actions/QuickMenu";
 import { AuthGuard } from "@/features/auth/AuthGuard";
 import { RequireArea } from "@/features/auth/RequireArea";
 import { RequireOrgAccess } from "@/features/auth/RequireOrgAccess";
@@ -23,6 +24,7 @@ function OrgAdminShell() {
   return (
     <ConsoleShell
       nav={getOrgAdminNav(orgId ?? "", { canViewTrips, canManageInventory })}
+      floating={<QuickMenu scope="org" />}
     />
   );
 }

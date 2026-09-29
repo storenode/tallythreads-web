@@ -38,6 +38,24 @@ with or without GST, and whether franchise dispatch is a sale or consignment.
 or M1d starts; add the e-way bill field to the dispatch shipment sooner if a >₹50,000 inter-state
 consignment is dispatched.
 
+## Team chat within an organization (@mentions)
+
+**What:** Chat between the people of **one organization** — the org admin and the sales people
+logged in at each store (e.g. admin + Store A sales + Store B sales). **One chat window** (no
+conversation list); type **@** (Teams-style; "/" also works) to pick a person and address the
+message to them. Never across organizations. A **static UI preview** is live (2026-09-28):
+floating quick-actions button → **Chat** (`src/features/quick-actions/ChatPanel.tsx`) — sample
+messages, mention picker with "Org admin" + "Sales · <real store name>", mention chips, sent
+messages marked "not sent (preview)".
+**To build it for real:** a spec + migration — `chat_messages` (org, author member, text,
+mentions[], created_at) with RLS by organization membership, Supabase Realtime for live delivery,
+unread counts / a badge on the button, mention notifications, offline send queue (constitution
+§2.I), real member names instead of roles. Possibly system posts (e.g. "Dispatched 25 pcs to
+Kadapa · KPN LR 4471"). It's a **new module** (not in the constitution's scope yet — needs an
+amendment; it is **not** M11 Assistant, which is the AI store agent).
+**Why parked:** founder wants the look first; real messaging is a module of its own.
+**Priority:** Medium. **Trigger:** founder schedules it (likely after the inventory / dispatch work).
+
 ## Franchise settlement: store-paid freight
 
 **What:** When a dispatch's freight is paid by the store (`stock_transfers.freight_paid_by =

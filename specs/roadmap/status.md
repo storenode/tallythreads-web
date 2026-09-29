@@ -79,7 +79,7 @@ Operations are billing/inventory/reports, not a Purchase-Trip.
 | **M6** | GST reports, GSTR export | Not started |
 | **M7** | Settings, onboarding (incl. store GSTIN/address) | Not started |
 | **M8 / M9** | PWA polish + shadow-mode verification; launch prep with Bandrip | Not started |
-| **M10** | **Shift & Store Operations Log** — staff hours, petty-expense + approval, shift-handover notes (AI later) | **Speced, not built** (`shift-store-ops-log.md`). Store-facing differentiator; feeds M1d expenses; independent of M2–M5 (can start early, online-first) |
+| **M10** | **Shift & Store Operations Log** — staff hours, petty-expense + approval, shift-handover notes (AI later) | **Speced, not built** (`shift-store-ops-log.md` v0.2.0). **Static UI preview (2026-09-28):** floating quick-actions button (org + store pages) → quick expense form (saves nothing) and a Chat preview (`backlog.md` "Team chat"). Store-facing differentiator; feeds M1d expenses; independent of M2–M5 (can start early, online-first) |
 
 ---
 

@@ -78,6 +78,13 @@ Deliveries page.
 The price-free feed now shows each item's **receiving stage** (Pending / In Transit / Received
 / Verified / Ready for Inventory) instead of a bare arrived/in-transit flag. Still read-only, still no
 cost/MRP/margin (via the `incoming_stock` view + `has_incoming_visibility()`).
+Now a tab of the store's Inventory page (`/ops/:storeId/inventory?tab=incoming`). **Since
+2026-09-28 it shows only the current store's organization:** the view returns every org the member
+can see (platform admins, people working for more than one org), so the panel filters by the
+store's `organization_id` — the Bandrip Kadapa screen no longer lists Vasavi's trips. Within the
+org it still lists **all** its trips (goods aren't assigned to a store until the Catalogue); a
+store-specific version (hide Ready-for-Inventory lines, or show only pieces allocated to this
+store) is an open founder decision.
 
 ## Data model
 

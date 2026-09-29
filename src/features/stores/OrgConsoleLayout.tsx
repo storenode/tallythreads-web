@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import ConsoleShell from "@/layouts/console/ConsoleShell";
 import { getOrgNav } from "./nav";
+import { QuickMenu } from "@/features/quick-actions/QuickMenu";
 import { OrgSwitcher } from "./OrgSwitcher";
 
 /**
@@ -10,5 +11,11 @@ import { OrgSwitcher } from "./OrgSwitcher";
  */
 export default function OrgConsoleLayout() {
   const { orgId } = useParams<{ orgId: string }>();
-  return <ConsoleShell nav={getOrgNav(orgId ?? "")} headerExtra={<OrgSwitcher />} />;
+  return (
+    <ConsoleShell
+      nav={getOrgNav(orgId ?? "")}
+      headerExtra={<OrgSwitcher />}
+      floating={<QuickMenu scope="org" />}
+    />
+  );
 }
