@@ -6,6 +6,7 @@ import {
   Boxes,
   MapPin,
   PackageOpen,
+  Printer,
   Truck,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
@@ -36,6 +37,8 @@ import {
   type StoreStockRow,
 } from "@/features/inventory/distribution";
 import { ScanInput } from "@/features/inventory/ScanInput";
+import { LocationLabelsButton } from "@/features/inventory/LabelPrint";
+import { locationFromScan, suggestPlaces, type PlaceCandidate } from "@/features/inventory/putAway";
 import { shipmentSummary } from "@/features/inventory/shipment";
 import { useMember } from "@/features/auth/useMember";
 import { hasPermission, useEntitlements } from "@/features/auth/entitlements";
@@ -43,12 +46,15 @@ import { useCategoriesByStore } from "@/features/inventory/categories";
 import { useStoreWarehouseLinks } from "@/features/warehouses/data";
 
 /**
- * Store Inventory (`/ops/:storeId/inventory`, specs/roadmap/inventory.md §2, §8), two tabs:
- * - **Inventory** (`inventory.read`): the store never creates items or sees cost — stock arrives
- *   already labelled from the organization, and the store receives, places and moves it: incoming
- *   dispatches (→ Receive), stock on hand by location with offline Move, where stock lives
- *   (display locations + stock rooms) and the store's categories.
- * - **Incoming Stock** (`?tab=incoming`, everyone): the price-free purchase-trip feed.
+ * Store Inventory (`/ops/:storeId/inventory`, specs/roadmap/inventory.md §2, §8), three tabs. The
+ * store never creates items or sees cost — stock arrives already labelled from the organization,
+ * and the store receives, places and moves it.
+ * - **Stock in hand** (`inventory.read`): stock on hand by location with offline Move, and the
+ *   store's categories.
+ * - **Incoming Stock** (`?tab=incoming`, everyone): dispatches from the organization (→ Receive,
+ *   `inventory.read` only), then the price-free purchase-trip feed.
+ * - **Stock rooms** (`?tab=rooms`, `inventory.read`): where stock lives — display locations and
+ *   the stock rooms attached to the store.
  */
 export default function InventoryPage() {
   const { storeId } = useParams<{ storeId: string }>();
@@ -59,32 +65,52 @@ export default function InventoryPage() {
   const [params, setParams] = useSearchParams();
 
   if (isLoading || !entitlements) return null;
-  const tab = params.get("tab") === "incoming" || !canRead ? "incoming" : "stock";
+  const asked = params.get("tab");
+  // Staff without inventory.read only get the price-free Incoming Stock tab.
+  const tab = !canRead ? "incoming" : asked === "incoming" || asked === "rooms" ? asked : "stock";
 
   return (
     <div className="space-y-6">
       <PageHeading>Inventory</PageHeading>
       <Tabs
         activeId={tab}
-        onChange={(id) => setParams(id === "incoming" ? { tab: "incoming" } : {}, { replace: true })}
+        onChange={(id) => setParams(id === "stock" ? {} : { tab: id }, { replace: true })}
         items={[
-          { id: "stock", label: "Inventory", disabled: !canRead },
+          { id: "stock", label: "Stock in hand", disabled: !canRead },
           { id: "incoming", label: "Incoming Stock" },
+          { id: "rooms", label: "Stock rooms", disabled: !canRead },
         ]}
       />
       {tab === "incoming" ? (
-        <IncomingStockPanel storeId={storeId!} />
+        <>
+          {/* Dispatches from the organization first — the part the store acts on (Receive). */}
+          {canRead && <IncomingCard storeId={storeId!} />}
+          <IncomingStockPanel storeId={storeId!} />
+        </>
+      ) : tab === "rooms" ? (
+        <WhereStockLivesCard storeId={storeId!} />
       ) : (
         <>
-          <IncomingCard storeId={storeId!} />
           <StockOnHandCard storeId={storeId!} canWrite={canWrite} />
-          <WhereStockLivesCard storeId={storeId!} />
           <CategoriesCard storeId={storeId!} />
         </>
       )}
     </div>
   );
 }
+
+/** Display locations (with their category tag) — put-away suggestions come from these. */
+function useDisplayPlaces(storeId: string) {
+  return useLiveQuery(
+    async () =>
+      (await db.stock_locations.where("store_id").equals(storeId).toArray())
+        .filter((l) => !l.deleted_at && l.id)
+        .map<PlaceCandidate>((l) => ({ id: l.id!, code: l.code, categoryId: l.category_id })),
+    [storeId],
+  );
+}
+
+const onDisplay = (r: StoreStockRow) => !r.warehouse_id && !!r.location_id;
 
 function StockOnHandCard({ storeId, canWrite }: { storeId: string; canWrite: boolean }) {
   const stock = useStoreStock(storeId);
@@ -93,7 +119,16 @@ function StockOnHandCard({ storeId, canWrite }: { storeId: string; canWrite: boo
   const sync = useSyncExternalStore(subscribeSyncStatus, getSyncStatus, getSyncStatus);
   const [query, setQuery] = useState("");
   const [moving, setMoving] = useState<StoreStockRow | null>(null);
+  const [scanNote, setScanNote] = useState<string | null>(null);
+  const categories = useCategoriesByStore(storeId);
+  const places = useDisplayPlaces(storeId);
   const { refetch } = stock;
+
+  /** Where an item belongs on display (the place tagged with its category), as a Move choice. */
+  const suggestionFor = (r: StoreStockRow) => {
+    const [first] = suggestPlaces(r.category_code, categories ?? [], places ?? []);
+    return first ? (destinations ?? []).find((d) => d.dest.locationId === first.id) : undefined;
+  };
 
   // A finished sync may have pushed this device's moves: refresh the server view.
   useEffect(() => {
@@ -129,6 +164,20 @@ function StockOnHandCard({ storeId, canWrite }: { storeId: string; canWrite: boo
 
   const total = rows.reduce((n, r) => n + r.quantity, 0);
   const unplaced = rows.filter((r) => !r.warehouse_id && !r.location_id).reduce((n, r) => n + r.quantity, 0);
+  const toPutAway = rows.filter((r) => !onDisplay(r)).reduce((n, r) => n + r.quantity, 0);
+
+  // Put-away: scanning a packet finds the item and, if some of it isn't on display yet, opens
+  // Move from there with the suggested place selected.
+  const onScan = (sku: string) => {
+    setScanNote(null);
+    if (locationFromScan(sku)) {
+      setScanNote("That's a place label. Scan an item's label first, then the place in the Move window.");
+      return;
+    }
+    setQuery(sku);
+    const from = rows.find((r) => r.sku === sku && !onDisplay(r));
+    if (canWrite && from) setMoving(from);
+  };
 
   return (
     <Card
@@ -148,12 +197,20 @@ function StockOnHandCard({ storeId, canWrite }: { storeId: string; canWrite: boo
           <Boxes className="mt-0.5 size-5 shrink-0" />
           <p>
             No stock yet. Items arrive already labelled from your organization; receive a dispatch
-            below and it shows up here by location.
+            on the <span className="font-medium text-fg">Incoming Stock</span> tab and it shows up here
+            by location.
           </p>
         </div>
       ) : (
         <>
-          <ScanInput label="Find by SKU or name" onScan={setQuery} />
+          {canWrite && toPutAway > 0 && (
+            <p className="mb-3 rounded-lg bg-brand-subtle-bg px-3 py-2 text-sm text-fg">
+              <span className="font-medium">{toPutAway} pcs</span> in the stock room or not placed yet. Scan a
+              packet to put it away — the app suggests where it goes.
+            </p>
+          )}
+          <ScanInput label="Scan a label, or type a SKU or name" onScan={onScan} />
+          {scanNote && <p className="mt-1 text-xs text-warning-text">{scanNote}</p>}
           {query && (
             <button type="button" className="mt-1 text-xs text-fg-muted underline" onClick={() => setQuery("")}>
               Clear “{query}”
@@ -169,6 +226,15 @@ function StockOnHandCard({ storeId, canWrite }: { storeId: string; canWrite: boo
                 <p className="truncate text-xs text-fg-muted">
                   {head.name} · {head.color} · {head.size} · MRP {formatInr(head.mrp_paise)}
                 </p>
+                {(() => {
+                  const sug = suggestionFor(head);
+                  if (!sug || !slots.some((sl) => !onDisplay(sl))) return null;
+                  return (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-brand">
+                      <MapPin size={12} /> Goes on: Display · {sug.label}
+                    </p>
+                  );
+                })()}
                 <ul className="mt-2 flex flex-wrap gap-2">
                   {slots.map((sl) => (
                     <li key={`${sl.warehouse_id}|${sl.location_id}`}>
@@ -196,6 +262,7 @@ function StockOnHandCard({ storeId, canWrite }: { storeId: string; canWrite: boo
           storeId={storeId}
           slot={moving}
           destinations={destinations ?? []}
+          suggested={suggestionFor(moving)}
           onClose={() => setMoving(null)}
         />
       )}
@@ -214,11 +281,14 @@ function MoveDialog({
   storeId,
   slot,
   destinations,
+  suggested,
   onClose,
 }: {
   storeId: string;
   slot: StoreStockRow;
   destinations: DestinationOption[];
+  /** Where the item belongs on display (category-tagged place), pre-selected. */
+  suggested?: DestinationOption;
   onClose: () => void;
 }) {
   const { member } = useMember();
@@ -230,7 +300,18 @@ function MoveDialog({
 
   const from: StoreDestination = { warehouseId: slot.warehouse_id, locationId: slot.location_id };
   const choices = destinations.filter((d) => d.key !== destKey(from) && d.group !== "Unplaced");
-  const [to, setTo] = useState(choices[0]?.key ?? "");
+  const suggestedKey = suggested && choices.some((c) => c.key === suggested.key) ? suggested.key : null;
+  const [to, setTo] = useState(suggestedKey ?? choices[0]?.key ?? "");
+
+  // Scan the place's QR label to pick it (put-away without scrolling a list).
+  const onPlaceScan = (raw: string) => {
+    const id = locationFromScan(raw);
+    if (!id) return setError("That isn't a place label — scan the QR on the rack or shelf.");
+    const hit = choices.find((c) => c.dest.locationId === id);
+    if (!hit) return setError("That place isn't in this store (or it's where the stock already is).");
+    setError(null);
+    setTo(hit.key);
+  };
   const [qty, setQty] = useState(String(slot.quantity));
   const [error, setError] = useState<string | null>(null);
 
@@ -266,6 +347,12 @@ function MoveDialog({
         </p>
       ) : (
         <div className="space-y-3">
+          {suggestedKey && (
+            <p className="flex items-center gap-1 text-sm text-brand">
+              <MapPin size={14} /> Suggested: Display · {suggested!.label}
+            </p>
+          )}
+          <ScanInput label="Scan the place's QR label" onScan={onPlaceScan} />
           <SingleSelect
             label="To"
             placeholder={null}
@@ -347,6 +434,9 @@ function IncomingCard({ storeId }: { storeId: string }) {
 
 function WhereStockLivesCard({ storeId }: { storeId: string }) {
   const links = useStoreWarehouseLinks(storeId);
+  const { data: myStores } = useMyStores([storeId]);
+  const orgId = myStores?.[0]?.organizationId;
+  const storeName = myStores?.[0]?.name ?? "Display";
   const data = useLiveQuery(async () => {
     const display = (
       await db.stock_locations.where("store_id").equals(storeId).toArray()
@@ -356,13 +446,18 @@ function WhereStockLivesCard({ storeId }: { storeId: string }) {
       ? (await db.warehouses.where("id").anyOf(roomIds).toArray()).filter((w) => !w.deleted_at)
       : [];
     const roomLocationCounts = new Map<string, number>();
+    const roomLocations = new Map<string, { id: string; code: string }[]>();
     for (const room of rooms) {
-      const n = (
-        await db.stock_locations.where("warehouse_id").equals(room.id!).toArray()
-      ).filter((l) => !l.deleted_at).length;
-      roomLocationCounts.set(room.id!, n);
+      const locs = (await db.stock_locations.where("warehouse_id").equals(room.id!).toArray()).filter(
+        (l) => !l.deleted_at && l.id,
+      );
+      roomLocationCounts.set(room.id!, locs.length);
+      roomLocations.set(
+        room.id!,
+        locs.map((l) => ({ id: l.id!, code: l.code })).sort((a, b) => a.code.localeCompare(b.code)),
+      );
     }
-    return { display, rooms, roomLocationCounts };
+    return { display, rooms, roomLocationCounts, roomLocations };
   }, [storeId, links]);
 
   if (!data) return null;
@@ -374,8 +469,18 @@ function WhereStockLivesCard({ storeId }: { storeId: string }) {
     .map(([type, n]) => `${n} ${type}${n === 1 ? "" : "s"}`)
     .join(" · ");
 
+  const displayLabels = data.display
+    .filter((l) => l.id)
+    .map((l) => ({ id: l.id!, code: l.code, place: `Display · ${storeName}` }))
+    .sort((a, b) => a.code.localeCompare(b.code));
+  const printBtn =
+    "inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-medium text-fg hover:bg-surface-2 disabled:opacity-50";
+
   return (
-    <Card title="Where stock lives" desc="Received stock is placed in a stock room or on display.">
+    <Card
+      title="Where stock lives"
+      desc="Received stock is placed in a stock room or on display. Stick a QR label on each place: when putting stock away, scan the item, then the place."
+    >
       <ul className="space-y-3 text-sm">
         <li className="flex items-start gap-3">
           <MapPin className="mt-0.5 size-5 shrink-0 text-fg-muted" />
@@ -384,6 +489,13 @@ function WhereStockLivesCard({ storeId }: { storeId: string }) {
             <p className="text-fg-muted">
               {data.display.length ? displaySummary : "No display locations set up yet."}
             </p>
+            {orgId && displayLabels.length > 0 && (
+              <div className="mt-2">
+                <LocationLabelsButton orgId={orgId} labels={displayLabels} className={printBtn}>
+                  <Printer size={14} /> Print place labels ({displayLabels.length})
+                </LocationLabelsButton>
+              </div>
+            )}
           </div>
         </li>
         <li className="flex items-start gap-3">
@@ -392,15 +504,29 @@ function WhereStockLivesCard({ storeId }: { storeId: string }) {
             <p className="font-medium text-fg">Stock rooms</p>
             {data.rooms.length ? (
               <ul className="text-fg-muted">
-                {data.rooms.map((r) => (
-                  <li key={r._localId} className="truncate">
-                    {r.name}
-                    {(() => {
-                      const n = data.roomLocationCounts.get(r.id!) ?? 0;
-                      return n ? ` · ${n} location${n === 1 ? "" : "s"}` : "";
-                    })()}
-                  </li>
-                ))}
+                {data.rooms.map((r) => {
+                  const locs = data.roomLocations.get(r.id!) ?? [];
+                  return (
+                    <li key={r._localId} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="truncate">
+                        {r.name}
+                        {(() => {
+                          const n = data.roomLocationCounts.get(r.id!) ?? 0;
+                          return n ? ` · ${n} location${n === 1 ? "" : "s"}` : "";
+                        })()}
+                      </span>
+                      {orgId && locs.length > 0 && (
+                        <LocationLabelsButton
+                          orgId={orgId}
+                          labels={locs.map((l) => ({ ...l, place: r.name }))}
+                          className={printBtn}
+                        >
+                          <Printer size={14} /> Print place labels ({locs.length})
+                        </LocationLabelsButton>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-fg-muted">No stock rooms attached to this store.</p>

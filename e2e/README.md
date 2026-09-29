@@ -17,6 +17,8 @@ Every flow runs twice: `desktop`, and `mobile-375`, a 375px phone viewport (cons
 | `org-setup-wizard.spec.ts` | Admin: Organization (demo, trial) → Stores (+ categories: 2 standard + 1 custom, re-checked and synced) → Stock setup (stock room) → Members (owner + primary contact, "Owner manages this store") → **Go live**; verifies `status = active` in the DB |
 | `purchase-trip.spec.ts` | Owner: plan → start → manual invoice + item → expense → **landed ₹1,050.00 / MRP ₹1,260.00** → complete; verifies the sync to Supabase |
 | `deliveries.spec.ts` | Owner: Pending → In Transit → Received (list buttons) → item check gates Verify → Verified → **Ready for Inventory**; verifies the DB |
+| `inventory.spec.ts` | Owner: left menu → Inventory → Ready for inventory · Categories (the Stock & dispatch tab is gone) |
+| `stock-flow.spec.ts` | Seeds a store (Sarees category, a Sarees rack, a stock room) and a Ready-for-Inventory invoice → Owner: Catalogue **+ Add item → Dispatch 10** (SKU created on first use) → Courier / DTDC / AWB → **Store: Incoming Stock → Receive** into the stock room → Stock in hand shows "Goes on: Display · SAREE-RACK" → scan the SKU → Move (rack pre-selected) → checks `store_stock` has 10 on the rack |
 | `offline-sync.spec.ts` | Owner: create a trip **offline** → Dexie row `_dirty = 1`, not on the server → reconnect → synced to Supabase, "Synced ✓" (§2.I, §7.2, §7.4) |
 
 ## Setup

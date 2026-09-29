@@ -5,9 +5,9 @@
 dispatch → receive → stock on hand → place/move. Catalogue screen reworked 2026-09-28 (§11
 "Catalogue UI rework"): one table grouped by invoice line, no Finalize button (SKU on first use),
 row stages with locks (§7). **Phase 2G (dispatch from the Catalogue with shipment details) is
-built client-side; its migration `20260928140000_dispatch_shipments` is written but NOT applied
-live** — dispatch, barcode reset and unlock fail until it is. Then 2F.
-**Version:** 2.6.0
+built & live (2026-09-28)**, with store **put-away** (§8: suggested rack, scan-to-move, rack QR
+labels). Next: 2F.
+**Version:** 2.7.0
 **Est:** see §11 (M3 is 36h in constitution §5 and needs revising; this spec's phases total ~50h)
 **Tracking:** [storenode/tallythreads-web#30](https://github.com/storenode/tallythreads-web/issues/30)
 **Builds on:** Deliveries (`deliveries.md`) → Stock Placement (`stock-placement.md`) → Warehouses /
@@ -288,6 +288,16 @@ last-write-wins. That is safe for descriptive fields but **wrong for quantities*
 devices each moving 2 pieces would overwrite each other. Movements are **insert-only** (no
 conflicts), and levels are computed from them. Clients show optimistic local levels until sync.
 
+**Put-away (built 2026-09-28).** Receive usually lands a dispatch in the stock room. Then, on the
+store's **Stock in hand** tab: a hint shows how many pieces aren't on display; each item says
+**"Goes on: Display · <rack>"** — the display location tagged with the item's category
+(`stock_locations.category_id`, `putAway.suggestPlaces`); **scanning a packet** opens Move from
+where it sits with that rack pre-selected (qty = all, editable); in Move, **scanning the rack's QR
+label** picks the destination. Rack / shelf QR labels (`TTLOC:<location id>`, read only by the
+in-app scanner) print from the **Stock rooms** tab ("Print place labels"). The item label is not
+changed: where a piece belongs is looked up live, never printed (it changes; the sticker doesn't).
+Moves stay offline-first (`stock_movements` via Dexie + outbox).
+
 **Adjustments:** store staff record them. `store_manager` approves up to a threshold (default 2
 units or ₹2,000 per adjustment, configurable per org); above that, the org approves.
 **Stock count** (Phase 2F): count a location by scanning; differences become proposed
@@ -453,7 +463,7 @@ Each phase ships on its own with tests, is verified offline where relevant, and 
 - [x] Removed: lot forecast card, MRP rounding card (§6), the "Finalize & labels" card, the
       per-line cards, the Labels page, the Inventory **Stock & dispatch** tab.
 
-### Phase 2G: Dispatch from the Catalogue with shipment details — **client built 2026-09-28; migration written, NOT applied live**
+### Phase 2G: Dispatch from the Catalogue with shipment details — **built & live 2026-09-28**
 Goal: dispatch straight from each Catalogue line and record **how** stock travels (courier AWB,
 bus/travels parcel LR, lorry, hand delivery), who pays the freight, and a photo of the LR/receipt.
 The org **Stock & dispatch** tab is then **removed**.
@@ -465,13 +475,16 @@ dispatch form and **← Back to items** (URL `?dispatch=1`, `?ship=<transfer>` f
 the phone back button works; after a reload the form falls back to the whole invoice); capture a
 **photo of the LR / courier receipt**.
 
-**Status:** everything below is built (`shipment.ts` + tests, `DispatchPanel.tsx`, Catalogue,
-Receive page, Ready-tab counts, old tab deleted). The migration
-`supabase/migrations/20260928140000_dispatch_shipments.sql` also carries: the partial-UNA-reissue
-quantity fix, the §7 lock trigger, `reset_item_sku`, `unlock_item_labels` +
-`inventory_item_unlocks`, and `hard_delete_organization` clean-up of `dispatch-receipts`.
-**Next:** rolled-back dry run on the live DB → founder go-ahead → apply → rename the file to the
-recorded version → one real dispatch on a demo org (org + store side) → `schema.md`.
+**Status:** built and **applied live** (`20260928140000_dispatch_shipments`, after a rolled-back dry
+run of 21 checks on demo data as the org owner and a Kadapa sales person, repeated against the live
+functions: courier needs an AWB; dispatch + shipment saved; dispatched rows locked; partial UNA
+reissue shrinks the UNA item (80 → 50); reset / unlock / printed-lock; store sees store-paid freight
+only; receive into the stock room; put-away onto the category rack). The migration also carries the
+§7 lock trigger, `reset_item_sku`, `unlock_item_labels` + `inventory_item_unlocks`, and
+`hard_delete_organization` clean-up of `dispatch-receipts` (see `schema.md` §3D).
+- [x] Store put-away (§8): suggested rack, scan-a-packet → Move, scan the rack QR, rack labels.
+- [x] `e2e/stock-flow.spec.ts`: Catalogue → Dispatch (courier) → Receive → put away, DB-checked at
+      each step. ⚠️ Needs `E2E_ADMIN_JWT` (not run in the build session).
 
 **DB (one migration; show the SQL to the founder before applying live):**
 - `stock_transfers` + nullable columns: `transport_mode` (CHECK courier/bus/lorry/hand/other),
@@ -590,6 +603,9 @@ Each store defines its own **categories/departments** (Sarees, Dress Material, K
 ---
 
 ## Changelog
+- **v2.7.0 (2026-09-28)**: Phase 2G **applied live**. Store put-away (§8): "Goes on" suggestion from
+  the category-tagged rack, scan a packet → Move, scan the rack's QR, rack / shelf QR labels. Store
+  Inventory tabs: Stock in hand · Incoming Stock (dispatches → Receive first) · Stock rooms.
 - **v2.6.0 (2026-09-28)**: Labels print a **QR code** of the public lookup link instead of Code128
   (full-SKU Code128 on 50 mm is too dense to scan); public item page `/s/:sku`; scanners read QR +
   Code128; iPhone scans from a photo. §5.2 records the decision, cost and durability tests.

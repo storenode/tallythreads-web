@@ -324,9 +324,10 @@ export function DispatchForm({
   const atOrg = (it: InventoryItem) => (it.id ? (holdings.get(it.id)?.atOrg ?? 0) : 0);
   const sendable = items.filter((it) => it.status === "finalized" && atOrg(it) > 0);
 
-  const [qty, setQty] = useState<Record<string, string>>(() =>
-    Object.fromEntries(sendable.map((it) => [it._localId, String(atOrg(it))])),
-  );
+  // Only what the user typed; the default is everything at the org. (Not seeded at mount: right
+  // after "Dispatch" creates a SKU, the item / stock numbers can arrive a render later.)
+  const [qty, setQty] = useState<Record<string, string>>({});
+  const qtyText = (it: InventoryItem) => qty[it._localId] ?? String(atOrg(it));
   const [unaStore, setUnaStore] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, ShipmentDraft>>({});
   const [sent, setSent] = useState<SentGroup[]>([]);
@@ -336,7 +337,7 @@ export function DispatchForm({
   const sentStores = new Set(sent.map((g) => g.storeId));
   const storeOf = (it: InventoryItem) => it.store_id ?? unaStore[it._localId] ?? "";
   const qtyOf = (it: InventoryItem) => {
-    const n = Number(qty[it._localId] ?? 0);
+    const n = Number(qtyText(it));
     return Number.isInteger(n) ? n : NaN;
   };
 
@@ -510,7 +511,7 @@ export function DispatchForm({
                           label="Send"
                           type="number"
                           inputMode="numeric"
-                          value={qty[it._localId] ?? ""}
+                          value={qtyText(it)}
                           onChange={(e) => setQty((q) => ({ ...q, [it._localId]: e.target.value }))}
                         />
                       </div>

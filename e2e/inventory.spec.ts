@@ -2,7 +2,8 @@ import { expect, test } from "./support/fixtures";
 
 // Inventory entry points (specs/roadmap/inventory.md §2): the org console has an
 // "Inventory" menu item for org roles (inventory.manage) that opens the org Inventory page
-// (Ready for inventory · Stock & dispatch · Categories).
+// (Ready for inventory · Categories). Dispatch lives on each invoice's Catalogue (Phase 2G) —
+// the full flow is e2e/stock-flow.spec.ts.
 
 test("org owner reaches Inventory from the left menu", async ({ ownerPage: page, demoOrg }) => {
   await page.goto(`/org/${demoOrg.id}`);
@@ -17,10 +18,8 @@ test("org owner reaches Inventory from the left menu", async ({ ownerPage: page,
   // A fresh org has nothing waiting — the empty state points at Deliveries.
   await expect(page.getByText("Nothing is waiting.")).toBeVisible();
 
-  // Nothing finalized yet: no stock at the org, no dispatches.
-  await page.getByRole("tab", { name: "Stock & dispatch" }).click();
-  await expect(page.getByText("No dispatches yet.")).toBeVisible();
-  await expect(page.getByText("0 pcs").first()).toBeVisible();
+  // The Stock & dispatch tab was retired (2026-09-28).
+  await expect(page.getByRole("tab", { name: "Stock & dispatch" })).toHaveCount(0);
 
   await page.getByRole("tab", { name: "Categories" }).click();
   await expect(page.getByText("No categories yet.")).toBeVisible();

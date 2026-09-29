@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import type { InventoryItem } from "@/db";
 import { skuLookupUrl } from "./codes";
 import { markLabelsPrinted } from "./distribution";
+import { locationQrValue } from "./putAway";
 import {
   labelMrp,
   layoutFromPref,
@@ -119,7 +120,7 @@ export function Label({ data, w, h }: { data: LabelData; w: number; h: number })
 }
 
 /** QR code as crisp SVG squares (with its 4-module quiet zone), `sizeMm` square. */
-function QrCode({ value, sizeMm }: { value: string; sizeMm: number }) {
+export function QrCode({ value, sizeMm }: { value: string; sizeMm: number }) {
   const { n, path } = useMemo(() => {
     const code = qrcode(0, "M");
     code.addData(value);
@@ -272,6 +273,123 @@ export function PrintLabelsButton({
             layout,
           )}
         />
+      )}
+    </>
+  );
+}
+
+// ── rack / shelf labels (put-away) ────────────────────────────────────────────────────────
+
+export type LocationLabelData = { id: string; code: string; place: string };
+
+/** A rack / shelf label: QR (TTLOC:<id>, read by the in-app scanner) + the location's name. */
+function LocationLabel({ data, w, h }: { data: LocationLabelData; w: number; h: number }) {
+  const pt = Math.min(Math.max(h * 0.3, 6), 12);
+  const pad = Math.min(1.5, h * 0.06);
+  const qr = Math.min(h - 2 * pad, w * 0.45);
+  return (
+    <div
+      style={{
+        boxSizing: "border-box",
+        width: `${w}mm`,
+        height: `${h}mm`,
+        padding: `${pad}mm ${pad * 1.4}mm`,
+        display: "flex",
+        alignItems: "center",
+        gap: `${pad}mm`,
+        fontFamily: "Arial, Helvetica, sans-serif",
+        color: "#000",
+        lineHeight: 1.15,
+      }}
+    >
+      <QrCode value={locationQrValue(data.id)} sizeMm={qr} />
+      <div style={{ minWidth: 0, flex: "1 1 0", display: "flex", flexDirection: "column", gap: "0.6mm" }}>
+        <div style={{ fontSize: `${pt * 0.55}pt`, letterSpacing: "0.08em" }}>PLACE</div>
+        <div style={{ fontSize: `${pt}pt`, fontWeight: 700, overflowWrap: "anywhere" }}>{data.code}</div>
+        <div style={{ fontSize: `${pt * 0.6}pt`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {data.place}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Print rack / shelf QR labels straight to the print dialog (org's last-used layout). Staff stick
+ * them on the racks; during put-away, scanning one picks that place as the destination.
+ */
+export function LocationLabelsButton({
+  orgId,
+  labels,
+  className,
+  children,
+}: {
+  orgId: string;
+  labels: LocationLabelData[];
+  className: string;
+  children: ReactNode;
+}) {
+  const [printing, setPrinting] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const layout = useMemo(() => layoutFromPref(orgId), [orgId]);
+  const print = useReactToPrint({
+    contentRef: sheetRef,
+    documentTitle: "Place labels",
+    pageStyle: `@page { size: ${layout.pageW}mm ${layout.pageH}mm; margin: 0 } html, body { margin: 0; padding: 0 }`,
+    onAfterPrint: () => setPrinting(false),
+  });
+  useEffect(() => {
+    if (printing) print();
+  }, [printing, print]);
+
+  const perPage = layout.cols * layout.rows;
+  const pages: LocationLabelData[][] = [];
+  for (let i = 0; i < labels.length; i += perPage) pages.push(labels.slice(i, i + perPage));
+
+  return (
+    <>
+      <button
+        type="button"
+        className={className}
+        disabled={!labels.length || printing}
+        onClick={() => setPrinting(true)}
+      >
+        {printing ? "Printing…" : children}
+      </button>
+      {printing && (
+        <div className="hidden">
+          <div ref={sheetRef}>
+            {pages.map((page, pi) => (
+              <div
+                key={pi}
+                style={{
+                  position: "relative",
+                  width: `${layout.pageW}mm`,
+                  height: `${layout.pageH}mm`,
+                  overflow: "hidden",
+                  breakAfter: pi === pages.length - 1 ? "auto" : "page",
+                  pageBreakAfter: pi === pages.length - 1 ? "auto" : "always",
+                }}
+              >
+                {page.map((cell, ci) => (
+                  <div
+                    key={cell.id}
+                    style={{
+                      position: "absolute",
+                      left: `${layout.marginLeft + (ci % layout.cols) * (layout.labelW + layout.gapX)}mm`,
+                      top: `${layout.marginTop + Math.floor(ci / layout.cols) * (layout.labelH + layout.gapY)}mm`,
+                      width: `${layout.labelW}mm`,
+                      height: `${layout.labelH}mm`,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <LocationLabel data={cell} w={layout.labelW} h={layout.labelH} />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </>
   );

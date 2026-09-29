@@ -5,7 +5,7 @@
 indexes, FK delete rules, RLS policies, triggers, functions and the migration history were
 re-read from the catalog. The live DB is authoritative; this doc is kept to match it, not the
 other way round. The ER diagram below is kept identical to `supabase/schema.mmd`.
-**Version:** 3.10.0
+**Version:** 3.11.0
 **Related:** `../constitution.md` (§6 architecture rules, §2.IX store models),
 `roles-and-permissions.md` (role/permission catalog), `franchise-settlement.md`
 (the settlement engine — proposed M1d, see §4).
@@ -14,19 +14,19 @@ other way round. The ER diagram below is kept identical to `supabase/schema.mmd`
 > `supabase db dump --linked --schema public -f schema.sql` and diff against this doc. Without
 > Docker, query `pg_class` / `pg_constraint` / `pg_policies` / `pg_proc` and
 > `supabase_migrations.schema_migrations` (local `supabase/migrations/` file names must match the
-> recorded versions — 71 of 71 did on 2026-09-28).
+> recorded versions — 73 of 73 did on 2026-09-28, after `20260928140000_dispatch_shipments`).
 
 ---
 
 ## 0. What actually exists
 
-**30 tables + 3 views are live, all with RLS enabled.** Grouped below: Identity & Device (2),
+**31 tables + 3 views are live, all with RLS enabled.** Grouped below: Identity & Device (2),
 Tenancy/Roles/Access (8), Franchise (3), Purchase-Trip (M4, 5), Stock Placement (§3B,
-`stock_locations`), Warehouses (§3C, 2), **Inventory (§3D, 7: `inventory_categories`,
+`stock_locations`), Warehouses (§3C, 2), **Inventory (§3D, 8: `inventory_categories`,
 `inventory_items`, `sku_counters`, `stock_transfers`, `stock_transfer_items`,
-`stock_movements`)**, Demo/QA (2). Views: `store_business_model` (§5), `incoming_stock` (§3A —
-price-free store-staff feed) and `stock_levels` (§3D — derived on-hand). Storage buckets:
-`org-logos` (public) and `receipts` (private). Conventions: UUID PKs (`gen_random_uuid()`), soft
+`stock_movements`, `inventory_item_unlocks`)**, Demo/QA (2). Views: `store_business_model` (§5),
+`incoming_stock` (§3A — price-free store-staff feed) and `stock_levels` (§3D — derived on-hand).
+Storage buckets: `org-logos` (public), `receipts` (private) and `dispatch-receipts` (private). Conventions: UUID PKs (`gen_random_uuid()`), soft
 delete (`deleted_at`), `last_modified_at` for last-write-wins where present (not on
 `sku_counters`), timestamps are `timestamptz`, money in integer paise.
 
@@ -84,6 +84,7 @@ erDiagram
     inventory_items ||--o{ stock_movements : "append-only log"
     stock_transfers ||--o{ stock_movements : "transfer_id"
     stock_movements ||--o{ stock_levels : "summed (view)"
+    inventory_items ||--o{ inventory_item_unlocks : "unlock audit"
 
     members {
         uuid id PK
@@ -304,6 +305,17 @@ erDiagram
         uuid to_store_id FK
         text status "CHECK dispatched|received"
         timestamptz dispatched_at_received_at
+        text transport_mode "courier|bus|lorry|hand|other"
+        text tracking_no "AWB / LR"
+        bigint freight_paise "freight_paid_by org|store"
+    }
+    inventory_item_unlocks {
+        uuid id PK
+        uuid item_id FK
+        text sku
+        int labels_printed
+        text reason
+        uuid member_id FK
     }
     stock_transfer_items {
         uuid id PK
@@ -669,6 +681,37 @@ Migration `20260927222247_inventory_distribution`. Spec: `../roadmap/inventory.m
   Helpers: `sku_segment(text)`, `next_inventory_sku(...)` (no API execute),
   `stock_location_in_store(...)`.
 
+
+### Dispatch shipments & item lock stages (Phase 2G, live 2026-09-28)
+Migration `20260928140000_dispatch_shipments` (dry-run verified as the org owner and a store sales
+person, then applied). Spec: `../roadmap/inventory.md` §7, §11 (Phase 2G).
+
+- **`stock_transfers` shipment columns** (all nullable): `transport_mode` (CHECK
+  courier/bus/lorry/hand/other), `carrier_name` (≤120), `tracking_no` (≤60, AWB / docket / LR),
+  `vehicle_no` (≤30), `contact_name` (≤120), `contact_phone` (≤20), `packages` (> 0),
+  `expected_at` date, `freight_paise` (≥ 0), `freight_paid_by` (CHECK org/store), `receipt_path`
+  (≤300); CHECK `stock_transfers_freight_needs_payer` (freight ⇒ payer).
+- **`inventory_item_unlocks`** — audit of printed items unlocked for correction: `organization_id`
+  (cascade), `item_id` (cascade), `sku`, `labels_printed`, `reason` (1–200 chars), `member_id`
+  (set null), `created_at`. RLS select for `inventory.manage`; **no write policies** (written only
+  by `unlock_item_labels`).
+- **Bucket `dispatch-receipts`** (private, 5 MB, jpeg/png/webp), path
+  `{organization_id}/{transfer_id}/{uuid}.jpg`. Policies: insert / delete while the transfer is
+  `dispatched` for `inventory.manage` (`can_write_dispatch_receipt`); select for the org or the
+  receiving store's `inventory.read` (`can_read_dispatch_receipt`). Both helpers parse the path
+  safely (no uuid-cast errors).
+- **Trigger `inventory_items_lock_rules`** (before update, definer; the RPC session flag is exempt):
+  on a finalized row, qty / delete need `reset_item_sku` first; once labels are printed
+  (`labels_printed > 0`) name / MRP / qty / delete are refused (unlock first); once any `dispatch`
+  movement exists they are refused for good. `labels_printed` stays writable.
+- **RPCs:** `dispatch_stock(store, lines, note, p_shipment jsonb default null)` (replaced the 3-arg
+  version; also shrinks a partially reissued UNA item instead of double-counting it);
+  `update_transfer_shipment(transfer, shipment)` (org, while `dispatched`); `reset_item_sku(item)`
+  (unprinted + undispatched → draft, `adjust` movement reverses the org stock, SKU number not
+  reused); `unlock_item_labels(item, reason)` (printed, undispatched → `labels_printed = 0` + audit
+  row). `store_incoming` adds a `shipment` object — `freight_paise` only when the store pays.
+  Internal (no API execute): `apply_transfer_shipment`. `hard_delete_organization` also clears
+  `dispatch-receipts`.
 ---
 
 ## 4. Demo & QA (admin-only tooling)
@@ -741,8 +784,9 @@ is revoked on the trigger functions and `next_inventory_sku`.
 `invite_organization_member`, `invite_store_member`, `update_member_profile`,
 `accept_pending_invitations`, `archive_store`, `restore_store`, `hard_delete_store`,
 `hard_delete_organization` (extended 2026-09-18 to purge warehouses + warehouse_stores +
-warehouse-owned stock_locations). Inventory: `finalize_inventory_items`, `dispatch_stock`,
-`receive_transfer`, `store_stock`, `store_incoming` (§3D).
+warehouse-owned stock_locations; 2026-09-28 also `dispatch-receipts`). Inventory:
+`finalize_inventory_items`, `dispatch_stock`, `receive_transfer`, `store_stock`, `store_incoming`,
+`update_transfer_shipment`, `reset_item_sku`, `unlock_item_labels` (§3D); public `lookup_sku`.
 
 ---
 
@@ -756,22 +800,6 @@ warehouse-owned stock_locations). Inventory: `finalize_inventory_items`, `dispat
   `../roadmap/shift-store-ops-log.md`; not migrated. Feeds M1d's `deduct_expenses`.
 - **Inventory Phase 2** (spec `../roadmap/inventory.md` §10) — 2A–2E are **live** (§3D). **Not yet
   migrated:** `label_prints` (print audit), store → store transfers, adjustments / stock count (2F).
-- **⚠️ Written, NOT applied — `supabase/migrations/20260928140000_dispatch_shipments.sql`**
-  (Phase 2G + the §7 row stages, `inventory.md` v2.5.0). This document describes the live DB, so
-  none of this is in §1–§6 yet; move it there once applied and re-verified:
-  - `stock_transfers` + shipment columns `transport_mode` (courier/bus/lorry/hand/other),
-    `carrier_name`, `tracking_no`, `vehicle_no`, `contact_name`, `contact_phone`, `packages`,
-    `expected_at`, `freight_paise`, `freight_paid_by` (org/store; required with freight),
-    `receipt_path`.
-  - New table `inventory_item_unlocks` (audit: item, sku, labels_printed, reason, member,
-    created_at; select for `inventory.manage`; written only by `unlock_item_labels`).
-  - Private bucket `dispatch-receipts` (`{org}/{transfer}/…`, images ≤ 5 MB) with policies via
-    `can_read_dispatch_receipt` / `can_write_dispatch_receipt`.
-  - RPCs: `dispatch_stock(store, lines, note, p_shipment)` (replaces the 3-arg version; also
-    shrinks a partially reissued UNA item), `update_transfer_shipment`, `reset_item_sku`,
-    `unlock_item_labels`; `store_incoming` adds `shipment` (freight only when the store pays);
-    internal `apply_transfer_shipment`; trigger `inventory_items_lock_rules`;
-    `hard_delete_organization` also clears `dispatch-receipts`.
 - **`store_knowledge`** (pgvector embeddings) + the `store-agent` edge function — the **Assistant**
   (store chat / RAG + tool-use). Designed in `../roadmap/assistant.md`; not migrated (needs the
   `vector` extension). Invoices / GST — M5. `content_items` (AI Studio) — see
@@ -787,16 +815,23 @@ or writes exists live — `devices`, `members`, `memberships`, `organizations`, 
 `purchase_*` / `trip_*` tables, `warehouses`, `warehouse_stores`, `stock_locations`,
 `inventory_categories`, `inventory_items`, `stock_transfers`, `stock_movements` (sync push), and the
 views `incoming_stock` / `stock_levels` — as do all 12 RPCs it calls and the `org-logos` /
-`receipts` buckets. *(Since the Phase 2G client, 2026-09-28, the app
-also calls `update_transfer_shipment`, `reset_item_sku`, `unlock_item_labels`, the 4-arg
-`dispatch_stock` and the `dispatch-receipts` bucket — **not live until the pending migration
-above is applied**.)* Not yet used by the app: `access_grants`, `channels`, `settlement_rules`,
+`receipts` buckets. *(Since Phase 2G, 2026-09-28, the app also calls
+`update_transfer_shipment`, `reset_item_sku`, `unlock_item_labels`, the 4-arg `dispatch_stock` and
+the `dispatch-receipts` bucket — all live.)* Not yet used by the app: `access_grants`, `channels`, `settlement_rules`,
 `demo_scenarios`, `qa_test_cases` are admin/future tables; `stock_transfer_items` is read embedded
 in `stock_transfers`.
 
 ---
 
 ## 8. Changelog
+
+- **v3.11.0 (2026-09-28)** — **Phase 2G live** (`20260928140000_dispatch_shipments`, applied after a
+  rolled-back dry run of 21 checks as the org owner and a store sales person — repeated against
+  the live functions): `stock_transfers` shipment columns, `inventory_item_unlocks`, the private
+  `dispatch-receipts` bucket + policies, the `inventory_items_lock_rules` trigger, the 4-arg
+  `dispatch_stock` (+ partial-UNA quantity fix), `update_transfer_shipment`, `reset_item_sku`,
+  `unlock_item_labels`, `store_incoming` shipment, `hard_delete_organization` bucket clean-up.
+  Counts: 31 tables, 6 triggers, 73 recorded migrations.
 
 - **v3.10.0 (2026-09-28)** — **`lookup_sku(text)` live** (`20260928192617_public_sku_lookup`):
   public, price-free, read-only barcode lookup (SECURITY DEFINER, EXECUTE granted to `anon` and

@@ -281,6 +281,10 @@ matrix a reviewer or investor would want to see, per org type.
 
 ## Relationship to the rest of Inventory
 
+- **Put-away + place QR labels (2026-09-28):** the category tag now drives the store's put-away
+  suggestion ("Goes on: Display · <rack>" for items of that category — `inventory.md` §8), and each
+  location can get a printed QR label (`TTLOC:<location id>`, Stock rooms tab → "Print place
+  labels"): scanning it in the Move window picks that place.
 - **Category tag (2026-09-26):** a location can carry an optional `category_id` → the store's
   `inventory_categories` (see `inventory.md` §3D), e.g. "this rack is Kids". Set via a category
   dropdown on the placement form; **store-owned locations only** (categories are store-scoped).

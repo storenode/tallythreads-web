@@ -63,7 +63,7 @@ export default function ReceivePage() {
       <Card>
         <p className="text-sm text-fg-muted">
           {incoming.error ? "Receiving needs a connection. " : "This dispatch isn't waiting at this store. "}
-          <Link to={`/ops/${storeId}/inventory`} className="text-tt-green-600 hover:underline">
+          <Link to={`/ops/${storeId}/inventory?tab=incoming`} className="text-tt-green-600 hover:underline">
             Back to Inventory
           </Link>
         </p>
@@ -112,7 +112,7 @@ export default function ReceivePage() {
     <div className="space-y-6">
       <PageHeading
         action={
-          <Link to={`/ops/${storeId}/inventory`} className="text-sm font-medium text-fg-muted hover:text-fg">
+          <Link to={`/ops/${storeId}/inventory?tab=incoming`} className="text-sm font-medium text-fg-muted hover:text-fg">
             ← Inventory
           </Link>
         }

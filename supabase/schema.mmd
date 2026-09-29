@@ -47,6 +47,7 @@ erDiagram
     inventory_items ||--o{ stock_movements : "append-only log"
     stock_transfers ||--o{ stock_movements : "transfer_id"
     stock_movements ||--o{ stock_levels : "summed (view)"
+    inventory_items ||--o{ inventory_item_unlocks : "unlock audit"
 
     members {
         uuid id PK
@@ -267,6 +268,17 @@ erDiagram
         uuid to_store_id FK
         text status "CHECK dispatched|received"
         timestamptz dispatched_at_received_at
+        text transport_mode "courier|bus|lorry|hand|other"
+        text tracking_no "AWB / LR"
+        bigint freight_paise "freight_paid_by org|store"
+    }
+    inventory_item_unlocks {
+        uuid id PK
+        uuid item_id FK
+        text sku
+        int labels_printed
+        text reason
+        uuid member_id FK
     }
     stock_transfer_items {
         uuid id PK
