@@ -389,6 +389,10 @@ tablet carries several members, each with an independent PIN.
 custom JWT `sub=members.id`, 30-day) → device enroll → `set-pin` → `verify-pin`. Session
 cached in Dexie keyed by `member_id` (offline-capable). Edge functions:
 `supabase/functions/{mint-member-session,set-pin,verify-pin,demo-login}`.
+`demo-login` = admin **launch links**: `issue` (platform admin only) → a 30-minute grant token (not
+an API credential) → `redeem` at `/demo/launch` → a normal member session. The **deployed** version
+accepts members of `is_demo` orgs only; the code in the repo (2026-09-29) accepts any active member
+of a live organization — pending deploy.
 
 ---
 

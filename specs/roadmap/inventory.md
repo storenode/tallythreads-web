@@ -543,7 +543,9 @@ journal. Add "store-paid freight in franchise settlement" to `backlog.md`.
 
 ### Phase 2E: Store stock — **built & live 2026-09-28**
 - [x] `store_stock(store)` RPC (price-free: no landed cost; MRP shown as on the label).
-- [x] Store **Inventory** tab: Incoming (→ Receive), **Stock on hand** by slot (stock room ·
+- [x] *(Reorganised 2026-09-28 into tabs **Stock in hand** · **Incoming Stock** (dispatches →
+      Receive, then the trip feed) · **Stock rooms** — see §8 put-away.)* Store **Inventory** tab:
+      Incoming (→ Receive), **Stock on hand** by slot (stock room ·
       location / display · location / unplaced), find by SKU or name (scan), last good result
       cached per store for offline.
 - [x] **Place / Move** dialog: `stock_movements` row (`place` from unplaced, else `move`) through

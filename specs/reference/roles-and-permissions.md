@@ -43,7 +43,7 @@ Every row below is tagged with one of three statuses, because "the role exists" 
 
 | Role | Scope | Status | What it's for |
 |---|---|---|---|
-| `platform_admin` | platform | Live | Everything, everywhere — provisions organizations, manages platform metadata (roles/permissions screens), universal read/write via `is_platform_admin()` |
+| `platform_admin` | platform | Live | Everything, everywhere — provisions organizations, manages platform metadata (roles/permissions screens), universal read/write via `is_platform_admin()`. Can also **sign in as any organization member** with a launch link (`/admin/demo`, and since 2026-09-29 `/admin/organizations` for any org — see §7) |
 | `platform_editor` | platform | Seeded (2026-08-26) | AI Studio: drafts content (`content.create`) for stores they're assigned to — a store-scoped `memberships` row per M1b §1.3, same mechanism as store staff |
 | `platform_content_lead` | platform | Seeded (2026-08-26) | AI Studio: reviews and publishes editors' drafts (`content.review`, `content.publish`), also drafts directly |
 | `org_owner` | organization | Live | Everything within the org: create stores, invite/remove Owner/Manager/Accountant, full financial visibility (`settlement.read`, `org.manage_members`) |
@@ -140,6 +140,12 @@ stay org-level-only (`org_owner`/`org_accountant`)? Drafted leaning toward "no" 
 now, symmetric with `org_manager` not having `settlement.read` — flag if that's wrong.
 
 ## 7. Changelog
+
+- **2026-09-29 — Launch links for any organization.** Only `platform_admin` can issue them
+  (`demo-login` "issue"); a link signs in as the chosen member (owner, manager, store staff —
+  their own permissions apply, nothing is elevated). Previously demo orgs only; now any active
+  member of a live org, no extra checks (founder decision, constitution §8 v1.21.0). The deployed
+  edge function still enforces demo-only until it is redeployed.
 
 - **2026-09-28 — Store memberships no longer count as org-level.** `has_org_permission` /
   `has_store_permission` now require `store_id IS NULL` for the org branch (see §5). Verified

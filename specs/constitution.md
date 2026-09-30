@@ -1,6 +1,6 @@
 # TallyThreads — Project Constitution
 
-**Version:** 1.20.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-28 · **Status:** Active
+**Version:** 1.21.0 · **Ratified:** 2026-08-18 · **Last amended:** 2026-09-29 · **Status:** Active
 
 This document is the source of truth for how TallyThreads is built. Any human contributor
 or AI coding agent (Claude Code, etc.) working on this repo MUST read this file first and
@@ -452,7 +452,18 @@ This constitution may be amended, but not casually. An amendment requires:
 
 ### Changelog
 
-- **2026-09-28 (latest) — Inventory: SKU on first use, lock at print / dispatch, dispatch from the
+- **2026-09-29 (latest) — Admin launch links for any organization; v1.21.0.** Evidence: the founder
+  needs to open real (non-demo) organizations as their members — for support, walkthroughs and
+  AI-driven testing (Claude) — without flipping `is_demo`. Decided: the platform admin can issue a
+  short-lived (30 min) launch link for **any member at any level of any organization** from
+  `/admin/organizations`, exactly like the demo launch links (2026-09-19): **no extra checks** —
+  no reason, no audit table, not single-use — and no "signed in via admin link" banner for now.
+  Boundaries that remain: only a platform admin can issue; the member must hold an active
+  membership in a live organization (so a platform admin can't be launched as); the grant token is
+  not an API credential. This knowingly accepts admin impersonation of real users; revisit
+  (audit / reason / banner) before onboarding customers beyond the founder's own orgs.
+  `demo-login` edge function + `LaunchLinksControl`; journal 2026-09-29.
+- **2026-09-28 — Inventory: SKU on first use, lock at print / dispatch, dispatch from the
   Catalogue; v1.20.0.** Evidence: walking the real flow with the founder — stickers go on the
   packets right after printing, and mistakes (wrong size / colour / store) are found before
   dispatch. A separate Finalize step added a click without protecting anything, while edits after
