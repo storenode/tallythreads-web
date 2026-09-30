@@ -7,7 +7,8 @@ interface IssueResponse {
 }
 
 /**
- * Issues a short-lived "launch as this demo member" link (platform-admin only). The
+ * Issues a short-lived "launch as this member" link (platform-admin only) for a member of any
+ * organization, demo or not (used by LaunchLinksControl on /admin/demo and /admin/organizations). The
  * caller's admin JWT authorizes the request; the returned URL carries a grant token in
  * its hash fragment, which /demo/launch redeems for a real member session — see the
  * demo-login edge function.

@@ -9,11 +9,13 @@ interface ModalProps {
   children: ReactNode;
   /** false → no ✕, no Escape, no backdrop click: the user must pick one of the dialog's buttons. */
   dismissible?: boolean;
+  /** Panel width: "md" (default) or "xl" for wide content such as tables. */
+  size?: "md" | "xl";
 }
 
 /** Minimal centered dialog, portaled to document.body so it isn't clipped by
  * ancestors like DataTable's `overflow-hidden` card. */
-export function Modal({ open, onClose, title, children, dismissible = true }: ModalProps) {
+export function Modal({ open, onClose, title, children, dismissible = true, size = "md" }: ModalProps) {
   useEffect(() => {
     if (!open || !dismissible) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -28,7 +30,12 @@ export function Modal({ open, onClose, title, children, dismissible = true }: Mo
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-fg/40" onClick={dismissible ? onClose : undefined} aria-hidden />
-      <div className="relative w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-lg">
+      {/* Scrolls inside when taller than the screen (long member lists, tables). */}
+      <div
+        className={`relative max-h-[90dvh] w-full overflow-y-auto rounded-2xl border border-border bg-surface p-6 shadow-lg ${
+          size === "xl" ? "max-w-4xl" : "max-w-md"
+        }`}
+      >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-medium text-fg">{title}</h3>
           {dismissible && (

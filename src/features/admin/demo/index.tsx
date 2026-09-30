@@ -16,7 +16,7 @@ import { FRANCHISE_DEMO_DEFAULTS } from "./components/franchise.demo";
 import { CreateIndependentForm } from "./components/independent.form";
 import { CreateChainForm } from "./components/chain.form";
 import { CreateFranchiseForm } from "./components/franchise.form";
-import { DemoLaunchControl } from "./components/DemoLaunchControl";
+import { LaunchLinksControl } from "../organizations/LaunchLinksControl";
 
 interface DemoSlot {
   type: RegistrationType;
@@ -145,7 +145,7 @@ export default function DemoPage() {
               <OrganizationCard
                 key={slot.type}
                 org={org}
-                action={<DemoLaunchControl org={org} />}
+                action={<LaunchLinksControl org={org} />}
               />
             ) : (
               <EmptyDemoCard

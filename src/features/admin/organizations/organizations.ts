@@ -504,6 +504,8 @@ export interface OrgMemberRow {
   lastName: string | null;
   isActive: boolean;
   joinedAt: string;
+  /** Store-level membership (store staff / manager) → that store; null = org-level. */
+  storeId: string | null;
 }
 
 // supabase-js's nested-select shape isn't in generated types here (no codegen set up
@@ -511,6 +513,7 @@ export interface OrgMemberRow {
 interface RawMembershipRow {
   id: string;
   member_id: string;
+  store_id: string | null;
   created_at: string;
   roles: { name: string } | null;
   members: {
@@ -527,7 +530,7 @@ export async function fetchOrganizationMembers(
   const { data, error } = await supabase
     .from("memberships")
     .select(
-      "id, member_id, created_at, roles(name), members(google_email, first_name, last_name, is_active)",
+      "id, member_id, store_id, created_at, roles(name), members(google_email, first_name, last_name, is_active)",
     )
     .eq("organization_id", orgId)
     .is("deleted_at", null)
@@ -543,6 +546,7 @@ export async function fetchOrganizationMembers(
     lastName: row.members?.last_name ?? null,
     isActive: row.members?.is_active ?? false,
     joinedAt: row.created_at,
+    storeId: row.store_id,
   }));
 }
 

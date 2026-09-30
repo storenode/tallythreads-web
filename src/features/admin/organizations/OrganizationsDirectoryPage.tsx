@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { useOrganizations } from "./organizations";
 import { OrganizationCard } from "./OrganizationCard";
+import { LaunchLinksControl } from "./LaunchLinksControl";
 
 /**
  * The organizations directory — the proper entry point (from the left nav) to
  * every organization. Shows the org cards grid and "Add Organization"; each
- * card opens the setup wizard. Replaces the old OrganizationListPage, and is
+ * card opens the setup wizard and carries "Launch links" (sign in as any of the org's
+ * members — admin only, like the demo page). Replaces the old OrganizationListPage, and is
  * the same card the demo page uses.
  */
 export default function OrganizationsDirectoryPage() {
@@ -49,7 +51,7 @@ export default function OrganizationsDirectoryPage() {
       {(organizations?.length ?? 0) > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {organizations!.map((org) => (
-            <OrganizationCard key={org.id} org={org} />
+            <OrganizationCard key={org.id} org={org} action={<LaunchLinksControl org={org} />} />
           ))}
         </div>
       )}

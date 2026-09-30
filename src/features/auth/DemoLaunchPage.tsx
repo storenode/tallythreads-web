@@ -44,7 +44,7 @@ export default function DemoLaunchPage() {
     async function run() {
       const token = readTokenFromHash();
       if (!token) {
-        setError("This demo link is missing its token. Ask for a new one.");
+        setError("This launch link is missing its token. Ask for a new one.");
         return;
       }
 
@@ -54,7 +54,7 @@ export default function DemoLaunchPage() {
         });
 
       if (fnError || !data) {
-        let message = "This demo link is invalid or has expired. Ask for a new one.";
+        let message = "This launch link is invalid or has expired. Ask for a new one.";
         if (fnError && "context" in fnError && fnError.context instanceof Response) {
           try {
             const body = await fnError.context.clone().json();
@@ -82,7 +82,7 @@ export default function DemoLaunchPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg p-6 text-center">
       <p className={error ? "text-sm text-red-500" : "text-fg-muted"}>
-        {error ?? "Opening the demo…"}
+        {error ?? "Signing you in…"}
       </p>
     </div>
   );
